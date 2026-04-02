@@ -1,0 +1,4 @@
+﻿Analyzing tartelea_flutter...                                   
+
+   info - The import of 'dart:ui' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/material.dart' - lib\presentation\screens\index_screen.dart:1:8 - unnecessary_import
+
