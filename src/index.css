@@ -1,0 +1,253 @@
+@import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Earth & Crown Palette - Earthy Browns, Matte Gold, Pure Sand */
+    --background: 38 33% 95%;
+    --foreground: 24 40% 16%;
+
+    --card: 40 35% 97%;
+    --card-foreground: 24 40% 16%;
+
+    --popover: 40 35% 97%;
+    --popover-foreground: 24 40% 16%;
+
+    /* Deep Earthy Brown - Primary */
+    --primary: 24 42% 22%;
+    --primary-foreground: 38 40% 96%;
+
+    /* Warm Sand */
+    --secondary: 38 30% 90%;
+    --secondary-foreground: 24 35% 22%;
+
+    --muted: 36 22% 91%;
+    --muted-foreground: 24 18% 46%;
+
+    /* Matte Gold Accent */
+    --accent: 43 65% 53%;
+    --accent-foreground: 24 40% 12%;
+
+    --destructive: 0 60% 48%;
+    --destructive-foreground: 38 40% 96%;
+
+    --border: 36 25% 84%;
+    --input: 36 25% 87%;
+    --ring: 43 65% 53%;
+
+    --radius: 0.875rem;
+
+    /* Sidebar */
+    --sidebar-background: 36 28% 93%;
+    --sidebar-foreground: 24 35% 22%;
+    --sidebar-primary: 24 42% 22%;
+    --sidebar-primary-foreground: 38 40% 96%;
+    --sidebar-accent: 36 30% 87%;
+    --sidebar-accent-foreground: 24 35% 22%;
+    --sidebar-border: 36 25% 84%;
+    --sidebar-ring: 43 65% 53%;
+
+    /* Spiritual tokens */
+    --spiritual-green: 145 28% 32%;
+    --spiritual-green-light: 145 22% 42%;
+    --warm-beige: 38 30% 90%;
+    --warm-cream: 38 33% 95%;
+    --gold-muted: 43 65% 53%;
+    --gold-light: 43 50% 72%;
+    --earth-brown: 24 42% 22%;
+    --earth-brown-light: 24 30% 35%;
+    --sudan-red: 0 60% 44%;
+    --sudan-black: 0 0% 12%;
+    --sudan-green: 145 48% 28%;
+
+    /* Warm glow */
+    --sanctuary-glow: 43 60% 80%;
+    --sanctuary-shadow: 24 30% 18%;
+  }
+
+  .dark {
+    --background: 24 22% 8%;
+    --foreground: 36 30% 90%;
+
+    --card: 24 18% 11%;
+    --card-foreground: 36 30% 90%;
+
+    --popover: 24 18% 11%;
+    --popover-foreground: 36 30% 90%;
+
+    --primary: 43 55% 50%;
+    --primary-foreground: 24 22% 8%;
+
+    --secondary: 24 18% 16%;
+    --secondary-foreground: 36 30% 90%;
+
+    --muted: 24 14% 18%;
+    --muted-foreground: 36 18% 60%;
+
+    --accent: 43 50% 42%;
+    --accent-foreground: 36 30% 90%;
+
+    --destructive: 0 50% 38%;
+    --destructive-foreground: 36 30% 90%;
+
+    --border: 24 14% 20%;
+    --input: 24 14% 20%;
+    --ring: 43 55% 50%;
+
+    --sidebar-background: 24 18% 11%;
+    --sidebar-foreground: 36 30% 90%;
+    --sidebar-primary: 43 55% 50%;
+    --sidebar-primary-foreground: 24 22% 8%;
+    --sidebar-accent: 24 14% 16%;
+    --sidebar-accent-foreground: 36 30% 90%;
+    --sidebar-border: 24 14% 20%;
+    --sidebar-ring: 43 55% 50%;
+
+    --spiritual-green: 145 30% 42%;
+    --spiritual-green-light: 145 25% 52%;
+    --warm-beige: 24 18% 16%;
+    --warm-cream: 24 22% 8%;
+    --gold-muted: 43 50% 42%;
+    --gold-light: 43 40% 30%;
+    --earth-brown: 36 28% 78%;
+    --earth-brown-light: 36 22% 60%;
+    --sudan-red: 0 50% 42%;
+    --sudan-black: 0 0% 8%;
+    --sudan-green: 145 42% 32%;
+    --sanctuary-glow: 43 40% 25%;
+    --sanctuary-shadow: 24 20% 6%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    direction: rtl;
+  }
+
+  html.transitioning,
+  html.transitioning *,
+  html.transitioning *::before,
+  html.transitioning *::after {
+    transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease !important;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body antialiased;
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23d4af37' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display;
+  }
+}
+
+@layer components {
+  .content-card {
+    @apply bg-card rounded-2xl p-4 border border-border shadow-sm transition-all duration-300 hover:shadow-lg hover:shadow-accent/5;
+  }
+
+  .post-card {
+    @apply bg-card rounded-2xl p-4 border border-border shadow-sm;
+  }
+
+  .nav-item {
+    @apply flex flex-col items-center justify-center gap-1 p-2 text-muted-foreground transition-colors;
+  }
+
+  .nav-item-active {
+    @apply text-primary;
+  }
+
+  .filter-chip {
+    @apply px-3 py-1.5 rounded-full text-sm border border-border bg-secondary text-secondary-foreground transition-all;
+  }
+
+  .filter-chip-active {
+    @apply bg-primary text-primary-foreground border-primary;
+  }
+
+  .sudan-gradient {
+    @apply bg-gradient-to-r from-sudan-black via-sudan-red to-sudan-green;
+  }
+
+  /* Elevated card style */
+  .sanctuary-card {
+    @apply bg-card rounded-2xl p-6 border border-accent/20 shadow-lg relative overflow-hidden;
+  }
+
+  .sanctuary-card::before {
+    content: '';
+    @apply absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent pointer-events-none;
+  }
+
+  /* Glowing gold border */
+  .gold-border {
+    @apply border border-accent/30 shadow-sm;
+    box-shadow: 0 0 15px -5px hsl(var(--accent) / 0.15);
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.6s ease-out forwards;
+    opacity: 0;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .delay-1000 {
+    animation-delay: 1s;
+  }
+
+  /* Soft breathing animation */
+  @keyframes breathe {
+    0%, 100% { opacity: 0.4; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(1.05); }
+  }
+
+  .animate-breathe {
+    animation: breathe 4s ease-in-out infinite;
+  }
+
+  /* Safe area support for notched devices */
+  .safe-area-pb {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  html {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+@keyframes floatUp {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-120px) scale(1.5);
+  }
+}

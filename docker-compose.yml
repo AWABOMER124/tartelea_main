@@ -1,0 +1,44 @@
+services:
+  # Database
+  db:
+    image: postgres:15-alpine
+    container_name: tartelea-db
+    environment:
+      POSTGRES_DB: tartelea-db
+      POSTGRES_USER: tartelea
+      POSTGRES_PASSWORD: 3pi5qicdt9horfyj
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+
+  # Backend API
+  backend:
+    build: ./backend
+    container_name: tartelea-backend
+    ports:
+      - "3000:3000"
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=tartelea-db
+      - DB_USER=tartelea
+      - DB_PASSWORD=3pi5qicdt9horfyj
+      - JWT_SECRET=tartelea_secret_key_2026
+    volumes:
+      - ./backend/uploads:/app/uploads
+    depends_on:
+      - db
+
+  # Frontend (Admin Dashboard)
+  frontend:
+    build: .
+    container_name: tartelea-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

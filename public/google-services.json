@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "199107182598",
+    "project_id": "tartelea-9ff66",
+    "storage_bucket": "tartelea-9ff66.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:199107182598:android:339b79e53a6fc3de0ec387",
+        "android_client_info": {
+          "package_name": "app.lovable.Oa84ea982f6a4176bdebc476f405cc60"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBQ_XaRm0Kc13-iMBXWYsH9vztU_akP2Nc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

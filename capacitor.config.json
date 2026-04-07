@@ -1,0 +1,31 @@
+{
+  "appId": "app.lovable.0a84ea982f6a4176bdebc476f405cc60",
+  "appName": "tartelea",
+  "webDir": "dist",
+  "server": {
+    "url": "https://0a84ea98-2f6a-4176-bdeb-c476f405cc60.lovableproject.com?forceHideBadge=true",
+    "cleartext": true
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "backgroundColor": "#F2EDE4",
+      "showSpinner": false,
+      "androidScaleType": "CENTER_CROP",
+      "splashFullScreen": true,
+      "splashImmersive": true
+    },
+    "StatusBar": {
+      "style": "LIGHT",
+      "backgroundColor": "#F2EDE4"
+    },
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert"]
+    }
+  },
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  }
+}
