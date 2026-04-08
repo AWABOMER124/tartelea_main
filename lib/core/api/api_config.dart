@@ -1,6 +1,8 @@
 class ApiConfig {
-  static const String baseUrl =
-      'http://72.62.41.242:3000/api'; // Replace with VPS IP for production
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'https://api.example.com/api',
+  );
 
   // Auth endpoints
   static const String login = '/auth/login';

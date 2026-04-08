@@ -6,10 +6,17 @@ final supabaseProvider = Provider<SupabaseClient>((ref) {
 });
 
 class SupabaseConfig {
-  static const url = 'https://lljpwkhilumfdoznxeiq.supabase.co';
-  static const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxsanB3a2hpbHVtZmRvem54ZWlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NDY1MDMsImV4cCI6MjA4OTIyMjUwM30.GPhpE5Jhdvr1cUVTCV-WPodrvSYn8_jgFgv61gmUgko';
-  
+  static const String url = String.fromEnvironment('SUPABASE_URL');
+  static const String anonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
+
   static Future<void> initialize() async {
+    if (url.isEmpty || anonKey.isEmpty) {
+      throw StateError(
+        'Supabase environment values are missing. '
+        'Provide SUPABASE_URL and SUPABASE_ANON_KEY via --dart-define.',
+      );
+    }
+
     await Supabase.initialize(
       url: url,
       anonKey: anonKey,

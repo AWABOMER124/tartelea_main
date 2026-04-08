@@ -8,7 +8,7 @@ class PostRepository {
 
   Future<List<PostModel>> getPosts({String? category}) async {
     final response = await _api.get('/posts', queryParameters: {
-      'category': ?category,
+      if (category != null) 'category': category,
     });
     
     return (response.data as List)

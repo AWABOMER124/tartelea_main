@@ -32,7 +32,7 @@ class ContentRepositoryImpl implements ContentRepository {
       // محاولة جلب من API
       final response = await _api.get(ApiConfig.contents, queryParameters: {
         if (category != null) 'category': category.name,
-        'is_sudan_awareness': ?isSudanAwareness,
+        if (isSudanAwareness != null) 'is_sudan_awareness': isSudanAwareness,
       });
 
       final items = (response.data as List)

@@ -22,15 +22,21 @@ import 'presentation/screens/profile_screen.dart';
 import 'presentation/screens/splash_screen.dart';
 import 'presentation/screens/messages_screen.dart';
 import 'presentation/screens/learning_portfolio_screen.dart';
+import 'presentation/screens/system_config_error_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  await SupabaseConfig.initialize();
-  
+
+  String? initError;
+  try {
+    await SupabaseConfig.initialize();
+  } catch (e) {
+    initError = e.toString();
+  }
+
   runApp(
-    const ProviderScope(
-      child: TarteleaApp(),
+    ProviderScope(
+      child: TarteleaApp(initError: initError),
     ),
   );
 }
@@ -136,12 +142,25 @@ final _router = GoRouter(
 );
 
 class TarteleaApp extends ConsumerWidget {
-  const TarteleaApp({super.key});
+  final String? initError;
+
+  const TarteleaApp({super.key, this.initError});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeProvider);
-    
+
+    if (initError != null) {
+      return MaterialApp(
+        title: 'Tartelea',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: themeMode,
+        home: SystemConfigErrorScreen(message: initError!),
+      );
+    }
+
     return MaterialApp.router(
       title: 'Tartelea',
       debugShowCheckedModeBanner: false,

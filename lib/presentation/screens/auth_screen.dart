@@ -22,9 +22,49 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   bool _isLogin = true;
   bool _needsVerification = false;
 
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  String? _validateInputs() {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+    final name = _nameController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      return 'يرجى تعبئة البريد الإلكتروني وكلمة المرور.';
+    }
+
+    final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+    if (!emailRegex.hasMatch(email)) {
+      return 'صيغة البريد الإلكتروني غير صحيحة.';
+    }
+
+    if (password.length < 6) {
+      return 'كلمة المرور يجب أن تكون 6 أحرف على الأقل.';
+    }
+
+    if (!_isLogin && name.isEmpty) {
+      return 'يرجى إدخال الاسم الكامل.';
+    }
+
+    return null;
+  }
+  
   Future<void> _submit() async {
-    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) return;
-    if (!_isLogin && _nameController.text.isEmpty) return;
+    final validationMessage = _validateInputs();
+    if (validationMessage != null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(validationMessage)),
+        );
+      }
+      return;
+    }
     
     setState(() => _isLoading = true);
     try {
@@ -52,7 +92,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('خطأ: ${e.toString()}')),
+          const SnackBar(content: Text('تعذر إتمام العملية حالياً. يرجى المحاولة مرة أخرى.')),
         );
       }
     } finally {
@@ -68,7 +108,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
+          const SnackBar(content: Text('تعذر تسجيل الدخول عبر Google حالياً.')),
         );
       }
     } finally {

@@ -21,8 +21,8 @@ class ContentRepository {
     try {
       // 1. جلب من API
       final response = await _api.get(ApiConfig.contents, queryParameters: {
-        'category': ?category,
-        'is_sudan_awareness': ?isSudanAwareness,
+        if (category != null) 'category': category,
+        if (isSudanAwareness != null) 'is_sudan_awareness': isSudanAwareness,
       });
 
       final items = (response.data as List)
