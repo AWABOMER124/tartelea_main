@@ -81,7 +81,7 @@ docker compose up --build -d
 ### Mobile:
 ```bash
 flutter pub get
-flutter run
+flutter run --dart-define=API_BASE_URL=http://localhost:3000/api/v1
 ```
 
 ---
@@ -89,7 +89,7 @@ flutter run
 ## 7. Developer Notes for Reviewer
 - **State Management**: The app strictly follows the "State Notifier" pattern in Riverpod.
 - **API Client**: Located in `lib/core/api/api_client.dart`, handles all 401 (Unauthorized) cases by clearing local storage.
-- **Database Migrations**: Initial schema is provided in `backend/src/db/schema.sql`.
+- **Database Migrations**: The schema source of truth is `backend/schema.sql`.
 
 ---
 *Last Updated: 2026-04-08*
