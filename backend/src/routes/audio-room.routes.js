@@ -1,7 +1,7 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const validate = require('../middlewares/validate');
-const { authenticateUser: auth } = require('../middlewares/auth');
+const { authenticateUser: auth, authorizeRoles } = require('../middlewares/auth');
 const AudioRoomController = require('../controllers/audioRoom.controller');
 const {
   createAudioRoomSchema,
@@ -20,7 +20,13 @@ const roomTokenLimiter = rateLimit({
 });
 
 router.get('/live', AudioRoomController.listLive);
-router.post('/', auth, validate(createAudioRoomSchema), AudioRoomController.create);
+router.post(
+  '/',
+  auth,
+  authorizeRoles('admin', 'moderator', 'trainer'),
+  validate(createAudioRoomSchema),
+  AudioRoomController.create
+);
 router.post('/:id/join', auth, validate(joinAudioRoomSchema), AudioRoomController.join);
 router.post('/:id/leave', auth, validate(leaveAudioRoomSchema), AudioRoomController.leave);
 router.post('/:id/token', auth, roomTokenLimiter, validate(roomTokenSchema), AudioRoomController.roomToken);
