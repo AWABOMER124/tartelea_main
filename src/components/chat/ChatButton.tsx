@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { MessageCircle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import TadabburChat from "./TadabburChat";
 import {
   Tooltip,
@@ -13,28 +13,11 @@ import {
 
 const ChatButton = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-
-  useEffect(() => {
-    checkAuth();
-    
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setIsLoggedIn(!!session);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const checkAuth = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    setIsLoggedIn(!!user);
-    setLoading(false);
-  };
+  const { user, loading } = useAuth();
 
   const handleClick = () => {
-    if (!isLoggedIn) {
+    if (!user) {
       toast({
         title: "تسجيل الدخول مطلوب",
         description: "يرجى تسجيل الدخول لاستخدام مساعد التدبر",

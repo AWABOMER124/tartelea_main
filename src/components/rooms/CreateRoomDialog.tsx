@@ -1,6 +1,7 @@
-import { useState, useRef } from "react";
+import { useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { createBackendSession } from "@/lib/backendSessions";
 import {
   Dialog,
   DialogContent,
@@ -18,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Lock, Globe, ImagePlus, X } from "lucide-react";
+import { Globe, ImagePlus, Loader2, Lock, X } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
 type ContentCategory = Database["public"]["Enums"]["content_category"];
@@ -38,7 +39,20 @@ const categories: { value: ContentCategory; label: string }[] = [
   { value: "islamic_awareness", label: "الوعي الإسلامي" },
 ];
 
-const CreateRoomDialog = ({ open, onOpenChange, onSuccess }: CreateRoomDialogProps) => {
+const buildUploadPath = (file: File) => {
+  const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
+  const identifier =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  return `${identifier}.${extension}`;
+};
+
+const CreateRoomDialog = ({
+  open,
+  onOpenChange,
+  onSuccess,
+}: CreateRoomDialogProps) => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
@@ -55,13 +69,39 @@ const CreateRoomDialog = ({ open, onOpenChange, onSuccess }: CreateRoomDialogPro
     access_type: "public" as "public" | "subscribers_only",
   });
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      toast({ title: "خطأ", description: "حجم الصورة يجب أن لا يتجاوز 5 ميجابايت", variant: "destructive" });
+  const resetForm = () => {
+    setFormData({
+      title: "",
+      description: "",
+      category: "",
+      scheduled_at: "",
+      duration_minutes: 30,
+      price: 0,
+      max_participants: 50,
+      access_type: "public",
+    });
+    setImageFile(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
       return;
     }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "خطأ",
+        description: "حجم الصورة يجب ألا يتجاوز 5 ميجابايت.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
   };
@@ -69,70 +109,75 @@ const CreateRoomDialog = ({ open, onOpenChange, onSuccess }: CreateRoomDialogPro
   const removeImage = () => {
     setImageFile(null);
     setImagePreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
-  const uploadImage = async (roomId: string): Promise<string | null> => {
-    if (!imageFile) return null;
-    const ext = imageFile.name.split(".").pop();
-    const path = `${roomId}.${ext}`;
-    const { error } = await supabase.storage.from("room-images").upload(path, imageFile, { upsert: true });
-    if (error) return null;
+  const uploadImage = async (): Promise<string | null> => {
+    if (!imageFile) {
+      return null;
+    }
+
+    const path = buildUploadPath(imageFile);
+    const { error } = await supabase.storage
+      .from("room-images")
+      .upload(path, imageFile, { upsert: false });
+
+    if (error) {
+      throw new Error("تعذر رفع صورة الجلسة.");
+    }
+
     const { data } = supabase.storage.from("room-images").getPublicUrl(path);
     return data.publicUrl;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+
     if (!formData.title || !formData.category || !formData.scheduled_at) {
-      toast({ title: "خطأ", description: "يرجى ملء جميع الحقول المطلوبة", variant: "destructive" });
+      toast({
+        title: "خطأ",
+        description: "يرجى ملء جميع الحقول المطلوبة.",
+        variant: "destructive",
+      });
       return;
     }
 
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      toast({ title: "خطأ", description: "يجب تسجيل الدخول", variant: "destructive" });
+
+    try {
+      const imageUrl = await uploadImage();
+
+      await createBackendSession({
+        title: formData.title,
+        description: formData.description || undefined,
+        category: formData.category,
+        scheduled_at: new Date(formData.scheduled_at).toISOString(),
+        duration_minutes: formData.duration_minutes,
+        price: formData.price,
+        max_participants: formData.max_participants,
+        access_type: formData.access_type,
+        image_url: imageUrl ?? undefined,
+      });
+
+      toast({
+        title: "تم بنجاح",
+        description: "تم إرسال الجلسة الصوتية للمراجعة.",
+      });
+      resetForm();
+      onOpenChange(false);
+      onSuccess();
+    } catch (error) {
+      toast({
+        title: "خطأ",
+        description:
+          error instanceof Error ? error.message : "تعذر إنشاء الجلسة الصوتية.",
+        variant: "destructive",
+      });
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const { data: roomData, error } = await supabase.from("rooms").insert({
-      title: formData.title,
-      description: formData.description || null,
-      category: formData.category as ContentCategory,
-      scheduled_at: new Date(formData.scheduled_at).toISOString(),
-      duration_minutes: formData.duration_minutes,
-      price: formData.price,
-      max_participants: formData.max_participants,
-      host_id: user.id,
-      is_approved: false,
-      access_type: formData.access_type,
-    }).select("id").single();
-
-    if (error || !roomData) {
-      toast({ title: "خطأ", description: "فشل إنشاء الغرفة", variant: "destructive" });
-      setLoading(false);
-      return;
-    }
-
-    // Upload image if selected
-    if (imageFile) {
-      const imageUrl = await uploadImage(roomData.id);
-      if (imageUrl) {
-        await supabase.from("rooms").update({ image_url: imageUrl }).eq("id", roomData.id);
-      }
-    }
-
-    toast({ title: "تم بنجاح", description: "تم إرسال الغرفة للمراجعة" });
-    setFormData({
-      title: "", description: "", category: "", scheduled_at: "",
-      duration_minutes: 30, price: 0, max_participants: 50, access_type: "public",
-    });
-    removeImage();
-    onOpenChange(false);
-    onSuccess();
-    setLoading(false);
   };
 
   return (
@@ -141,8 +186,8 @@ const CreateRoomDialog = ({ open, onOpenChange, onSuccess }: CreateRoomDialogPro
         <DialogHeader>
           <DialogTitle>إنشاء غرفة جديدة</DialogTitle>
         </DialogHeader>
+
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Room Image */}
           <div className="space-y-2">
             <Label>صورة الغرفة</Label>
             <input
@@ -152,9 +197,14 @@ const CreateRoomDialog = ({ open, onOpenChange, onSuccess }: CreateRoomDialogPro
               className="hidden"
               onChange={handleImageSelect}
             />
+
             {imagePreview ? (
               <div className="relative rounded-xl overflow-hidden aspect-video bg-muted">
-                <img src={imagePreview} alt="صورة الغرفة" className="w-full h-full object-cover" />
+                <img
+                  src={imagePreview}
+                  alt="صورة الغرفة"
+                  className="w-full h-full object-cover"
+                />
                 <Button
                   type="button"
                   variant="destructive"
@@ -179,21 +229,48 @@ const CreateRoomDialog = ({ open, onOpenChange, onSuccess }: CreateRoomDialogPro
 
           <div className="space-y-2">
             <Label htmlFor="title">عنوان الغرفة *</Label>
-            <Input id="title" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} placeholder="أدخل عنوان الغرفة" />
+            <Input
+              id="title"
+              value={formData.title}
+              onChange={(event) =>
+                setFormData((prev) => ({ ...prev, title: event.target.value }))
+              }
+              placeholder="أدخل عنوان الغرفة"
+            />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="description">الوصف</Label>
-            <Textarea id="description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="وصف مختصر للغرفة" rows={3} />
+            <Textarea
+              id="description"
+              value={formData.description}
+              onChange={(event) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  description: event.target.value,
+                }))
+              }
+              placeholder="وصف مختصر للغرفة"
+              rows={3}
+            />
           </div>
 
           <div className="space-y-2">
             <Label>التصنيف *</Label>
-            <Select value={formData.category} onValueChange={(value: ContentCategory) => setFormData({ ...formData, category: value })}>
-              <SelectTrigger><SelectValue placeholder="اختر التصنيف" /></SelectTrigger>
+            <Select
+              value={formData.category}
+              onValueChange={(value: ContentCategory) =>
+                setFormData((prev) => ({ ...prev, category: value }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="اختر التصنيف" />
+              </SelectTrigger>
               <SelectContent>
-                {categories.map((cat) => (
-                  <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
+                {categories.map((category) => (
+                  <SelectItem key={category.value} value={category.value}>
+                    {category.label}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -201,46 +278,113 @@ const CreateRoomDialog = ({ open, onOpenChange, onSuccess }: CreateRoomDialogPro
 
           <div className="space-y-2">
             <Label htmlFor="scheduled_at">موعد الغرفة *</Label>
-            <Input id="scheduled_at" type="datetime-local" value={formData.scheduled_at} onChange={(e) => setFormData({ ...formData, scheduled_at: e.target.value })} />
+            <Input
+              id="scheduled_at"
+              type="datetime-local"
+              value={formData.scheduled_at}
+              onChange={(event) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  scheduled_at: event.target.value,
+                }))
+              }
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="duration">المدة (دقيقة)</Label>
-              <Input id="duration" type="number" min={15} max={120} value={formData.duration_minutes} onChange={(e) => setFormData({ ...formData, duration_minutes: parseInt(e.target.value) || 30 })} />
+              <Input
+                id="duration"
+                type="number"
+                min={15}
+                max={120}
+                value={formData.duration_minutes}
+                onChange={(event) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    duration_minutes: Number.parseInt(event.target.value, 10) || 30,
+                  }))
+                }
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="max_participants">الحد الأقصى</Label>
-              <Input id="max_participants" type="number" min={5} max={200} value={formData.max_participants} onChange={(e) => setFormData({ ...formData, max_participants: parseInt(e.target.value) || 50 })} />
+              <Input
+                id="max_participants"
+                type="number"
+                min={5}
+                max={200}
+                value={formData.max_participants}
+                onChange={(event) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    max_participants: Number.parseInt(event.target.value, 10) || 50,
+                  }))
+                }
+              />
             </div>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="price">السعر ($)</Label>
-            <Input id="price" type="number" min={0} step={0.01} value={formData.price} onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })} />
-            <p className="text-xs text-muted-foreground">اترك 0 لجعل الغرفة مجانية</p>
+            <Input
+              id="price"
+              type="number"
+              min={0}
+              step={0.01}
+              value={formData.price}
+              onChange={(event) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  price: Number.parseFloat(event.target.value) || 0,
+                }))
+              }
+            />
+            <p className="text-xs text-muted-foreground">
+              اترك 0 لجعل الغرفة مجانية.
+            </p>
           </div>
 
           <div className="space-y-2">
             <Label>نوع الوصول *</Label>
-            <Select value={formData.access_type} onValueChange={(value: "public" | "subscribers_only") => setFormData({ ...formData, access_type: value })}>
-              <SelectTrigger><SelectValue placeholder="اختر نوع الوصول" /></SelectTrigger>
+            <Select
+              value={formData.access_type}
+              onValueChange={(value: "public" | "subscribers_only") =>
+                setFormData((prev) => ({ ...prev, access_type: value }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="اختر نوع الوصول" />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="public">
-                  <span className="flex items-center gap-2"><Globe className="h-4 w-4" />عامة - للجميع</span>
+                  <span className="flex items-center gap-2">
+                    <Globe className="h-4 w-4" />
+                    عامة - للجميع
+                  </span>
                 </SelectItem>
                 <SelectItem value="subscribers_only">
-                  <span className="flex items-center gap-2"><Lock className="h-4 w-4" />للمشتركين فقط</span>
+                  <span className="flex items-center gap-2">
+                    <Lock className="h-4 w-4" />
+                    للمشتركين فقط
+                  </span>
                 </SelectItem>
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              {formData.access_type === "subscribers_only" ? "الغرفة متاحة فقط لأصحاب الاشتراك الشهري" : "الغرفة متاحة لجميع المستخدمين"}
+              {formData.access_type === "subscribers_only"
+                ? "تُدار صلاحية الدخول الحساسة من الباك إند عند الانضمام."
+                : "الجلسة عامة، لكن قرار الدخول النهائي يبقى من الباك إند."}
             </p>
           </div>
 
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "إرسال للمراجعة"}
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              "إرسال للمراجعة"
+            )}
           </Button>
         </form>
       </DialogContent>

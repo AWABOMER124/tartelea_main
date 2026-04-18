@@ -1,3 +1,8 @@
+/**
+ * STEP 2 freeze marker:
+ * Legacy Supabase community card kept only for transitional read-only/fallback surfaces.
+ * Do not reuse in new community work; use backend community components instead.
+ */
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Heart, MessageCircle, Share2, Link, Copy, Flag } from "lucide-react";

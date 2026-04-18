@@ -2,6 +2,11 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import type { Database } from "@/integrations/supabase/types";
+import {
+  getPrimaryPlatformRole,
+  normalizePlatformRoles,
+} from "@/lib/platformRoles";
+import { getBackendSessionUser } from "@/lib/backendSession";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
@@ -10,9 +15,19 @@ export const useUserRole = () => {
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [primaryRole, setPrimaryRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
+  const backendUser = getBackendSessionUser();
+  const backendRoleKey = JSON.stringify(backendUser?.roles ?? [backendUser?.role ?? null]);
 
   useEffect(() => {
     if (authLoading) return;
+
+    if (backendUser?.roles?.length) {
+      const backendRoles = normalizePlatformRoles(backendUser.roles, "member") as AppRole[];
+      setRoles(backendRoles);
+      setPrimaryRole(getPrimaryPlatformRole(backendRoles, "member") as AppRole);
+      setLoading(false);
+      return;
+    }
 
     if (!user) {
       setRoles([]);
@@ -28,22 +43,20 @@ export const useUserRole = () => {
         .eq("user_id", user.id);
 
       if (rolesData && rolesData.length > 0) {
-        const userRoles = rolesData.map(r => r.role);
+        const userRoles = normalizePlatformRoles(rolesData.map((r) => r.role), "member") as AppRole[];
         setRoles(userRoles);
-        
-        const roleHierarchy: AppRole[] = ["admin", "moderator", "trainer", "member", "guest"];
-        const highestRole = roleHierarchy.find(r => userRoles.includes(r)) || "guest";
-        setPrimaryRole(highestRole);
+
+        setPrimaryRole(getPrimaryPlatformRole(userRoles, "member") as AppRole);
       } else {
-        setRoles(["guest"]);
-        setPrimaryRole("guest");
+        setRoles(["member"]);
+        setPrimaryRole("member");
       }
       
       setLoading(false);
     };
 
     fetchRoles();
-  }, [user, authLoading]);
+  }, [backendRoleKey, backendUser?.id, user, authLoading]);
 
   const hasRole = (role: AppRole): boolean => roles.includes(role);
 
@@ -57,7 +70,7 @@ export const useUserRole = () => {
     role: primaryRole,
     roles,
     loading: loading || authLoading, 
-    userId: user?.id || null, 
+    userId: backendUser?.id || user?.id || null, 
     isAdmin, 
     isModerator, 
     isTrainer, 

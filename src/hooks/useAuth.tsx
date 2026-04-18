@@ -1,10 +1,22 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import type { User, Session } from "@supabase/supabase-js";
+
+type AuthUser = {
+  id: string;
+  email: string;
+  role?: string;
+  roles?: string[];
+  full_name?: string | null;
+  avatar_url?: string | null;
+};
 
 interface AuthContextType {
-  user: User | null;
-  session: Session | null;
+  user: AuthUser | null;
+  session: {
+    access_token: string;
+    refresh_token: string | null;
+    user: AuthUser;
+  } | null;
   loading: boolean;
 }
 
@@ -17,23 +29,23 @@ const AuthContext = createContext<AuthContextType>({
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [session, setSession] = useState<AuthContextType["session"]>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
+    const syncSessionState = (s: AuthContextType["session"]) => {
       setSession(s);
       setUser(s?.user ?? null);
       setLoading(false);
+    };
+
+    supabase.auth.getSession().then(({ data: { session: s } }) => {
+      syncSessionState(s as AuthContextType["session"]);
     });
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
-      setSession(s);
-      setUser(s?.user ?? null);
-      setLoading(false);
+      syncSessionState(s as AuthContextType["session"]);
     });
 
     return () => subscription.unsubscribe();

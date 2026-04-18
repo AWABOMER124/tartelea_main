@@ -8,6 +8,11 @@ const contentRoutes = require('./content.routes');
 const mediaRoutes = require('./media.routes');
 const livekitRoutes = require('./livekit.routes');
 const audioRoomRoutes = require('./audio-room.routes');
+const adminRoutes = require('./admin.routes');
+const communityRoutes = require('./community.routes');
+const communityAdminRoutes = require('./community-admin.routes');
+const sessionRoutes = require('./session.routes');
+const compatRoutes = require('./compat.routes');
 
 const router = express.Router();
 
@@ -31,5 +36,10 @@ router.use('/contents', contentRoutes);
 router.use('/media', mediaRoutes);
 router.use('/livekit', livekitRoutes);
 router.use('/audio-rooms', audioRoomRoutes);
+router.use('/admin', adminRoutes);
+router.use('/community', communityRoutes);
+router.use('/admin/community', communityAdminRoutes);
+router.use('/sessions', sessionRoutes);
+router.use('/compat', compatRoutes);
 
 module.exports = router;

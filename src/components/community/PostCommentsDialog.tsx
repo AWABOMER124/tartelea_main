@@ -1,3 +1,8 @@
+/**
+ * STEP 2 freeze marker:
+ * This dialog writes directly to legacy Supabase community tables.
+ * Keep only for transitional legacy surfaces; do not extend or import in new flows.
+ */
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";

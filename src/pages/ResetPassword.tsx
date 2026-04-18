@@ -1,72 +1,79 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { Book } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Book, Lock } from "lucide-react";
+import { resetPasswordWithBackend } from "@/lib/webAuth";
 
 const ResetPassword = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [otp, setOtp] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [isRecovery, setIsRecovery] = useState(false);
+  const [targetEmail, setTargetEmail] = useState("");
 
   useEffect(() => {
-    // Check for recovery token in URL hash
-    const hash = window.location.hash;
-    if (hash.includes("type=recovery")) {
-      setIsRecovery(true);
-    } else {
-      // Also listen for auth state change with recovery event
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-        if (event === "PASSWORD_RECOVERY") {
-          setIsRecovery(true);
-        }
-      });
-      return () => subscription.unsubscribe();
-    }
+    const params = new URLSearchParams(window.location.search);
+    setTargetEmail(params.get("email") || "");
   }, []);
 
-  const handleReset = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleReset = async (event: React.FormEvent) => {
+    event.preventDefault();
 
     if (password !== confirmPassword) {
-      toast({ title: "خطأ", description: "كلمتا المرور غير متطابقتين", variant: "destructive" });
+      toast({
+        title: "كلمتا المرور غير متطابقتين",
+        description: "أعد إدخال كلمة المرور نفسها في الحقلين.",
+        variant: "destructive",
+      });
       return;
     }
 
     if (password.length < 6) {
-      toast({ title: "خطأ", description: "كلمة المرور يجب أن تكون 6 أحرف على الأقل", variant: "destructive" });
+      toast({
+        title: "كلمة المرور قصيرة",
+        description: "يجب أن تكون كلمة المرور 6 أحرف على الأقل.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!otp.trim()) {
+      toast({
+        title: "رمز التعيين مطلوب",
+        description: "أدخل رمز إعادة التعيين أولًا.",
+        variant: "destructive",
+      });
       return;
     }
 
     setLoading(true);
-    const { error } = await supabase.auth.updateUser({ password });
 
-    if (error) {
-      toast({ title: "خطأ", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "تم بنجاح", description: "تم تغيير كلمة المرور بنجاح" });
-      navigate("/");
+    try {
+      await resetPasswordWithBackend({
+        otp: otp.trim(),
+        newPassword: password,
+      });
+
+      toast({
+        title: "تم تحديث كلمة المرور",
+        description: "يمكنك الآن تسجيل الدخول بكلمة المرور الجديدة.",
+      });
+      navigate("/auth");
+    } catch (error) {
+      toast({
+        title: "تعذر إعادة التعيين",
+        description: error instanceof Error ? error.message : "حدث خطأ غير متوقع.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
-
-  if (!isRecovery) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-4">
-        <div className="text-center space-y-4">
-          <Lock className="h-12 w-12 text-muted-foreground mx-auto" />
-          <p className="text-muted-foreground">رابط إعادة التعيين غير صالح أو منتهي الصلاحية</p>
-          <Button onClick={() => navigate("/auth")}>العودة لتسجيل الدخول</Button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
@@ -81,17 +88,56 @@ const ResetPassword = () => {
         <div className="content-card p-6">
           <form onSubmit={handleReset} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="new-password">كلمة المرور الجديدة</Label>
-              <Input id="new-password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
+              <Label htmlFor="otp">رمز إعادة التعيين</Label>
+              <Input
+                id="otp"
+                inputMode="numeric"
+                placeholder="أدخل الرمز المكون من 6 أرقام"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                required
+              />
+              {targetEmail ? (
+                <p className="text-xs text-muted-foreground">الرمز المرسل إلى: {targetEmail}</p>
+              ) : null}
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="new-password">كلمة المرور الجديدة</Label>
+              <Input
+                id="new-password"
+                type="password"
+                placeholder="********"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+              />
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="confirm-password">تأكيد كلمة المرور</Label>
-              <Input id="confirm-password" type="password" placeholder="••••••••" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={6} />
+              <Input
+                id="confirm-password"
+                type="password"
+                placeholder="********"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                minLength={6}
+              />
             </div>
+
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "جاري الحفظ..." : "حفظ كلمة المرور"}
+              {loading ? "جار الحفظ..." : "حفظ كلمة المرور"}
             </Button>
           </form>
+
+          <div className="mt-4 text-center">
+            <Button variant="ghost" onClick={() => navigate("/auth")}>
+              العودة لتسجيل الدخول
+            </Button>
+          </div>
         </div>
       </div>
     </div>

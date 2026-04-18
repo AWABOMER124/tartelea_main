@@ -1,93 +1,162 @@
 import { useState } from "react";
-import { Mail, CheckCircle2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
+import { ArrowRight, Book, CheckCircle2, Mail } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
-import { Book, ArrowRight } from "lucide-react";
-import { Link } from "react-router-dom";
+import {
+  loginWithBackend,
+  requestPasswordResetWithBackend,
+  signupWithBackend,
+  verifyEmailWithBackend,
+} from "@/lib/webAuth";
 
 const Auth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [signupSuccess, setSignupSuccess] = useState(false);
   const [signupEmail, setSignupEmail] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
+  const [verificationState, setVerificationState] = useState<{
+    email: string;
+    password: string;
+    devOtp?: string | null;
+  } | null>(null);
   const [forgotEmail, setForgotEmail] = useState("");
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const [signupData, setSignupData] = useState({ email: "", password: "", full_name: "" });
 
-  const handleGoogleSignIn = async () => {
-    setGoogleLoading(true);
-    const { error } = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
-    });
-    if (error) {
-      toast({ title: "خطأ في تسجيل الدخول", description: error.message, variant: "destructive" });
-      setGoogleLoading(false);
-    }
-  };
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLogin = async (event: React.FormEvent) => {
+    event.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email: loginData.email,
-      password: loginData.password,
-    });
-    if (error) {
-      toast({ title: "خطأ في تسجيل الدخول", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "مرحباً بك", description: "تم تسجيل الدخول بنجاح" });
+
+    try {
+      await loginWithBackend(loginData.email, loginData.password);
+      toast({ title: "تم تسجيل الدخول", description: "تم فتح الجلسة بنجاح." });
       navigate("/");
+    } catch (error) {
+      toast({
+        title: "تعذر تسجيل الدخول",
+        description: error instanceof Error ? error.message : "حدث خطأ غير متوقع.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSignup = async (event: React.FormEvent) => {
+    event.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
-      email: signupData.email,
-      password: signupData.password,
-      options: {
-        emailRedirectTo: window.location.origin,
-        data: { full_name: signupData.full_name },
-      },
-    });
-    if (error) {
-      toast({ title: "خطأ في التسجيل", description: error.message, variant: "destructive" });
-    } else {
+
+    try {
+      const result = await signupWithBackend(signupData);
+
+      if (result.session.accessToken && result.session.user) {
+        toast({ title: "تم إنشاء الحساب", description: "تم تسجيل الدخول مباشرة." });
+        navigate("/");
+        return;
+      }
+
       setSignupEmail(signupData.email);
       setSignupSuccess(true);
+      setVerificationState({
+        email: signupData.email,
+        password: signupData.password,
+        devOtp: result.payload.data?.devOtp ?? null,
+      });
+    } catch (error) {
+      toast({
+        title: "تعذر إنشاء الحساب",
+        description: error instanceof Error ? error.message : "حدث خطأ غير متوقع.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
-  const handleForgotPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleForgotPassword = async (event: React.FormEvent) => {
+    event.preventDefault();
+
     if (!forgotEmail.trim()) {
-      toast({ title: "خطأ", description: "يرجى إدخال البريد الإلكتروني", variant: "destructive" });
+      toast({
+        title: "البريد مطلوب",
+        description: "أدخل البريد الإلكتروني أولًا.",
+        variant: "destructive",
+      });
       return;
     }
+
     setLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-    if (error) {
-      toast({ title: "خطأ", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "تم الإرسال", description: "تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني" });
+
+    try {
+      const response = await requestPasswordResetWithBackend(forgotEmail);
+      const devOtp = response.devOtp ?? response.data?.devOtp;
+
+      toast({
+        title: "تم إرسال الرمز",
+        description: devOtp
+          ? `رمز التطوير الحالي: ${devOtp}`
+          : "تم إرسال رمز إعادة التعيين إلى بريدك الإلكتروني.",
+      });
       setShowForgotPassword(false);
+      navigate(`/reset-password?email=${encodeURIComponent(forgotEmail)}`);
+    } catch (error) {
+      toast({
+        title: "تعذر الإرسال",
+        description: error instanceof Error ? error.message : "حدث خطأ غير متوقع.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
+  };
+
+  const handleVerifyEmail = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (!verificationState?.email || !verificationCode.trim()) {
+      toast({
+        title: "رمز التحقق مطلوب",
+        description: "أدخل رمز التحقق المرسل إلى بريدك.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      await verifyEmailWithBackend(
+        {
+          email: verificationState.email,
+          code: verificationCode.trim(),
+        },
+        verificationState.password,
+      );
+
+      toast({
+        title: "تم التحقق",
+        description: "تم تفعيل الحساب وفتح الجلسة بنجاح.",
+      });
+
+      setVerificationState(null);
+      setVerificationCode("");
+      navigate("/");
+    } catch (error) {
+      toast({
+        title: "تعذر التحقق",
+        description: error instanceof Error ? error.message : "حدث خطأ غير متوقع.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -115,108 +184,172 @@ const Auth = () => {
                   <CheckCircle2 className="h-10 w-10 text-green-600 dark:text-green-400" />
                 </div>
                 <div className="space-y-2">
-                  <h2 className="text-lg font-display font-bold text-foreground">تم التسجيل بنجاح!</h2>
+                  <h2 className="text-lg font-display font-bold text-foreground">
+                    {verificationState ? "تم إنشاء الحساب" : "تم التسجيل بنجاح"}
+                  </h2>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    تم إرسال رابط التفعيل إلى بريدك الإلكتروني
+                    {verificationState
+                      ? "أدخل رمز التحقق لإكمال تفعيل الحساب."
+                      : "تم إرسال رسالة التفعيل إلى بريدك الإلكتروني."}
                   </p>
                   <div className="flex items-center justify-center gap-2 bg-muted/50 rounded-lg p-3 mt-3">
                     <Mail className="h-5 w-5 text-primary shrink-0" />
                     <span className="text-sm font-medium text-foreground break-all">{signupEmail}</span>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-3">
-                    يرجى فتح بريدك الإلكتروني والضغط على رابط التفعيل لإكمال التسجيل.
-                    <br />
-                    تحقق من مجلد الرسائل غير المرغوب فيها (Spam) إذا لم تجد الرسالة.
-                  </p>
+                  {verificationState ? (
+                    <form onSubmit={handleVerifyEmail} className="space-y-4 text-right">
+                      <div className="space-y-2">
+                        <Label htmlFor="verification-code">رمز التحقق</Label>
+                        <Input
+                          id="verification-code"
+                          inputMode="numeric"
+                          placeholder="أدخل 6 أرقام"
+                          value={verificationCode}
+                          onChange={(e) => setVerificationCode(e.target.value)}
+                          required
+                        />
+                      </div>
+                      {verificationState.devOtp ? (
+                        <div className="text-xs rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-amber-700">
+                          رمز التطوير الحالي: {verificationState.devOtp}
+                        </div>
+                      ) : null}
+                      <Button type="submit" className="w-full" disabled={loading}>
+                        {loading ? "جار التحقق..." : "تأكيد الرمز"}
+                      </Button>
+                    </form>
+                  ) : (
+                    <p className="text-xs text-muted-foreground mt-3">
+                      تحقق من البريد الوارد أو مجلد الرسائل غير المرغوبة إذا لم تصل الرسالة.
+                    </p>
+                  )}
                 </div>
-                <Button variant="outline" className="w-full" onClick={() => { setSignupSuccess(false); setSignupEmail(""); }}>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    setSignupSuccess(false);
+                    setSignupEmail("");
+                    setVerificationCode("");
+                    setVerificationState(null);
+                  }}
+                >
+                  العودة لتسجيل الدخول
+                </Button>
+              </div>
+            ) : showForgotPassword ? (
+              <div className="space-y-4">
+                <h2 className="font-display font-semibold text-foreground text-center">استعادة كلمة المرور</h2>
+                <p className="text-sm text-muted-foreground text-center">
+                  أدخل بريدك الإلكتروني وسنرسل لك رمز إعادة التعيين.
+                </p>
+                <form onSubmit={handleForgotPassword} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="forgot-email">البريد الإلكتروني</Label>
+                    <Input
+                      id="forgot-email"
+                      type="email"
+                      placeholder="example@email.com"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading ? "جار الإرسال..." : "إرسال الرمز"}
+                  </Button>
+                </form>
+                <Button variant="ghost" className="w-full text-sm" onClick={() => setShowForgotPassword(false)}>
                   العودة لتسجيل الدخول
                 </Button>
               </div>
             ) : (
-              <>
-                <Button variant="outline" className="w-full gap-3 mb-4" onClick={handleGoogleSignIn} disabled={googleLoading}>
-                  <svg className="h-5 w-5" viewBox="0 0 24 24">
-                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-                  </svg>
-                  {googleLoading ? "جاري التحميل..." : "التسجيل باستخدام Google"}
-                </Button>
+              <Tabs defaultValue="login" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 mb-6">
+                  <TabsTrigger value="login">تسجيل الدخول</TabsTrigger>
+                  <TabsTrigger value="signup">حساب جديد</TabsTrigger>
+                </TabsList>
 
-                <div className="relative my-4">
-                  <Separator />
-                  <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">أو</span>
-                </div>
-
-                {showForgotPassword ? (
-                  <div className="space-y-4">
-                    <h2 className="font-display font-semibold text-foreground text-center">استعادة كلمة المرور</h2>
-                    <p className="text-sm text-muted-foreground text-center">أدخل بريدك الإلكتروني وسنرسل لك رابط إعادة التعيين</p>
-                    <form onSubmit={handleForgotPassword} className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="forgot-email">البريد الإلكتروني</Label>
-                        <Input id="forgot-email" type="email" placeholder="example@email.com" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} required />
+                <TabsContent value="login">
+                  <form onSubmit={handleLogin} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="login-email">البريد الإلكتروني</Label>
+                      <Input
+                        id="login-email"
+                        type="email"
+                        placeholder="example@email.com"
+                        value={loginData.email}
+                        onChange={(e) => setLoginData((current) => ({ ...current, email: e.target.value }))}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="login-password">كلمة المرور</Label>
+                        <button
+                          type="button"
+                          className="text-xs text-primary hover:underline"
+                          onClick={() => setShowForgotPassword(true)}
+                        >
+                          نسيت كلمة المرور؟
+                        </button>
                       </div>
-                      <Button type="submit" className="w-full" disabled={loading}>
-                        {loading ? "جاري الإرسال..." : "إرسال رابط الاستعادة"}
-                      </Button>
-                    </form>
-                    <Button variant="ghost" className="w-full text-sm" onClick={() => setShowForgotPassword(false)}>
-                      العودة لتسجيل الدخول
+                      <Input
+                        id="login-password"
+                        type="password"
+                        placeholder="********"
+                        value={loginData.password}
+                        onChange={(e) => setLoginData((current) => ({ ...current, password: e.target.value }))}
+                        required
+                      />
+                    </div>
+                    <Button type="submit" className="w-full" disabled={loading}>
+                      {loading ? "جار تسجيل الدخول..." : "تسجيل الدخول"}
                     </Button>
-                  </div>
-                ) : (
-                  <Tabs defaultValue="login" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2 mb-6">
-                      <TabsTrigger value="login">تسجيل الدخول</TabsTrigger>
-                      <TabsTrigger value="signup">حساب جديد</TabsTrigger>
-                    </TabsList>
+                  </form>
+                </TabsContent>
 
-                    <TabsContent value="login">
-                      <form onSubmit={handleLogin} className="space-y-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="login-email">البريد الإلكتروني</Label>
-                          <Input id="login-email" type="email" placeholder="example@email.com" value={loginData.email} onChange={(e) => setLoginData({ ...loginData, email: e.target.value })} required />
-                        </div>
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <Label htmlFor="login-password">كلمة المرور</Label>
-                            <button type="button" className="text-xs text-primary hover:underline" onClick={() => setShowForgotPassword(true)}>
-                              نسيت كلمة المرور؟
-                            </button>
-                          </div>
-                          <Input id="login-password" type="password" placeholder="••••••••" value={loginData.password} onChange={(e) => setLoginData({ ...loginData, password: e.target.value })} required />
-                        </div>
-                        <Button type="submit" className="w-full" disabled={loading}>
-                          {loading ? "جاري الدخول..." : "تسجيل الدخول"}
-                        </Button>
-                      </form>
-                    </TabsContent>
-
-                    <TabsContent value="signup">
-                      <form onSubmit={handleSignup} className="space-y-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="signup-name">الاسم الكامل</Label>
-                          <Input id="signup-name" type="text" placeholder="أدخل اسمك الكامل" value={signupData.full_name} onChange={(e) => setSignupData({ ...signupData, full_name: e.target.value })} required />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="signup-email">البريد الإلكتروني</Label>
-                          <Input id="signup-email" type="email" placeholder="example@email.com" value={signupData.email} onChange={(e) => setSignupData({ ...signupData, email: e.target.value })} required />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="signup-password">كلمة المرور</Label>
-                          <Input id="signup-password" type="password" placeholder="••••••••" value={signupData.password} onChange={(e) => setSignupData({ ...signupData, password: e.target.value })} required minLength={6} />
-                        </div>
-                        <Button type="submit" className="w-full" disabled={loading}>
-                          {loading ? "جاري التسجيل..." : "إنشاء حساب"}
-                        </Button>
-                      </form>
-                    </TabsContent>
-                  </Tabs>
-                )}
-              </>
+                <TabsContent value="signup">
+                  <form onSubmit={handleSignup} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-name">الاسم الكامل</Label>
+                      <Input
+                        id="signup-name"
+                        type="text"
+                        placeholder="اسمك الكامل"
+                        value={signupData.full_name}
+                        onChange={(e) => setSignupData((current) => ({ ...current, full_name: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-email">البريد الإلكتروني</Label>
+                      <Input
+                        id="signup-email"
+                        type="email"
+                        placeholder="example@email.com"
+                        value={signupData.email}
+                        onChange={(e) => setSignupData((current) => ({ ...current, email: e.target.value }))}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-password">كلمة المرور</Label>
+                      <Input
+                        id="signup-password"
+                        type="password"
+                        placeholder="********"
+                        value={signupData.password}
+                        onChange={(e) => setSignupData((current) => ({ ...current, password: e.target.value }))}
+                        required
+                        minLength={6}
+                      />
+                    </div>
+                    <Button type="submit" className="w-full" disabled={loading}>
+                      {loading ? "جار إنشاء الحساب..." : "إنشاء الحساب"}
+                    </Button>
+                  </form>
+                </TabsContent>
+              </Tabs>
             )}
           </div>
         </div>

@@ -8,6 +8,7 @@ const { connect } = require('../db');
 const env = require('../config/env');
 const { httpError } = require('../utils/httpError');
 const logger = require('../utils/logger');
+const { getPrimaryRole, normalizeRoles } = require('../middlewares/rbac.middleware');
 
 const googleClient = new OAuth2Client(env.GOOGLE_CLIENT_ID);
 
@@ -22,6 +23,13 @@ const maskEmail = (email) => {
   const visibleLocal = localPart.slice(0, 2);
   return `${visibleLocal}${'*'.repeat(Math.max(localPart.length - 2, 0))}@${domainPart}`;
 };
+
+const configuredTrainerEmails = new Set(
+  (env.TRAINER_EMAILS || '')
+    .split(',')
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean)
+);
 
 class AuthService {
   static async signup(data) {
@@ -56,7 +64,14 @@ class AuthService {
       if (user) {
         await User.updatePassword(client, user.id, hashedPassword);
         await Profile.upsert(client, user.id, email, fullName, null, country);
-        await User.assignRole(client, user.id, 'student');
+        await User.assignRole(client, user.id, 'member');
+        await this._assignTrainerRoleIfConfigured({
+          client,
+          userId: user.id,
+          email,
+          source: 'signup-existing-user',
+          existingRoles: user.roles || [],
+        });
         logger.info('[AUTH][SIGNUP] pending user refreshed', {
           email: maskEmail(email),
           userId: user.id,
@@ -64,7 +79,13 @@ class AuthService {
       } else {
         user = await User.create(client, email, hashedPassword);
         await Profile.upsert(client, user.id, email, fullName, null, country);
-        await User.assignRole(client, user.id, 'student');
+        await User.assignRole(client, user.id, 'member');
+        await this._assignTrainerRoleIfConfigured({
+          client,
+          userId: user.id,
+          email,
+          source: 'signup-new-user',
+        });
         logger.info('[AUTH][SIGNUP] user created', {
           email: maskEmail(email),
           userId: user.id,
@@ -90,7 +111,7 @@ class AuthService {
       const token = this.generateToken({
         id: user.id,
         email,
-        roles: authUser.roles || ['student'],
+        roles: authUser.roles || ['member'],
       });
 
       logger.info('[AUTH][JWT] token issued', {
@@ -139,7 +160,7 @@ class AuthService {
       const token = this.generateToken({
         id: user.id,
         email: normalizedEmail,
-        roles: authUser.roles || user.roles || ['student'],
+        roles: authUser.roles || user.roles || ['member'],
       });
 
       logger.info('[AUTH][JWT] token issued', {
@@ -198,11 +219,18 @@ class AuthService {
       throw httpError(401, 'Invalid email or password', 'INVALID_CREDENTIALS');
     }
 
+    await this._assignTrainerRoleIfConfigured({
+      userId: user.id,
+      email: normalizedEmail,
+      source: 'login',
+      existingRoles: user.roles || [],
+    });
+
     const authUser = await this._loadAuthUser(user.id);
     const token = this.generateToken({
       id: user.id,
       email: normalizedEmail,
-      roles: authUser.roles || user.roles || ['student'],
+      roles: authUser.roles || user.roles || ['member'],
     });
 
     logger.info('[AUTH][JWT] token issued', {
@@ -244,7 +272,13 @@ class AuthService {
           const newUser = await User.create(client, email, `GOOGLE_${googleId}`);
           await Profile.upsert(client, newUser.id, email, name, picture);
           await User.verifyEmail(client, newUser.id);
-          await User.assignRole(client, newUser.id, 'student');
+          await User.assignRole(client, newUser.id, 'member');
+          await this._assignTrainerRoleIfConfigured({
+            client,
+            userId: newUser.id,
+            email,
+            source: 'google-signup',
+          });
           await client.query('COMMIT');
 
           user = await User.findById(newUser.id);
@@ -267,6 +301,13 @@ class AuthService {
           if (!user.is_verified) {
             await User.verifyEmail(client, user.id);
           }
+          await this._assignTrainerRoleIfConfigured({
+            client,
+            userId: user.id,
+            email,
+            source: 'google-login-existing-user',
+            existingRoles: user.roles || [],
+          });
           await client.query('COMMIT');
           logger.info('[AUTH][GOOGLE] existing user profile synced', {
             userId: user.id,
@@ -284,7 +325,7 @@ class AuthService {
       const token = this.generateToken({
         id: user.id,
         email,
-        roles: authUser.roles || user.roles || ['student'],
+        roles: authUser.roles || user.roles || ['member'],
       });
 
       logger.info('[AUTH][JWT] token issued', {
@@ -410,6 +451,13 @@ class AuthService {
     if (!user) {
       throw httpError(404, 'User not found', 'USER_NOT_FOUND');
     }
+
+    await this._assignTrainerRoleIfConfigured({
+      userId,
+      email: user.email,
+      source: 'me',
+      existingRoles: user.roles || [],
+    });
 
     return this._loadAuthUser(userId);
   }
@@ -630,15 +678,12 @@ class AuthService {
       throw httpError(404, 'User profile not found', 'USER_PROFILE_NOT_FOUND');
     }
 
-    const roles = profile.roles || [];
+    const roles = normalizeRoles(profile.roles || [], { fallback: 'member' });
     return {
       ...profile,
       roles,
-      role: roles.includes('admin')
-        ? 'admin'
-        : roles.includes('trainer')
-          ? 'trainer'
-          : 'student',
+      role: getPrimaryRole(roles, { fallback: 'member' }),
+      status: 'active',
     };
   }
 
@@ -648,6 +693,62 @@ class AuthService {
 
   static _isGoogleAccount(user) {
     return !user.password_hash || user.password_hash.startsWith('GOOGLE_');
+  }
+
+  static _isConfiguredTrainerEmail(email) {
+    if (!email) {
+      return false;
+    }
+    return configuredTrainerEmails.has(normalizeEmail(email));
+  }
+
+  static async _assignTrainerRoleIfConfigured({
+    client = null,
+    userId,
+    email,
+    source,
+    existingRoles = [],
+  }) {
+    if (!this._isConfiguredTrainerEmail(email)) {
+      return false;
+    }
+
+    if (Array.isArray(existingRoles) && existingRoles.includes('trainer')) {
+      return false;
+    }
+
+    try {
+      if (client) {
+        await User.assignRole(client, userId, 'trainer');
+      } else {
+        const roleClient = await connect();
+        try {
+          await roleClient.query('BEGIN');
+          await User.assignRole(roleClient, userId, 'trainer');
+          await roleClient.query('COMMIT');
+        } catch (err) {
+          await roleClient.query('ROLLBACK');
+          throw err;
+        } finally {
+          roleClient.release();
+        }
+      }
+
+      logger.info('[AUTH][ROLE] trainer role ensured by configuration', {
+        userId,
+        source,
+        email: maskEmail(email),
+      });
+      return true;
+    } catch (err) {
+      logger.warn('[AUTH][ROLE] failed to ensure trainer role by configuration', {
+        userId,
+        source,
+        email: maskEmail(email),
+        error: err.message,
+      });
+      return false;
+    }
   }
 
   static _compact(payload) {

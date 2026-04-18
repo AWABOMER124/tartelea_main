@@ -1,3 +1,8 @@
+/**
+ * STEP 2 transitional marker:
+ * Sudan awareness still embeds legacy Supabase community widgets for a dedicated content surface.
+ * It is not the primary `/community` owner anymore and should remain frozen until migrated.
+ */
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";

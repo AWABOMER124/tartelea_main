@@ -24,6 +24,17 @@ interface RecordingData {
   };
 }
 
+const CLOUDFLARE_STREAM_CUSTOMER_CODE =
+  import.meta.env.VITE_CLOUDFLARE_STREAM_CUSTOMER_CODE?.trim() || "";
+
+const buildCloudflareEmbedUrl = (uid: string | null | undefined) => {
+  if (!uid || !CLOUDFLARE_STREAM_CUSTOMER_CODE) {
+    return null;
+  }
+
+  return `https://customer-${CLOUDFLARE_STREAM_CUSTOMER_CODE}.cloudflarestream.com/${uid}/iframe`;
+};
+
 const WorkshopRecordingPlayer = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -132,7 +143,7 @@ const WorkshopRecordingPlayer = () => {
 
     // If we have a cloudflare_uid, use iframe embed
     if (recording.cloudflare_uid) {
-      return `https://customer-${import.meta.env.VITE_SUPABASE_PROJECT_ID}.cloudflarestream.com/${recording.cloudflare_uid}/iframe`;
+      return buildCloudflareEmbedUrl(recording.cloudflare_uid);
     }
 
     return recording.recording_url;
@@ -167,7 +178,10 @@ const WorkshopRecordingPlayer = () => {
   }
 
   const videoUrl = getVideoUrl();
-  const isCloudflareEmbed = recording.cloudflare_uid || recording.recording_url?.includes("cloudflarestream.com");
+  const cloudflareEmbedUrl = buildCloudflareEmbedUrl(recording.cloudflare_uid);
+  const isCloudflareEmbed = Boolean(
+    cloudflareEmbedUrl || recording.recording_url?.includes("cloudflarestream.com"),
+  );
 
   return (
     <AppLayout>
@@ -188,7 +202,7 @@ const WorkshopRecordingPlayer = () => {
             <div className="aspect-video bg-black">
               {isCloudflareEmbed && recording.cloudflare_uid ? (
                 <iframe
-                  src={`https://customer-${import.meta.env.VITE_SUPABASE_PROJECT_ID || "stream"}.cloudflarestream.com/${recording.cloudflare_uid}/iframe`}
+                  src={cloudflareEmbedUrl || undefined}
                   className="w-full h-full"
                   allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
                   allowFullScreen

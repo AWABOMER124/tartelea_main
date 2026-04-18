@@ -1,6 +1,11 @@
+/**
+ * STEP 3 official room management path:
+ * Sensitive session/room actions now go through backend `/sessions/:id/actions`.
+ * Supabase `room-manage` must not be used for new room control logic.
+ */
 import { useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { manageBackendSession } from "@/lib/backendSessions";
 
 type RoomAction =
   | "promote_speaker"
@@ -8,51 +13,37 @@ type RoomAction =
   | "promote_co_host"
   | "promote_moderator"
   | "kick"
+  | "raise_hand"
+  | "lower_hand"
   | "accept_hand"
   | "reject_hand"
   | "start_live"
-  | "end_room";
+  | "end_session";
 
 export const useRoomManage = (roomId: string | undefined) => {
   const { toast } = useToast();
 
   const invoke = useCallback(
-    async (action: RoomAction, target_user_id?: string) => {
+    async (action: RoomAction, targetUserId?: string) => {
       if (!roomId) return { success: false, error: "No room ID" };
 
       try {
-        const { data, error } = await supabase.functions.invoke("room-manage", {
-          body: { action, room_id: roomId, target_user_id },
+        const data = await manageBackendSession({
+          sessionId: roomId,
+          action,
+          targetUserId,
         });
-
-        if (error) {
-          console.error("room-manage error:", error);
-          toast({
-            title: "خطأ",
-            description: "فشل تنفيذ العملية",
-            variant: "destructive",
-          });
-          return { success: false, error: error.message };
-        }
-
-        if (data?.error) {
-          toast({
-            title: "خطأ",
-            description: data.error,
-            variant: "destructive",
-          });
-          return { success: false, error: data.error };
-        }
 
         return { success: true, data };
-      } catch (err) {
-        console.error("room-manage exception:", err);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "حدث خطأ غير متوقع";
         toast({
           title: "خطأ",
-          description: "حدث خطأ غير متوقع",
+          description: message,
           variant: "destructive",
         });
-        return { success: false, error: "Unexpected error" };
+
+        return { success: false, error: message };
       }
     },
     [roomId, toast]
@@ -63,10 +54,12 @@ export const useRoomManage = (roomId: string | undefined) => {
   const promoteCoHost = (userId: string) => invoke("promote_co_host", userId);
   const promoteModerator = (userId: string) => invoke("promote_moderator", userId);
   const kickUser = (userId: string) => invoke("kick", userId);
+  const raiseHand = () => invoke("raise_hand");
+  const lowerHand = () => invoke("lower_hand");
   const acceptHand = (userId: string) => invoke("accept_hand", userId);
   const rejectHand = (userId: string) => invoke("reject_hand", userId);
   const startLive = () => invoke("start_live");
-  const endRoom = () => invoke("end_room");
+  const endRoom = () => invoke("end_session");
 
   return {
     promoteSpeaker,
@@ -74,6 +67,8 @@ export const useRoomManage = (roomId: string | undefined) => {
     promoteCoHost,
     promoteModerator,
     kickUser,
+    raiseHand,
+    lowerHand,
     acceptHand,
     rejectHand,
     startLive,

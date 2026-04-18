@@ -12,6 +12,10 @@ const {
 
 const router = express.Router();
 
+// STEP 3 transitional note:
+// `audio-rooms/*` remains a legacy compatibility surface for older clients.
+// The official voice/session contract now lives under `/sessions/*`.
+
 const roomTokenLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 30,

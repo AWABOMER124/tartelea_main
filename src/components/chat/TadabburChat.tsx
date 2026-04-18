@@ -26,7 +26,9 @@ import RootDecoder from "@/components/tadabbur/RootDecoder";
 
 type Message = { role: "user" | "assistant"; content: string };
 
-const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/tadabbur-chat`;
+const CHAT_URL = `${
+  import.meta.env.VITE_BACKEND_API_BASE_URL?.trim() || "/api/v1"
+}/compat/functions/tadabbur-chat`;
 const DAILY_LIMIT = 20;
 
 const SUGGESTED_PROMPTS = [

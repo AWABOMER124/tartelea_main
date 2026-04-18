@@ -1,3 +1,8 @@
+/**
+ * STEP 3 transitional note:
+ * This dashboard still contains several non-community Supabase management surfaces.
+ * Community moderation and community pinning now run through backend admin/community APIs.
+ */
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,11 +16,11 @@ import PostManagement from "@/components/admin/PostManagement";
 import UserManagement from "@/components/admin/UserManagement";
 import TrainerCoursesManagement from "@/components/admin/TrainerCoursesManagement";
 import EventsManagement from "@/components/admin/EventsManagement";
-import PinnedContentManagement from "@/components/admin/PinnedContentManagement";
+import CommunityPinsManagement from "@/components/admin/CommunityPinsManagement";
+import { listAdminCommunityPosts } from "@/lib/backendCommunityAdmin";
 import type { Database } from "@/integrations/supabase/types";
 
 type Content = Database["public"]["Tables"]["contents"]["Row"];
-type Post = Database["public"]["Tables"]["posts"]["Row"];
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 
 const AdminDashboard = () => {
@@ -24,7 +29,7 @@ const AdminDashboard = () => {
   const { isModerator, isAdmin, loading: roleLoading } = useUserRole();
 
   const [contents, setContents] = useState<Content[]>([]);
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [communityPostsCount, setCommunityPostsCount] = useState(0);
   const [users, setUsers] = useState<Profile[]>([]);
   const [pendingCoursesCount, setPendingCoursesCount] = useState(0);
   const [pendingEventsCount, setPendingEventsCount] = useState(0);
@@ -35,7 +40,7 @@ const AdminDashboard = () => {
       navigate("/");
       toast({
         title: "غير مصرح",
-        description: "ليس لديك صلاحية الوصول لهذه الصفحة",
+        description: "ليست لديك صلاحية الوصول لهذه الصفحة",
         variant: "destructive",
       });
     }
@@ -43,30 +48,39 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     if (isModerator) {
-      fetchData();
+      void fetchData();
     }
   }, [isModerator]);
 
   const fetchData = async () => {
     setLoadingData(true);
 
-    const [contentsRes, postsRes, usersRes, coursesRes, workshopsRes, roomsRes] = await Promise.all([
-      supabase.from("contents").select("*").order("created_at", { ascending: false }),
-      supabase.from("posts").select("*").order("created_at", { ascending: false }),
-      supabase.from("profiles").select("*").order("created_at", { ascending: false }),
-      supabase.from("trainer_courses").select("id").eq("is_approved", false),
-      supabase.from("workshops").select("id").eq("is_approved", false),
-      supabase.from("rooms").select("id").eq("is_approved", false),
-    ]);
+    try {
+      const [contentsRes, usersRes, coursesRes, workshopsRes, roomsRes, communityPostsRes] = await Promise.all([
+        supabase.from("contents").select("*").order("created_at", { ascending: false }),
+        supabase.from("profiles").select("*").order("created_at", { ascending: false }),
+        supabase.from("trainer_courses").select("id").eq("is_approved", false),
+        supabase.from("workshops").select("id").eq("is_approved", false),
+        supabase.from("rooms").select("id").eq("is_approved", false),
+        listAdminCommunityPosts({ limit: 1, offset: 0 }),
+      ]);
 
-    if (contentsRes.data) setContents(contentsRes.data);
-    if (postsRes.data) setPosts(postsRes.data);
-    if (usersRes.data) setUsers(usersRes.data);
-    if (coursesRes.data) setPendingCoursesCount(coursesRes.data.length);
-    const eventsCount = (workshopsRes.data?.length || 0) + (roomsRes.data?.length || 0);
-    setPendingEventsCount(eventsCount);
-
-    setLoadingData(false);
+      if (contentsRes.data) setContents(contentsRes.data);
+      if (usersRes.data) setUsers(usersRes.data);
+      if (coursesRes.data) setPendingCoursesCount(coursesRes.data.length);
+      const eventsCount = (workshopsRes.data?.length || 0) + (roomsRes.data?.length || 0);
+      setPendingEventsCount(eventsCount);
+      setCommunityPostsCount(communityPostsRes.total || 0);
+    } catch (error) {
+      toast({
+        title: "تعذر تحميل بيانات المجتمع",
+        description: error instanceof Error ? error.message : "حدث خطأ غير متوقع",
+        variant: "destructive",
+      });
+      setCommunityPostsCount(0);
+    } finally {
+      setLoadingData(false);
+    }
   };
 
   if (roleLoading || loadingData) {
@@ -86,22 +100,18 @@ const AdminDashboard = () => {
   return (
     <AppLayout>
       <div className="px-4 py-6 space-y-6">
-        {/* Header */}
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
             <Shield className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-xl font-display font-bold text-foreground">
-              لوحة التحكم
-            </h1>
+            <h1 className="text-xl font-display font-bold text-foreground">لوحة التحكم</h1>
             <p className="text-sm text-muted-foreground">
               {isAdmin ? "مدير النظام" : "مشرف"}
             </p>
           </div>
         </div>
 
-        {/* Stats Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="bg-card rounded-xl p-4 border border-border">
             <div className="flex items-center gap-2 mb-2">
@@ -113,14 +123,14 @@ const AdminDashboard = () => {
           <div className="bg-card rounded-xl p-4 border border-border">
             <div className="flex items-center gap-2 mb-2">
               <MessageSquare className="h-5 w-5 text-accent" />
-              <span className="text-sm text-muted-foreground">المنشورات</span>
+              <span className="text-sm text-muted-foreground">منشورات المجتمع</span>
             </div>
-            <p className="text-2xl font-bold text-foreground">{posts.length}</p>
+            <p className="text-2xl font-bold text-foreground">{communityPostsCount}</p>
           </div>
           <div className="bg-card rounded-xl p-4 border border-border">
             <div className="flex items-center gap-2 mb-2">
               <Users className="h-5 w-5 text-primary" />
-              <span className="text-sm text-muted-foreground">المستخدمين</span>
+              <span className="text-sm text-muted-foreground">المستخدمون</span>
             </div>
             <p className="text-2xl font-bold text-foreground">{users.length}</p>
           </div>
@@ -136,7 +146,6 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        {/* Tabs */}
         <Tabs defaultValue="contents" className="w-full">
           <TabsList className="w-full grid grid-cols-6">
             <TabsTrigger value="contents" className="gap-1 text-xs sm:text-sm">
@@ -145,7 +154,7 @@ const AdminDashboard = () => {
             </TabsTrigger>
             <TabsTrigger value="pinned" className="gap-1 text-xs sm:text-sm">
               <Pin className="h-4 w-4" />
-              <span className="hidden sm:inline">المثبت</span>
+              <span className="hidden sm:inline">تثبيت المجتمع</span>
             </TabsTrigger>
             <TabsTrigger value="courses" className="gap-1 text-xs sm:text-sm relative">
               <GraduationCap className="h-4 w-4" />
@@ -163,11 +172,11 @@ const AdminDashboard = () => {
             </TabsTrigger>
             <TabsTrigger value="posts" className="gap-1 text-xs sm:text-sm">
               <MessageSquare className="h-4 w-4" />
-              <span className="hidden sm:inline">المنشورات</span>
+              <span className="hidden sm:inline">إدارة المجتمع</span>
             </TabsTrigger>
             <TabsTrigger value="users" className="gap-1 text-xs sm:text-sm">
               <Users className="h-4 w-4" />
-              <span className="hidden sm:inline">المستخدمين</span>
+              <span className="hidden sm:inline">المستخدمون</span>
             </TabsTrigger>
           </TabsList>
 
@@ -176,7 +185,7 @@ const AdminDashboard = () => {
           </TabsContent>
 
           <TabsContent value="pinned">
-            <PinnedContentManagement />
+            <CommunityPinsManagement />
           </TabsContent>
 
           <TabsContent value="courses">
@@ -188,7 +197,7 @@ const AdminDashboard = () => {
           </TabsContent>
 
           <TabsContent value="posts">
-            <PostManagement posts={posts} onRefresh={fetchData} />
+            <PostManagement />
           </TabsContent>
 
           <TabsContent value="users">

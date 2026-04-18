@@ -1,3 +1,8 @@
+/**
+ * STEP 2 transitional marker:
+ * This admin surface still reads pinned legacy posts/content through Supabase tables.
+ * Keep frozen until pin management is migrated to backend-owned admin/community APIs.
+ */
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";

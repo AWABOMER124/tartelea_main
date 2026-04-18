@@ -53,8 +53,15 @@ const envSchema = z.object({
   REQUIRE_EMAIL_VERIFICATION: booleanFlag(true),
   AUTO_VERIFY_EMAIL: booleanFlag(false),
   OTP_DEV_FALLBACK: booleanFlag(false),
+  SUBSCRIPTIONS_PAUSED: booleanFlag(false),
+  TRAINER_EMAILS: z.string().optional(),
   LIVEKIT_API_KEY: z.string().optional(),
   LIVEKIT_API_SECRET: z.string().optional(),
+  CLOUDFLARE_ACCOUNT_ID: z.string().optional(),
+  CLOUDFLARE_API_TOKEN: z.string().optional(),
+  PAYPAL_CLIENT_ID: z.string().optional(),
+  PAYPAL_SECRET_KEY: z.string().optional(),
+  LOVABLE_API_KEY: z.string().optional(),
 });
 
 const result = envSchema.safeParse(process.env);

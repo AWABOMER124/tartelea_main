@@ -1,11 +1,23 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+/**
+ * STEP 3 official live room page:
+ * Session details, access decisions, and room actions all come from backend
+ * session APIs. Supabase room tables are no longer the owner of this flow.
+ */
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { ConnectionState } from "livekit-client";
+import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useRoomRecording } from "@/hooks/useRoomRecording";
 import { useRoomManage } from "@/hooks/useRoomManage";
 import { useLiveKitRoom } from "@/hooks/useLiveKitRoom";
-import { ConnectionState } from "livekit-client";
+import {
+  getBackendSessionDetails,
+  leaveBackendSession,
+  type BackendSessionDetails,
+} from "@/lib/backendSessions";
+import { getBackendSessionUser } from "@/lib/backendSession";
+import { enableBackgroundAudio, disableBackgroundAudio } from "@/lib/capacitor/background-audio";
 import LiveChat from "@/components/live/LiveChat";
 import LiveStreamSharing from "@/components/live/LiveStreamSharing";
 import RoomStage from "@/components/rooms/RoomStage";
@@ -16,348 +28,369 @@ import RoomReactions from "@/components/rooms/RoomReactions";
 import RoomHeader from "@/components/rooms/RoomHeader";
 import type { StageParticipant } from "@/components/rooms/RoomStage";
 import type { AudienceMember } from "@/components/rooms/RoomAudience";
-import { Loader2, ChevronDown } from "lucide-react";
-import { enableBackgroundAudio, disableBackgroundAudio } from "@/lib/capacitor/background-audio";
+
+const SPEAKING_ROOM_ROLES = new Set(["host", "co_host", "moderator", "speaker"]);
 
 const formatElapsed = (seconds: number) => {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = seconds % 60;
-  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  return `${m}:${String(s).padStart(2, "0")}`;
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainingSeconds = seconds % 60;
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
+  }
+  return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
 };
 
 const RoomLive = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const backendUser = getBackendSessionUser();
+  const userId = backendUser?.id ?? null;
 
   const [loading, setLoading] = useState(true);
-  const [room, setRoom] = useState<any>(null);
-  const [isHost, setIsHost] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [isAudioEnabled, setIsAudioEnabled] = useState(true);
+  const [sessionDetails, setSessionDetails] = useState<BackendSessionDetails | null>(null);
   const [showChat, setShowChat] = useState(false);
   const [showManagement, setShowManagement] = useState(false);
-  const [hasRaisedHand, setHasRaisedHand] = useState(false);
-  const [userRoomRole, setUserRoomRole] = useState<string>("listener");
-  const [liveKitReady, setLiveKitReady] = useState(false);
 
-  const [speakers, setSpeakers] = useState<StageParticipant[]>([]);
-  const [audience, setAudience] = useState<AudienceMember[]>([]);
-  const [handRaises, setHandRaises] = useState<any[]>([]);
-
-  // Elapsed time tracking
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const elapsedTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Stats tracking
   const [peakParticipants, setPeakParticipants] = useState(0);
   const [totalHandRaises, setTotalHandRaises] = useState(0);
-
-  // Speaking time tracking per user
   const speakingTimeRef = useRef<Map<string, number>>(new Map());
 
   const liveKit = useLiveKitRoom({
-    roomId: id || "",
-    enabled: liveKitReady,
+    sessionId: id || "",
+    enabled: Boolean(id && sessionDetails?.access.canJoin),
   });
 
-  const {
-    isRecording, isUploading, formattedDuration,
-    startRecording, stopRecording,
-  } = useRoomRecording({ roomId: id || "", localStream: null });
+  const { isRecording, isUploading, formattedDuration, startRecording, stopRecording } =
+    useRoomRecording({
+      roomId: id || "",
+      localStream: null,
+    });
 
   const roomManage = useRoomManage(id);
 
-  // Elapsed time timer
+  const applySessionDetails = useCallback((nextDetails: BackendSessionDetails) => {
+    setSessionDetails(nextDetails);
+    setPeakParticipants((prev) =>
+      Math.max(prev, nextDetails.participants.length),
+    );
+    setTotalHandRaises((prev) =>
+      Math.max(prev, nextDetails.hand_raises.length),
+    );
+  }, []);
+
+  const refreshSessionDetails = useCallback(
+    async (silent = false) => {
+      if (!id) {
+        return;
+      }
+
+      try {
+        if (!silent) {
+          setLoading(true);
+        }
+
+        const details = await getBackendSessionDetails(id);
+        applySessionDetails(details);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "تعذر تحميل تفاصيل الجلسة الصوتية.";
+
+        toast({
+          title: "خطأ",
+          description: message,
+          variant: "destructive",
+        });
+        navigate("/rooms");
+      } finally {
+        if (!silent) {
+          setLoading(false);
+        }
+      }
+    },
+    [applySessionDetails, id, navigate, toast],
+  );
+
   useEffect(() => {
-    if (room?.is_live && room?.actual_started_at) {
-      const startTime = new Date(room.actual_started_at).getTime();
-      const updateElapsed = () => {
-        setElapsedSeconds(Math.floor((Date.now() - startTime) / 1000));
-      };
-      updateElapsed();
-      elapsedTimerRef.current = setInterval(updateElapsed, 1000);
-      return () => {
-        if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
-      };
-    } else {
-      setElapsedSeconds(0);
-    }
-  }, [room?.is_live, room?.actual_started_at]);
-
-  // Track peak participants
-  useEffect(() => {
-    const total = speakers.length + audience.length;
-    setPeakParticipants((prev) => Math.max(prev, total));
-  }, [speakers.length, audience.length]);
-
-  // Track speaking time
-  useEffect(() => {
-    const interval = setInterval(() => {
-      liveKit.activeSpeakers.forEach((uid) => {
-        const current = speakingTimeRef.current.get(uid) || 0;
-        speakingTimeRef.current.set(uid, current + 1);
-      });
-      // Update speakers with speaking duration
-      setSpeakers((prev) =>
-        prev.map((s) => ({
-          ...s,
-          speakingDuration: speakingTimeRef.current.get(s.id) || 0,
-        }))
-      );
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [liveKit.activeSpeakers]);
-
-  useEffect(() => {
-    fetchRoom();
-
-    const channel = supabase
-      .channel(`room-${id}`)
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "rooms", filter: `id=eq.${id}` },
-        (payload) => setRoom((prev: any) => (prev ? { ...prev, ...payload.new } : prev))
-      )
-      .subscribe();
-
-    const participantsChannel = supabase
-      .channel(`room-participants-${id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "room_participants", filter: `room_id=eq.${id}` },
-        () => fetchParticipants()
-      )
-      .subscribe();
-
-    const rolesChannel = supabase
-      .channel(`room-roles-${id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "room_roles", filter: `room_id=eq.${id}` },
-        () => fetchParticipants()
-      )
-      .subscribe();
-
-    const handRaisesChannel = supabase
-      .channel(`room-hands-${id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "room_hand_raises", filter: `room_id=eq.${id}` },
-        () => fetchHandRaises()
-      )
-      .subscribe();
-
-    return () => {
-      liveKit.disconnect();
-      supabase.removeChannel(channel);
-      supabase.removeChannel(participantsChannel);
-      supabase.removeChannel(rolesChannel);
-      supabase.removeChannel(handRaisesChannel);
-      if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
-    };
-  }, [id]);
-
-  const fetchRoom = async () => {
-    if (!id) return;
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { navigate("/auth"); return; }
-
-    setUserId(user.id);
-
-    const { data, error } = await supabase.from("rooms").select("*").eq("id", id).single();
-    if (error || !data) {
-      toast({ title: "خطأ", description: "الغرفة غير موجودة", variant: "destructive" });
-      navigate("/rooms");
+    if (!userId) {
+      navigate("/auth");
       return;
     }
 
-    setRoom(data);
-    const hostFlag = data.host_id === user.id;
-    setIsHost(hostFlag);
-    setLoading(false);
-
-    if (hostFlag) {
-      await supabase.from("room_roles").upsert({ room_id: id, user_id: user.id, role: "host" }, { onConflict: "room_id,user_id" });
-    }
-    setLiveKitReady(true);
-    enableBackgroundAudio();
-
-    await Promise.all([fetchParticipants(), fetchHandRaises()]);
-  };
-
-  const fetchParticipants = async () => {
-    if (!id) return;
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { data: roomData } = await supabase.from("rooms").select("host_id").eq("id", id).single();
-    if (!roomData) return;
-
-    const { data: participantsData } = await supabase.from("room_participants").select("user_id").eq("room_id", id);
-    const { data: rolesData } = await supabase.from("room_roles").select("user_id, role").eq("room_id", id);
-
-    const roleMap = new Map(rolesData?.map((r) => [r.user_id, r.role]) || []);
-
-    const allUserIds = [
-      roomData.host_id,
-      ...(participantsData?.map((p) => p.user_id).filter((uid) => uid !== roomData.host_id) || []),
-    ];
-    const uniqueIds = [...new Set(allUserIds)];
-
-    const { data: profiles } = await supabase.from("profiles").select("id, full_name, avatar_url, bio").in("id", uniqueIds);
-    const profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
-
-    const myRole = roleMap.get(user.id) || (roomData.host_id === user.id ? "host" : "listener");
-    setUserRoomRole(myRole);
-
-    const speakerRoles = ["host", "co_host", "moderator", "speaker"];
-    const newSpeakers: StageParticipant[] = [];
-    const newAudience: AudienceMember[] = [];
-
-    uniqueIds.forEach((uid) => {
-      const role = roleMap.get(uid) || (uid === roomData.host_id ? "host" : "listener");
-      const profile = profileMap.get(uid);
-      const name = profile?.full_name || "مستخدم";
-
-      if (speakerRoles.includes(role)) {
-        const isSpeakingNow = liveKit.activeSpeakers.includes(uid);
-        newSpeakers.push({
-          id: uid,
-          name,
-          isHost: uid === roomData.host_id,
-          isMuted: !isSpeakingNow && uid !== roomData.host_id,
-          isSpeaking: isSpeakingNow,
-          role,
-          avatarUrl: profile?.avatar_url || undefined,
-          bio: profile?.bio || undefined,
-          speakingDuration: speakingTimeRef.current.get(uid) || 0,
-          connectionQuality: liveKit.participantQualities.get(uid),
-        });
-      } else {
-        newAudience.push({
-          id: uid,
-          name,
-          hasRaisedHand: false,
-          avatarUrl: profile?.avatar_url || undefined,
-        });
-      }
-    });
-
-    setSpeakers(newSpeakers);
-    setAudience(newAudience);
-  };
-
-  const fetchHandRaises = async () => {
-    if (!id) return;
-    const { data } = await supabase
-      .from("room_hand_raises")
-      .select("*")
-      .eq("room_id", id)
-      .eq("status", "pending")
-      .order("created_at", { ascending: true });
-    setHandRaises(data || []);
-    setTotalHandRaises((prev) => Math.max(prev, (data || []).length));
-
-    setAudience((prev) =>
-      prev.map((m) => ({
-        ...m,
-        hasRaisedHand: (data || []).some((h) => h.user_id === m.id),
-      }))
-    );
-  };
-
-  const toggleAudio = useCallback(async () => {
-    await liveKit.toggleAudio();
-    setIsAudioEnabled(liveKit.isAudioEnabled);
-  }, [liveKit]);
+    void refreshSessionDetails();
+  }, [navigate, refreshSessionDetails, userId]);
 
   useEffect(() => {
-    setIsAudioEnabled(liveKit.isAudioEnabled);
-  }, [liveKit.isAudioEnabled]);
+    if (!id || !userId) {
+      return;
+    }
 
-  const handleLeave = () => {
+    enableBackgroundAudio();
+    const interval = window.setInterval(() => {
+      void refreshSessionDetails(true);
+    }, 8000);
+
+    return () => {
+      window.clearInterval(interval);
+      disableBackgroundAudio();
+      if (elapsedTimerRef.current) {
+        clearInterval(elapsedTimerRef.current);
+      }
+    };
+  }, [id, refreshSessionDetails, userId]);
+
+  useEffect(() => {
+    const actualStartedAt = sessionDetails?.session.actual_started_at;
+    const isLive = sessionDetails?.session.status === "live";
+
+    if (!actualStartedAt || !isLive) {
+      setElapsedSeconds(0);
+      if (elapsedTimerRef.current) {
+        clearInterval(elapsedTimerRef.current);
+        elapsedTimerRef.current = null;
+      }
+      return;
+    }
+
+    const startTime = new Date(actualStartedAt).getTime();
+    const updateElapsed = () => {
+      setElapsedSeconds(Math.floor((Date.now() - startTime) / 1000));
+    };
+
+    updateElapsed();
+    elapsedTimerRef.current = setInterval(updateElapsed, 1000);
+
+    return () => {
+      if (elapsedTimerRef.current) {
+        clearInterval(elapsedTimerRef.current);
+      }
+    };
+  }, [sessionDetails?.session.actual_started_at, sessionDetails?.session.status]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      liveKit.activeSpeakers.forEach((participantId) => {
+        const current = speakingTimeRef.current.get(participantId) || 0;
+        speakingTimeRef.current.set(participantId, current + 1);
+      });
+    }, 1000);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [liveKit.activeSpeakers]);
+
+  useEffect(() => {
+    if (!sessionDetails || sessionDetails.session.status !== "live") {
+      return;
+    }
+
+    const backendRole = sessionDetails.access.room_role;
+    const backendCanPublish = Boolean(sessionDetails.access.canPublish);
+    const livekitRole = liveKit.access?.room_role;
+    const livekitCanPublish = Boolean(liveKit.access?.canPublish);
+
+    if (
+      liveKit.connectionState === ConnectionState.Connected &&
+      (backendRole !== livekitRole || backendCanPublish !== livekitCanPublish)
+    ) {
+      void liveKit.connect();
+    }
+  }, [
+    liveKit.access?.canPublish,
+    liveKit.access?.room_role,
+    liveKit.connect,
+    liveKit.connectionState,
+    sessionDetails,
+  ]);
+
+  const speakers = useMemo<StageParticipant[]>(() => {
+    const participants = sessionDetails?.participants ?? [];
+    return participants
+      .filter((participant) => SPEAKING_ROOM_ROLES.has(participant.room_role))
+      .map((participant) => {
+        const isSpeaking = liveKit.activeSpeakers.includes(participant.id);
+        return {
+          id: participant.id,
+          name: participant.name,
+          isHost: participant.room_role === "host",
+          isMuted: !isSpeaking && participant.room_role !== "host",
+          isSpeaking,
+          role: participant.room_role,
+          avatarUrl: participant.avatar_url ?? undefined,
+          bio: participant.bio ?? undefined,
+          speakingDuration: speakingTimeRef.current.get(participant.id) || 0,
+          connectionQuality: liveKit.participantQualities.get(participant.id),
+        };
+      });
+  }, [liveKit.activeSpeakers, liveKit.participantQualities, sessionDetails?.participants]);
+
+  const audience = useMemo<AudienceMember[]>(() => {
+    const participants = sessionDetails?.participants ?? [];
+    return participants
+      .filter((participant) => !SPEAKING_ROOM_ROLES.has(participant.room_role))
+      .map((participant) => ({
+        id: participant.id,
+        name: participant.name,
+        hasRaisedHand: participant.has_raised_hand,
+        avatarUrl: participant.avatar_url ?? undefined,
+      }));
+  }, [sessionDetails?.participants]);
+
+  const currentParticipant = useMemo(
+    () => sessionDetails?.participants.find((participant) => participant.id === userId),
+    [sessionDetails?.participants, userId],
+  );
+
+  const isHost = sessionDetails?.access.room_role === "host";
+  const canManage = Boolean(sessionDetails?.access.canModerate);
+  const hasRaisedHand = Boolean(currentParticipant?.has_raised_hand);
+  const isSpeaker =
+    Boolean(sessionDetails?.access.canSpeak) || Boolean(liveKit.access?.canPublish);
+  const totalParticipants = (sessionDetails?.participants.length ?? 0) || speakers.length + audience.length;
+  const isConnected = liveKit.connectionState === ConnectionState.Connected;
+  const elapsedTime = elapsedSeconds > 0 ? formatElapsed(elapsedSeconds) : undefined;
+
+  const updateFromAction = (
+    result: Awaited<ReturnType<typeof roomManage.promoteSpeaker>>,
+  ) => {
+    if (result.success && result.data) {
+      applySessionDetails(result.data);
+    }
+    return result.success;
+  };
+
+  const handleLeave = async () => {
     liveKit.disconnect();
     disableBackgroundAudio();
-    if (id && userId) {
-      supabase.from("room_hand_raises").delete().eq("room_id", id).eq("user_id", userId).then(() => {});
-      supabase.from("room_roles").delete().eq("room_id", id).eq("user_id", userId).then(() => {});
+
+    if (id) {
+      try {
+        await leaveBackendSession(id);
+      } catch {
+        // Best-effort cleanup; navigation should still proceed.
+      }
     }
+
     navigate("/rooms");
   };
 
   const handleStartLive = async () => {
-    if (!isHost || !id) return;
     const result = await roomManage.startLive();
-    if (result.success) {
-      setRoom((prev: any) => ({ ...prev, is_live: true, actual_started_at: new Date().toISOString() }));
-      toast({ title: "تم", description: "بدأ البث الصوتي" });
+    if (updateFromAction(result)) {
+      toast({
+        title: "تم",
+        description: "بدأ البث الصوتي.",
+      });
+      await liveKit.connect();
     }
   };
 
   const handleEndLive = async () => {
-    if (!isHost || !id) return;
-    // Update peak participants before ending
-    if (id) {
-      const total = speakers.length + audience.length;
-      await supabase.from("rooms").update({
-        peak_participants: Math.max(peakParticipants, total),
-        total_participants_count: total,
-      }).eq("id", id);
-    }
     const result = await roomManage.endRoom();
-    if (result.success) {
-      toast({ title: "تم", description: "انتهى البث الصوتي" });
+    if (updateFromAction(result)) {
+      toast({
+        title: "تم",
+        description: "انتهى البث الصوتي.",
+      });
+      liveKit.disconnect();
       navigate("/rooms");
     }
   };
 
   const handleRaiseHand = async () => {
-    if (!id || !userId) return;
-    if (hasRaisedHand) {
-      await supabase.from("room_hand_raises").delete().eq("room_id", id).eq("user_id", userId);
-      setHasRaisedHand(false);
-      toast({ title: "تم إنزال اليد", description: "تم إلغاء طلب التحدث" });
-    } else {
-      await supabase.from("room_hand_raises").upsert(
-        { room_id: id, user_id: userId, status: "pending" },
-        { onConflict: "room_id,user_id" }
-      );
-      setHasRaisedHand(true);
-      toast({ title: "✋ تم رفع اليد", description: "سيتم إعلام المضيف بطلبك" });
+    const result = hasRaisedHand
+      ? await roomManage.lowerHand()
+      : await roomManage.raiseHand();
+
+    if (updateFromAction(result)) {
+      toast({
+        title: hasRaisedHand ? "تم" : "تم رفع اليد",
+        description: hasRaisedHand
+          ? "تم إلغاء طلب التحدث."
+          : "تم إرسال طلب التحدث إلى إدارة الجلسة.",
+      });
     }
   };
 
   const handleAcceptHandRaise = async (raisedUserId: string) => {
     const result = await roomManage.acceptHand(raisedUserId);
-    if (result.success) toast({ title: "تم القبول", description: "تمت ترقية المستخدم إلى متحدث" });
+    if (updateFromAction(result)) {
+      toast({
+        title: "تم القبول",
+        description: "تمت ترقية المستخدم إلى متحدث.",
+      });
+    }
   };
 
   const handleRejectHandRaise = async (raisedUserId: string) => {
     const result = await roomManage.rejectHand(raisedUserId);
-    if (result.success) toast({ title: "تم الرفض", description: "تم رفض طلب التحدث" });
+    if (updateFromAction(result)) {
+      toast({
+        title: "تم الرفض",
+        description: "تم رفض طلب التحدث.",
+      });
+    }
   };
 
   const handleDemoteToListener = async (targetUserId: string) => {
     const result = await roomManage.demoteListener(targetUserId);
-    if (result.success) toast({ title: "تم", description: "تم نقل المستخدم للمستمعين" });
+    if (updateFromAction(result)) {
+      toast({
+        title: "تم",
+        description: "تم نقل المستخدم إلى المستمعين.",
+      });
+    }
   };
 
   const handlePromoteToCoHost = async (targetUserId: string) => {
     const result = await roomManage.promoteCoHost(targetUserId);
-    if (result.success) toast({ title: "تم", description: "تم ترقية المستخدم إلى مضيف مشارك" });
+    if (updateFromAction(result)) {
+      toast({
+        title: "تم",
+        description: "تمت ترقية المستخدم إلى مضيف مشارك.",
+      });
+    }
   };
 
   const handlePromoteToModerator = async (targetUserId: string) => {
     const result = await roomManage.promoteModerator(targetUserId);
-    if (result.success) toast({ title: "تم", description: "تم ترقية المستخدم إلى مشرف" });
+    if (updateFromAction(result)) {
+      toast({
+        title: "تم",
+        description: "تمت ترقية المستخدم إلى مشرف.",
+      });
+    }
   };
 
   const handleKickUser = async (targetUserId: string) => {
     const result = await roomManage.kickUser(targetUserId);
-    if (result.success) toast({ title: "تم الطرد", description: "تم طرد المستخدم من الغرفة" });
+    if (updateFromAction(result)) {
+      toast({
+        title: "تم الطرد",
+        description: "تم طرد المستخدم من الجلسة.",
+      });
+    }
   };
 
   const handleInviteToStage = async (invitedUserId: string) => {
     const result = await roomManage.promoteSpeaker(invitedUserId);
-    if (result.success) toast({ title: "تمت الدعوة", description: "تم ترقية المستخدم إلى متحدث" });
+    if (updateFromAction(result)) {
+      toast({
+        title: "تمت الدعوة",
+        description: "تمت ترقية المستخدم إلى متحدث.",
+      });
+    }
   };
 
-  if (loading) {
+  const toggleAudio = useCallback(async () => {
+    await liveKit.toggleAudio();
+  }, [liveKit]);
+
+  if (loading || !sessionDetails) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -365,74 +398,66 @@ const RoomLive = () => {
     );
   }
 
-  const canManage = isHost || userRoomRole === "co_host" || userRoomRole === "moderator";
-  const isSpeaker = speakers.some((s) => s.id === userId) || liveKit.canPublish;
-  const totalParticipants = speakers.length + audience.length;
-  const isConnected = liveKit.connectionState === ConnectionState.Connected;
-  const elapsedTime = elapsedSeconds > 0 ? formatElapsed(elapsedSeconds) : undefined;
-
   return (
     <div className="min-h-screen bg-background flex flex-col" dir="rtl">
-      {/* Header */}
       <RoomHeader
-        title={room?.title || ""}
-        description={room?.description}
-        category={room?.category}
-        isLive={room?.is_live || false}
+        title={sessionDetails.session.title}
+        description={sessionDetails.session.description}
+        category={sessionDetails.session.category ?? undefined}
+        isLive={sessionDetails.session.status === "live"}
         totalParticipants={totalParticipants}
-        handRaisesCount={handRaises.length}
+        handRaisesCount={sessionDetails.hand_raises.length}
         canManage={canManage}
         isConnected={isConnected}
         connectionError={liveKit.error}
         elapsedTime={elapsedTime}
-        onLeave={handleLeave}
-        onToggleManagement={() => { setShowManagement(!showManagement); setShowChat(false); }}
+        onLeave={() => void handleLeave()}
+        onToggleManagement={() => {
+          setShowManagement((prev) => !prev);
+          setShowChat(false);
+        }}
       />
 
-      {/* Main Content */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         <div className={`flex-1 overflow-y-auto ${showChat || showManagement ? "lg:w-2/3" : "w-full"}`}>
           <div className="max-w-xl mx-auto px-4 py-6 space-y-6">
-            {room?.description && (
+            {sessionDetails.session.description && (
               <p className="text-sm text-muted-foreground text-center leading-relaxed bg-muted/30 rounded-xl px-4 py-3">
-                {room.description}
+                {sessionDetails.session.description}
               </p>
             )}
 
             <RoomStage speakers={speakers} currentUserId={userId || ""} />
 
             {audience.length > 0 && (
-              <div className="flex items-center gap-3">
-                <div className="flex-1 h-px bg-border" />
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                <div className="flex-1 h-px bg-border" />
-              </div>
+              <RoomAudience
+                audience={audience}
+                currentUserId={userId || ""}
+                isHost={canManage}
+                onInviteToStage={handleInviteToStage}
+              />
             )}
-
-            <RoomAudience
-              audience={audience}
-              currentUserId={userId || ""}
-              isHost={canManage}
-              onInviteToStage={handleInviteToStage}
-            />
 
             {isHost && (
               <div className="pt-4">
-                <LiveStreamSharing isLive={room?.is_live} eventTitle={room?.title} eventId={id} />
+                <LiveStreamSharing
+                  isLive={sessionDetails.session.status === "live"}
+                  eventTitle={sessionDetails.session.title}
+                  eventId={id}
+                />
               </div>
             )}
           </div>
         </div>
 
-        {/* Management Panel */}
         {showManagement && canManage && (
           <div className="w-full lg:w-80 border-r border-border h-[calc(100vh-8rem)] overflow-y-auto">
             <RoomManagementPanel
               speakers={speakers}
               audience={audience}
-              handRaises={handRaises}
+              handRaises={sessionDetails.hand_raises}
               currentUserId={userId || ""}
-              isHost={isHost}
+              isHost={Boolean(isHost)}
               onAcceptHand={handleAcceptHandRaise}
               onRejectHand={handleRejectHandRaise}
               onDemote={handleDemoteToListener}
@@ -450,7 +475,6 @@ const RoomLive = () => {
           </div>
         )}
 
-        {/* Chat Sidebar */}
         {showChat && userId && !showManagement && (
           <div className="w-full lg:w-80 border-r border-border h-[calc(100vh-8rem)]">
             <LiveChat eventId={id!} eventType="room" userId={userId} overlay />
@@ -458,29 +482,30 @@ const RoomLive = () => {
         )}
       </div>
 
-      {/* Reactions */}
       <div className="bg-card/80 backdrop-blur-sm border-t border-border px-2 py-1">
         <RoomReactions roomId={id} />
       </div>
 
-      {/* Controls */}
       <RoomControls
-        isHost={isHost}
+        isHost={Boolean(isHost)}
         isSpeaker={isSpeaker}
-        isLive={room?.is_live || false}
-        isAudioEnabled={isAudioEnabled}
+        isLive={sessionDetails.session.status === "live"}
+        isAudioEnabled={liveKit.isAudioEnabled}
         hasRaisedHand={hasRaisedHand}
         showChat={showChat}
         isRecording={isRecording}
         isUploading={isUploading}
         formattedDuration={formattedDuration}
         elapsedTime={elapsedTime}
-        onToggleAudio={toggleAudio}
-        onLeave={handleLeave}
-        onRaiseHand={handleRaiseHand}
-        onToggleChat={() => { setShowChat(!showChat); setShowManagement(false); }}
-        onStartLive={handleStartLive}
-        onEndLive={handleEndLive}
+        onToggleAudio={() => void toggleAudio()}
+        onLeave={() => void handleLeave()}
+        onRaiseHand={() => void handleRaiseHand()}
+        onToggleChat={() => {
+          setShowChat((prev) => !prev);
+          setShowManagement(false);
+        }}
+        onStartLive={() => void handleStartLive()}
+        onEndLive={() => void handleEndLive()}
         onStartRecording={startRecording}
         onStopRecording={stopRecording}
       />

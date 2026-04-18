@@ -1,3 +1,8 @@
+/**
+ * STEP 2 transitional marker:
+ * This ticker still reads legacy pinned/community data from Supabase for the home surface.
+ * It is no longer part of the primary community flow and should be migrated in a follow-up step.
+ */
 import { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { TrendingUp } from "lucide-react";

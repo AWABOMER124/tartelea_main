@@ -1,3 +1,8 @@
+/**
+ * STEP 2 freeze marker:
+ * Legacy reporting dialog for Supabase social tables only.
+ * New reporting flows must go through CommunityReportDialog -> backend `/community/reports`.
+ */
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
