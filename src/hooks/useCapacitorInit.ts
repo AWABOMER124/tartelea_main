@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { isNativePlatform } from "@/lib/capacitor/platform";
 import { initPushNotifications, removePushToken } from "@/lib/capacitor/push-notifications";
 import { initDeepLinks, getNotificationRoute } from "@/lib/capacitor/deep-links";
@@ -11,7 +11,9 @@ import { initDeepLinks, getNotificationRoute } from "@/lib/capacitor/deep-links"
  */
 export function useCapacitorInit() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const initialized = useRef(false);
+  const previousUserId = useRef<string | null>(null);
 
   useEffect(() => {
     if (!isNativePlatform() || initialized.current) return;
@@ -21,34 +23,22 @@ export function useCapacitorInit() {
     initDeepLinks((path) => {
       navigate(path);
     });
-
-    // Initialize push notifications
-    const setupPush = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await initPushNotifications((data) => {
-          const route = getNotificationRoute(data);
-          navigate(route);
-        });
-      }
-    };
-
-    setupPush();
-
-    // Listen for auth state changes to register/unregister push
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        await initPushNotifications((data) => {
-          const route = getNotificationRoute(data);
-          navigate(route);
-        });
-      } else if (event === 'SIGNED_OUT') {
-        await removePushToken();
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
   }, [navigate]);
+
+  useEffect(() => {
+    if (!isNativePlatform() || !initialized.current) return;
+
+    const currentUserId = user?.id || null;
+
+    if (currentUserId && previousUserId.current !== currentUserId) {
+      void initPushNotifications((data) => {
+        const route = getNotificationRoute(data);
+        navigate(route);
+      });
+    } else if (!currentUserId && previousUserId.current) {
+      void removePushToken();
+    }
+
+    previousUserId.current = currentUserId;
+  }, [navigate, user?.id]);
 }

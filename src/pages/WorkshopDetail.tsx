@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import AppLayout from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -61,6 +62,7 @@ const WorkshopDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   const { hasSubscription } = useSubscription();
 
   const [workshop, setWorkshop] = useState<Workshop | null>(null);
@@ -68,29 +70,20 @@ const WorkshopDetail = () => {
   const [loading, setLoading] = useState(true);
   const [isJoined, setIsJoined] = useState(false);
   const [joiningLoading, setJoiningLoading] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
-
-  useEffect(() => {
-    checkUser();
-  }, []);
+  const userId = user?.id || null;
 
   useEffect(() => {
     if (id) {
-      fetchWorkshopDetails();
-      fetchRecordings();
+      void fetchWorkshopDetails();
+      void fetchRecordings();
     }
   }, [id]);
 
   useEffect(() => {
     if (userId && id) {
-      checkParticipation();
+      void checkParticipation();
     }
   }, [userId, id]);
-
-  const checkUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    setUserId(user?.id || null);
-  };
 
   const fetchWorkshopDetails = async () => {
     if (!id) return;

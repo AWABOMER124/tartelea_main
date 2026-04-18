@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useWorkshops, useUserWorkshopParticipations, useJoinWorkshop, useLeaveWorkshop } from "@/hooks/useWorkshops";
@@ -69,12 +69,13 @@ const Workshops = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const { hasSubscription } = useSubscription();
   const { role } = useUserRole();
   const [selectedStatus, setSelectedStatus] = useState("all");
-  const [userId, setUserId] = useState<string | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [joiningId, setJoiningId] = useState<string | null>(null);
+  const userId = user?.id || null;
 
   const { data: workshops, isLoading: workshopsLoading } = useWorkshops();
   const { data: participations = [] } = useUserWorkshopParticipations(userId);
@@ -82,10 +83,6 @@ const Workshops = () => {
   const leaveMutation = useLeaveWorkshop();
 
   const canCreate = role === "trainer" || role === "moderator" || role === "admin";
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id || null));
-  }, []);
 
   const handleJoin = async (workshop: any) => {
     if (!userId) {

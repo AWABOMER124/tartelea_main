@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import AppLayout from "@/components/layout/AppLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,21 +10,17 @@ import BookingCalendar from "@/components/bookings/BookingCalendar";
 
 const Bookings = () => {
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
   const { isTrainer, userId, loading } = useUserRole();
-  const [user, setUser] = useState<any>(null);
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) {
-        navigate("/auth");
-      } else {
-        setUser(data.user);
-      }
-    });
-  }, [navigate]);
+    if (!authLoading && !user) {
+      navigate("/auth");
+    }
+  }, [authLoading, navigate, user]);
 
-  if (loading || !user || !userId) {
+  if (loading || authLoading || !user || !userId) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center py-20">

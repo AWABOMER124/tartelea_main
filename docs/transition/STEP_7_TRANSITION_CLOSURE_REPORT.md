@@ -52,6 +52,10 @@ This is no longer a hidden blocker. The failure is explicit and self-diagnosing.
 
 - Direct `supabase.` references: `85` across `34` files
 
+### After STEP 7 follow-up cleanup
+
+- Direct `supabase.` references: `72` across `26` files
+
 ### Main-flow closures completed
 
 The following primary routes no longer read or write through the Supabase client directly:
@@ -65,6 +69,18 @@ The following primary routes no longer read or write through the Supabase client
 - `src/components/courses/CourseProgressTracker.tsx`
 - `src/components/courses/CourseGroupChat.tsx`
 - admin management tabs for content, users, trainer courses, and event approvals
+
+Additional follow-up closures:
+
+- `src/hooks/useAuth.tsx` now syncs directly from backend session storage/events
+- `src/components/subscription/SubscriptionCard.tsx` no longer reads auth state through the Supabase client
+- `src/components/rooms/CreateRoomDialog.tsx` now uploads through backend media compatibility instead of direct Supabase storage
+- `src/hooks/useCapacitorInit.ts` now reacts to app auth state through `useAuth`
+- `src/pages/Workshops.tsx`
+- `src/pages/WorkshopDetail.tsx`
+- `src/pages/WorkshopLive.tsx`
+- `src/pages/TrainerProfile.tsx`
+- `src/pages/Bookings.tsx`
 
 ### Classification of remaining Supabase-style usage
 

@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,21 +12,9 @@ import { SubscriptionBenefitsList } from "./SubscriptionBenefits";
 
 const SubscriptionCard = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const { hasSubscription, hasPremiumAccess, roleOverrides, subscription, loading, verifySubscription } = useSubscription();
-  const [user, setUser] = useState<any>(null);
   const [processing, setProcessing] = useState(false);
-
-  useEffect(() => {
-    const init = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user || null);
-    };
-    init();
-    const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user || null);
-    });
-    return () => authSub.unsubscribe();
-  }, []);
 
   const handlePayPalApprove = useCallback(async (subscriptionId: string) => {
     setProcessing(true);

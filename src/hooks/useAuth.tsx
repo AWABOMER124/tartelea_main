@@ -1,5 +1,9 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  BACKEND_SESSION_EVENT,
+  getStoredBackendSession,
+} from "@/lib/backendSession";
+import type { BackendContractUser } from "@/lib/backendAuthContract";
 
 type AuthUser = {
   id: string;
@@ -28,27 +32,57 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
+const toAuthUser = (user: BackendContractUser | null): AuthUser | null => {
+  if (!user) {
+    return null;
+  }
+
+  return {
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    roles: user.roles,
+    full_name: user.fullName ?? null,
+    avatar_url: user.avatarUrl ?? null,
+  };
+};
+
+const readAuthSession = (): AuthContextType["session"] => {
+  const session = getStoredBackendSession();
+  const user = toAuthUser(session.user);
+
+  if (!user || !session.accessToken) {
+    return null;
+  }
+
+  return {
+    access_token: session.accessToken,
+    refresh_token: session.refreshToken,
+    user,
+  };
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [session, setSession] = useState<AuthContextType["session"]>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const syncSessionState = (s: AuthContextType["session"]) => {
-      setSession(s);
-      setUser(s?.user ?? null);
+    const syncSessionState = () => {
+      const nextSession = readAuthSession();
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
       setLoading(false);
     };
 
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      syncSessionState(s as AuthContextType["session"]);
-    });
+    syncSessionState();
+    window.addEventListener(BACKEND_SESSION_EVENT, syncSessionState);
+    window.addEventListener("storage", syncSessionState);
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
-      syncSessionState(s as AuthContextType["session"]);
-    });
-
-    return () => subscription.unsubscribe();
+    return () => {
+      window.removeEventListener(BACKEND_SESSION_EVENT, syncSessionState);
+      window.removeEventListener("storage", syncSessionState);
+    };
   }, []);
 
   return (

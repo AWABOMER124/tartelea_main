@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import AppLayout from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -66,6 +67,7 @@ const serviceTypeLabels: Record<string, string> = {
 
 const TrainerProfile = () => {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [courses, setCourses] = useState<TrainerCourse[]>([]);
   const [workshops, setWorkshops] = useState<Workshop[]>([]);
@@ -73,25 +75,19 @@ const TrainerProfile = () => {
   const [loading, setLoading] = useState(true);
   const [isTrainer, setIsTrainer] = useState(false);
   const [showChat, setShowChat] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [stats, setStats] = useState({
     totalStudents: 0,
     totalCourses: 0,
     totalWorkshops: 0,
     avgRating: 0
   });
+  const currentUserId = user?.id || null;
 
   useEffect(() => {
-    checkCurrentUser();
     if (id) {
-      fetchTrainerData();
+      void fetchTrainerData();
     }
   }, [id]);
-
-  const checkCurrentUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    setCurrentUserId(user?.id || null);
-  };
 
   const fetchTrainerData = async () => {
     setLoading(true);

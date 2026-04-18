@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { useCloudflareStream } from "@/hooks/useCloudflareStream";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -36,11 +37,11 @@ const WorkshopLive = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, loading: authLoading } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [workshop, setWorkshop] = useState<any>(null);
   const [isHost, setIsHost] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [isVideoEnabled, setIsVideoEnabled] = useState(true);
@@ -63,25 +64,27 @@ const WorkshopLive = () => {
     liveInput,
     loading: cloudflareLoading 
   } = useCloudflareStream();
+  const userId = user?.id || null;
 
   useEffect(() => {
-    fetchWorkshop();
-    return () => {
-      stopLocalStream();
-      stopRecording();
-    };
-  }, [id]);
+    if (authLoading) {
+      return;
+    }
 
-  const fetchWorkshop = async () => {
-    if (!id) return;
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    if (!userId) {
       navigate("/auth");
       return;
     }
 
-    setUserId(user.id);
+    void fetchWorkshop(userId);
+    return () => {
+      stopLocalStream();
+      stopRecording();
+    };
+  }, [authLoading, id, navigate, userId]);
+
+  const fetchWorkshop = async (currentUserId: string) => {
+    if (!id) return;
 
     const { data, error } = await supabase
       .from("workshops")
@@ -100,7 +103,7 @@ const WorkshopLive = () => {
     }
 
     setWorkshop(data);
-    setIsHost(data.host_id === user.id);
+    setIsHost(data.host_id === currentUserId);
 
     // Fetch host profile
     const { data: hostProfile } = await supabase

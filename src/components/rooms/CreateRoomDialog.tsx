@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { uploadCompatFile } from "@/lib/backendCompat";
 import { createBackendSession } from "@/lib/backendSessions";
 import {
   Dialog,
@@ -38,15 +38,6 @@ const categories: { value: ContentCategory; label: string }[] = [
   { value: "arab_awareness", label: "الوعي العربي" },
   { value: "islamic_awareness", label: "الوعي الإسلامي" },
 ];
-
-const buildUploadPath = (file: File) => {
-  const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
-  const identifier =
-    typeof crypto !== "undefined" && "randomUUID" in crypto
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-  return `${identifier}.${extension}`;
-};
 
 const CreateRoomDialog = ({
   open,
@@ -119,17 +110,7 @@ const CreateRoomDialog = ({
       return null;
     }
 
-    const path = buildUploadPath(imageFile);
-    const { error } = await supabase.storage
-      .from("room-images")
-      .upload(path, imageFile, { upsert: false });
-
-    if (error) {
-      throw new Error("تعذر رفع صورة الجلسة.");
-    }
-
-    const { data } = supabase.storage.from("room-images").getPublicUrl(path);
-    return data.publicUrl;
+    return uploadCompatFile(imageFile);
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
