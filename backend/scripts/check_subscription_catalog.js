@@ -24,6 +24,10 @@ async function checkSubscriptionCatalog() {
 
     if (error?.code === 'ENOTFOUND') {
       console.error(`Database host could not be resolved: ${error.hostname || env.DB_HOST}`);
+      console.error('Use DB_HOST=localhost for a host machine database, DB_HOST=db inside Docker Compose, or set DATABASE_URL.');
+    } else if (error?.code === 'ECONNREFUSED') {
+      console.error(`Database is not accepting connections on ${env.DB_HOST}:${env.DB_PORT}.`);
+      console.error('Start PostgreSQL locally or provide a reachable DATABASE_URL / DB_HOST override.');
     } else {
       console.error(error);
     }

@@ -37,6 +37,9 @@ Important:
 
 - The backend reads `backend/.env`.
 - The repository root `.env` belongs to the web app and must not be used as the backend config.
+- For a host-machine PostgreSQL instance, use `DB_HOST=localhost`.
+- For Docker Compose, use `DB_HOST=db` inside the backend container.
+- If you have a managed PostgreSQL service, prefer `DATABASE_URL`.
 
 3. Create the target PostgreSQL database, then apply the schema:
 
@@ -48,6 +51,12 @@ Or use the setup script that reads from `backend/schema.sql`:
 
 ```bash
 npm run setup:db
+```
+
+To validate the subscription catalog once the database is reachable:
+
+```bash
+npm run check:subscriptions
 ```
 
 4. Start the API:
@@ -126,6 +135,7 @@ Example response:
 ```bash
 npm run dev
 npm run setup:db
+npm run check:subscriptions
 npm test
 ```
 
