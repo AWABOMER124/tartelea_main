@@ -36,10 +36,19 @@ cp .env.example .env
 Important:
 
 - The backend reads `backend/.env`.
+- If `backend/.env.local` exists, it is loaded automatically after `backend/.env` and overrides it for local development.
 - The repository root `.env` belongs to the web app and must not be used as the backend config.
 - For a host-machine PostgreSQL instance, use `DB_HOST=localhost`.
 - For Docker Compose, use `DB_HOST=db` inside the backend container.
 - If you have a managed PostgreSQL service, prefer `DATABASE_URL`.
+
+Optional local override:
+
+```bash
+cp .env.local.example .env.local
+```
+
+Use `backend/.env.local` when you need local-only settings without editing the shared `backend/.env`.
 
 3. Create the target PostgreSQL database, then apply the schema:
 
@@ -58,6 +67,12 @@ To validate the subscription catalog once the database is reachable:
 ```bash
 npm run check:subscriptions
 ```
+
+If the command cannot connect to PostgreSQL, confirm one of the following:
+
+- `backend/.env.local` points to a reachable `localhost` database
+- `DATABASE_URL` points to a managed PostgreSQL instance
+- Docker Compose is running and the backend is using `DB_HOST=db`
 
 4. Start the API:
 
@@ -163,6 +178,7 @@ test/
 - `backend/schema.sql` is the single schema source of truth.
 - `backend/src/db/schema.sql` is intentionally deprecated and should not be used for setup.
 - Use environment variables for secrets. Do not commit `.env`.
+- Use `backend/.env.local` for machine-specific overrides. Do not commit `.env.local`.
 - If SMTP is unreachable, signup/login/JWT auth still work when the auth flags above are enabled.
 - Password reset and verification use dev fallback behavior only outside production.
 - Architecture decisions and migration guardrails now live under:

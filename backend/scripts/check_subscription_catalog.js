@@ -5,6 +5,9 @@ const SubscriptionService = require('../src/services/subscription.service');
 async function checkSubscriptionCatalog() {
   console.log('Checking subscription catalog seeding...');
   console.log(`Environment file: ${env.ENV_FILE_PATH}`);
+  if (env.ENV_LOCAL_FILE_LOADED) {
+    console.log(`Environment override: ${env.ENV_LOCAL_FILE_PATH}`);
+  }
 
   try {
     const plans = await SubscriptionService.listPlans();

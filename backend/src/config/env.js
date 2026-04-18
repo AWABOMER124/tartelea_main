@@ -1,13 +1,20 @@
 const path = require('path');
+const fs = require('fs');
 const dotenv = require('dotenv');
 const { z } = require('zod');
 
 const defaultEnvPath = path.resolve(__dirname, '../../.env');
+const defaultLocalEnvPath = path.resolve(__dirname, '../../.env.local');
 const requestedEnvPath = process.env.BACKEND_ENV_FILE
   ? path.resolve(process.cwd(), process.env.BACKEND_ENV_FILE)
   : defaultEnvPath;
+const hasLocalEnvOverride = !process.env.BACKEND_ENV_FILE && fs.existsSync(defaultLocalEnvPath);
 
 dotenv.config({ path: requestedEnvPath });
+
+if (hasLocalEnvOverride) {
+  dotenv.config({ path: defaultLocalEnvPath, override: true });
+}
 
 const booleanFlag = (defaultValue) =>
   z.preprocess((value) => {
@@ -76,4 +83,6 @@ if (!result.success) {
 module.exports = {
   ...result.data,
   ENV_FILE_PATH: requestedEnvPath,
+  ENV_LOCAL_FILE_PATH: defaultLocalEnvPath,
+  ENV_LOCAL_FILE_LOADED: hasLocalEnvOverride,
 };

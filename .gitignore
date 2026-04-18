@@ -15,6 +15,7 @@ dist-ssr
 .env.*
 !.env.example
 !**/.env.example
+!**/.env.local.example
 tartelea_flutter_migration_backup_*/
 
 # Editor directories and files
