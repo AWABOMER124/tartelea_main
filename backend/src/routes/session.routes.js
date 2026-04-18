@@ -1,6 +1,6 @@
 const express = require('express');
 const validate = require('../middlewares/validate');
-const { authenticateUser, optionalAuthenticateUser, authorizeRoles } = require('../middlewares/auth');
+const { authenticateUser, optionalAuthenticateUser } = require('../middlewares/auth');
 const { success } = require('../utils/response');
 const SessionService = require('../services/session.service');
 const {
@@ -45,7 +45,6 @@ router.get('/:id', optionalAuthenticateUser, validate(getSessionSchema), async (
 router.post(
   '/',
   authenticateUser,
-  authorizeRoles('admin', 'moderator', 'trainer'),
   validate(createSessionSchema),
   async (req, res, next) => {
     try {

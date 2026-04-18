@@ -12,7 +12,7 @@ import { SubscriptionBenefitsList } from "./SubscriptionBenefits";
 
 const SubscriptionCard = () => {
   const { toast } = useToast();
-  const { hasSubscription, subscription, loading, verifySubscription } = useSubscription();
+  const { hasSubscription, hasPremiumAccess, roleOverrides, subscription, loading, verifySubscription } = useSubscription();
   const [user, setUser] = useState<any>(null);
   const [processing, setProcessing] = useState(false);
 
@@ -58,6 +58,25 @@ const SubscriptionCard = () => {
 
   if (hasSubscription && subscription) {
     return <ActiveSubscription expiresAt={subscription.expires_at!} />;
+  }
+
+  if (hasPremiumAccess && (roleOverrides.admin || roleOverrides.trainer)) {
+    return (
+      <Card className="border-primary/40 bg-gradient-to-br from-primary/5 to-amber-500/10">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2">
+            <Crown className="h-5 w-5 text-amber-500" />
+            Premium Access
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Your access is managed by the platform team, so you do not need a paid monthly subscription.
+          </p>
+          <SubscriptionBenefitsList showCheck />
+        </CardContent>
+      </Card>
+    );
   }
 
   if (!user) {

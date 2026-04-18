@@ -39,6 +39,8 @@ function requireRoles(...allowedRoles) {
 }
 
 const requireAdminAccess = requireRoles(...ADMIN_ROLES);
+const requireAdmin = requireRoles('admin');
+const requireModerator = requireRoles('moderator');
 
 module.exports = {
   ADMIN_ROLES,
@@ -47,5 +49,7 @@ module.exports = {
   normalizeRole,
   normalizeRoles,
   requireAdminAccess,
+  requireAdmin,
+  requireModerator,
   requireRoles,
 };

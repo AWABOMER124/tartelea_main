@@ -1,4 +1,4 @@
-import { useSubscription, SUBSCRIPTION_DISCOUNT } from "@/hooks/useSubscription";
+import { useSubscription } from "@/hooks/useSubscription";
 import { Badge } from "@/components/ui/badge";
 import { Percent } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -20,7 +20,7 @@ const PriceDisplay = ({
   className = "",
   size = "md"
 }: PriceDisplayProps) => {
-  const { hasSubscription, loading } = useSubscription();
+  const { canGetDiscount, discountPercent, loading } = useSubscription();
   
   // Support both originalPrice and price props
   const displayPrice = originalPrice ?? price ?? 0;
@@ -48,9 +48,9 @@ const PriceDisplay = ({
     );
   }
 
-  if (hasSubscription) {
-    const discountedPrice = displayPrice * (1 - SUBSCRIPTION_DISCOUNT);
-    const discountPercent = Math.round(SUBSCRIPTION_DISCOUNT * 100);
+  if (canGetDiscount) {
+    const discountedPrice = displayPrice * (1 - discountPercent);
+    const badgePercent = Math.round(discountPercent * 100);
 
     return (
       <div className={cn("flex items-center gap-2 flex-wrap", className)}>
@@ -63,7 +63,7 @@ const PriceDisplay = ({
         {showBadge && (
           <Badge variant="secondary" className="bg-accent text-accent-foreground text-xs">
             <Percent className="h-3 w-3 ml-1" />
-            -{discountPercent}%
+            -{badgePercent}%
           </Badge>
         )}
       </div>

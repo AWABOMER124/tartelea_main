@@ -71,6 +71,8 @@ CREATE TABLE IF NOT EXISTS users (
     verification_code TEXT,
     reset_token TEXT,
     reset_token_expires TIMESTAMP WITH TIME ZONE,
+    status TEXT NOT NULL DEFAULT 'active', -- active, suspended, deactivated
+    metadata JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -110,6 +112,8 @@ CREATE TABLE IF NOT EXISTS contents (
     thumbnail_url TEXT,
     content TEXT,
     metadata JSONB DEFAULT '{}'::jsonb,
+    access_tier TEXT NOT NULL DEFAULT 'free',
+    course_id UUID,
     duration TEXT,
     depth_level INT DEFAULT 1,
     is_sudan_awareness BOOLEAN DEFAULT false,
@@ -540,6 +544,8 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT false;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_code TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires TIMESTAMP WITH TIME ZONE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb;
 
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS bio TEXT;
@@ -559,6 +565,8 @@ ALTER TABLE contents ADD COLUMN IF NOT EXISTS media_url TEXT;
 ALTER TABLE contents ADD COLUMN IF NOT EXISTS thumbnail_url TEXT;
 ALTER TABLE contents ADD COLUMN IF NOT EXISTS content TEXT;
 ALTER TABLE contents ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE contents ADD COLUMN IF NOT EXISTS access_tier TEXT NOT NULL DEFAULT 'free';
+ALTER TABLE contents ADD COLUMN IF NOT EXISTS course_id UUID REFERENCES trainer_courses(id) ON DELETE SET NULL;
 ALTER TABLE contents ADD COLUMN IF NOT EXISTS duration TEXT;
 ALTER TABLE contents ADD COLUMN IF NOT EXISTS depth_level INT DEFAULT 1;
 ALTER TABLE contents ADD COLUMN IF NOT EXISTS is_sudan_awareness BOOLEAN DEFAULT false;
@@ -921,8 +929,115 @@ CREATE INDEX IF NOT EXISTS idx_community_pins_context_sort ON community_pins(con
 CREATE INDEX IF NOT EXISTS idx_attachments_post ON attachments(post_id) WHERE post_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_attachments_comment ON attachments(comment_id) WHERE comment_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_attachments_question ON attachments(question_id) WHERE question_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_actor_created_at ON admin_audit_logs(actor_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_entity ON admin_audit_logs(entity_type, entity_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_users_status ON users(status);
 
 -- --- Initial Seed Data ---
 -- Insert a test trainer account (password: 123456)
 -- Note: In production, hash the password before inserting.
 -- INSERT INTO users (email, password_hash) VALUES ('test@tartelea.com', '$2a$10$xyz...');
+
+-- --- Subscription System (STEP 4) ---
+
+CREATE TABLE IF NOT EXISTS subscription_entitlements (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    code TEXT UNIQUE NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS subscription_plans (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    code TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
+    billing_period TEXT NOT NULL,
+    price NUMERIC(10, 2) DEFAULT 0,
+    currency TEXT DEFAULT 'USD',
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS subscription_plan_entitlements (
+    plan_id UUID NOT NULL REFERENCES subscription_plans(id) ON DELETE CASCADE,
+    entitlement_id UUID NOT NULL REFERENCES subscription_entitlements(id) ON DELETE CASCADE,
+    PRIMARY KEY (plan_id, entitlement_id)
+);
+
+CREATE TABLE IF NOT EXISTS user_subscriptions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    plan_code TEXT NOT NULL REFERENCES subscription_plans(code),
+    status TEXT NOT NULL DEFAULT 'active',
+    starts_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    ends_at TIMESTAMP WITH TIME ZONE,
+    source TEXT NOT NULL DEFAULT 'manual',
+    provider TEXT,
+    provider_reference TEXT,
+    metadata JSONB DEFAULT '{}'::jsonb,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS user_entitlement_overrides (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    entitlement_code TEXT NOT NULL REFERENCES subscription_entitlements(code),
+    effect TEXT NOT NULL DEFAULT 'grant', -- 'grant' or 'revoke'
+    reason TEXT,
+    source TEXT NOT NULL DEFAULT 'manual',
+    starts_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    ends_at TIMESTAMP WITH TIME ZONE,
+    metadata JSONB DEFAULT '{}'::jsonb,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- --- Subscriptions Indexes ---
+CREATE INDEX IF NOT EXISTS idx_user_subscriptions_user_status ON user_subscriptions(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_user_subscriptions_user_plan_status ON user_subscriptions(user_id, plan_code, status);
+CREATE INDEX IF NOT EXISTS idx_user_subscriptions_dates ON user_subscriptions(starts_at, ends_at);
+CREATE INDEX IF NOT EXISTS idx_user_entitlement_overrides_user ON user_entitlement_overrides(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_entitlement_overrides_user_entitlement ON user_entitlement_overrides(user_id, entitlement_code);
+
+INSERT INTO subscription_entitlements (code, description)
+VALUES
+    ('access_public_community', 'Allows community participation in public and standard member areas.'),
+    ('access_free_library', 'Allows access to the free library catalog.'),
+    ('access_full_library', 'Allows access to the premium/full library catalog.'),
+    ('access_public_rooms', 'Allows joining public audio rooms.'),
+    ('access_all_rooms', 'Allows joining all room tiers, including premium rooms.'),
+    ('create_rooms', 'Allows creating community audio rooms.'),
+    ('access_specific_course', 'Allows access to a specific course scope carried in metadata.course_id.'),
+    ('discount_courses_25', 'Allows a 25 percent discount on eligible courses.'),
+    ('host_sessions', 'Allows hosting and managing official live sessions.'),
+    ('admin_platform', 'Bypass entitlement gates across the platform.')
+ON CONFLICT (code) DO UPDATE SET description = EXCLUDED.description;
+
+INSERT INTO subscription_plans (code, name, billing_period, price, currency, is_active)
+VALUES
+    ('free', 'Free', 'none', 0, 'USD', true),
+    ('monthly', 'Monthly', 'monthly', 29, 'USD', true),
+    ('student', 'Student', 'scoped', 0, 'USD', true)
+ON CONFLICT (code) DO UPDATE SET
+    name = EXCLUDED.name,
+    billing_period = EXCLUDED.billing_period,
+    price = EXCLUDED.price,
+    currency = EXCLUDED.currency,
+    is_active = EXCLUDED.is_active,
+    updated_at = NOW();
+
+INSERT INTO subscription_plan_entitlements (plan_id, entitlement_id)
+SELECT p.id, e.id
+FROM subscription_plans p
+JOIN subscription_entitlements e ON (
+    (p.code = 'free' AND e.code IN ('access_public_community', 'access_free_library', 'access_public_rooms'))
+    OR
+    (p.code = 'monthly' AND e.code IN ('access_public_community', 'access_free_library', 'access_full_library', 'access_all_rooms', 'create_rooms', 'discount_courses_25'))
+    OR
+    (p.code = 'student' AND e.code IN ('access_free_library', 'access_specific_course'))
+)
+ON CONFLICT (plan_id, entitlement_id) DO NOTHING;

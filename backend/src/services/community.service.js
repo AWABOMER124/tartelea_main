@@ -1,5 +1,6 @@
 const db = require('../db');
 const { httpError } = require('../utils/httpError');
+const SubscriptionService = require('./subscription.service');
 const {
   canManageSessionQuestion,
   hasPrivilegedRole,
@@ -66,7 +67,7 @@ function mapContext(row) {
   };
 }
 
-function mapPost(row, user) {
+function mapPost(row, user, subscriptionSnapshot = null) {
   const context = mapContext(row);
 
   return {
@@ -89,7 +90,7 @@ function mapPost(row, user) {
     },
     viewer_state: {
       liked: Boolean(row.viewer_liked),
-      can_comment: Boolean(user) && !row.is_locked && isContextWritable(context, user, 'comment'),
+      can_comment: Boolean(user) && !row.is_locked && isContextWritable(context, user, 'comment', subscriptionSnapshot),
       can_moderate: hasPrivilegedRole(user),
     },
     created_at: row.created_at,
@@ -106,7 +107,7 @@ function mapPost(row, user) {
   };
 }
 
-function mapComment(row, user) {
+function mapComment(row, user, subscriptionSnapshot = null) {
   const context = row.context_id ? mapContext(row) : null;
 
   return {
@@ -132,7 +133,7 @@ function mapComment(row, user) {
         Boolean(context) &&
         Number(row.depth) === 0 &&
         !Boolean(row.post_is_locked) &&
-        isContextWritable(context, user, 'comment'),
+        isContextWritable(context, user, 'comment', subscriptionSnapshot),
       can_moderate: hasPrivilegedRole(user),
     },
     created_at: row.created_at,
@@ -142,7 +143,7 @@ function mapComment(row, user) {
   };
 }
 
-function mapQuestion(row, user) {
+function mapQuestion(row, user, subscriptionSnapshot = null) {
   const context = mapContext(row);
 
   return {
@@ -172,7 +173,7 @@ function mapQuestion(row, user) {
       : null,
     context,
     viewer_state: {
-      can_manage: canManageSessionQuestion(context, row, user),
+      can_manage: canManageSessionQuestion(context, row, user, subscriptionSnapshot),
       can_moderate: hasPrivilegedRole(user),
     },
     created_at: row.created_at,
@@ -416,8 +417,8 @@ async function getSessionQuestionRowById(executor, questionId) {
   return result.rows[0] || null;
 }
 
-function buildCommentTree(rows, user) {
-  const items = rows.map((row) => mapComment(row, user));
+function buildCommentTree(rows, user, subscriptionSnapshot = null) {
+  const items = rows.map((row) => mapComment(row, user, subscriptionSnapshot));
   const byId = new Map(items.map((item) => [item.id, item]));
   const roots = [];
 
@@ -439,6 +440,7 @@ function buildCommentTree(rows, user) {
 class CommunityService {
   static async listContexts(reqUser) {
     const user = normalizeUser(reqUser);
+    const subscriptionSnapshot = user ? await SubscriptionService.getUserSnapshot(user) : null;
     await ensureGeneralContext();
 
     const result = await db.query(
@@ -460,11 +462,14 @@ class CommunityService {
       `
     );
 
-    return result.rows.filter((row) => isContextReadable(row, user)).map((row) => mapContext(row));
+    return result.rows
+      .filter((row) => isContextReadable(row, user, subscriptionSnapshot))
+      .map((row) => mapContext(row));
   }
 
   static async listFeed({ reqUser, contextId, kind, cursor, limit = 20 }) {
     const user = normalizeUser(reqUser);
+    const subscriptionSnapshot = user ? await SubscriptionService.getUserSnapshot(user) : null;
     await ensureGeneralContext();
 
     let scopedContext = null;
@@ -473,7 +478,7 @@ class CommunityService {
       if (!scopedContext) {
         throw httpError(404, 'Community context not found', 'COMMUNITY_CONTEXT_NOT_FOUND');
       }
-      if (!isContextReadable(scopedContext, user)) {
+      if (!isContextReadable(scopedContext, user, subscriptionSnapshot)) {
         throw httpError(403, 'Access denied for this community context', 'COMMUNITY_ACCESS_DENIED');
       }
     }
@@ -527,7 +532,7 @@ class CommunityService {
       );
 
       for (const row of pinnedResult.rows) {
-        if (isContextReadable(mapContext(row), user)) {
+        if (isContextReadable(mapContext(row), user, subscriptionSnapshot)) {
           pinnedRows.push(row);
           excludedPinnedIds.push(row.id);
         }
@@ -608,13 +613,13 @@ class CommunityService {
       params
     );
 
-    const filteredRows = result.rows.filter((row) => isContextReadable(mapContext(row), user));
+    const filteredRows = result.rows.filter((row) => isContextReadable(mapContext(row), user, subscriptionSnapshot));
     const slicedRows = filteredRows.slice(0, normalizedLimit);
     const nextRow = filteredRows.length > normalizedLimit ? slicedRows[slicedRows.length - 1] : null;
 
     return {
-      pinned_items: pinnedRows.map((row) => mapPost(row, user)),
-      items: slicedRows.map((row) => mapPost(row, user)),
+      pinned_items: pinnedRows.map((row) => mapPost(row, user, subscriptionSnapshot)),
+      items: slicedRows.map((row) => mapPost(row, user, subscriptionSnapshot)),
       next_cursor: nextRow ? buildCursor(nextRow.last_activity_at, nextRow.id) : null,
     };
   }
@@ -625,11 +630,12 @@ class CommunityService {
       throw httpError(401, 'Authentication required', 'UNAUTHORIZED');
     }
 
+    const subscriptionSnapshot = await SubscriptionService.getUserSnapshot(user);
     const context = await getContextById(db, payload.primary_context_id);
     if (!context) {
       throw httpError(404, 'Community context not found', 'COMMUNITY_CONTEXT_NOT_FOUND');
     }
-    if (!isContextWritable(context, user, 'post')) {
+    if (!isContextWritable(context, user, 'post', subscriptionSnapshot)) {
       throw httpError(403, 'You cannot post in this community context', 'COMMUNITY_ACCESS_DENIED');
     }
 
@@ -674,7 +680,7 @@ class CommunityService {
 
       for (const scopeId of secondaryScopeIds) {
         const scopeContext = await getContextById(client, scopeId);
-        if (scopeContext && isContextReadable(scopeContext, user)) {
+        if (scopeContext && isContextReadable(scopeContext, user, subscriptionSnapshot)) {
           await client.query(
             `
               INSERT INTO community_post_scopes (post_id, context_id, is_primary)
@@ -698,6 +704,7 @@ class CommunityService {
 
   static async getPostDetails({ postId, reqUser }) {
     const user = normalizeUser(reqUser);
+    const subscriptionSnapshot = user ? await SubscriptionService.getUserSnapshot(user) : null;
     const row = await getPostRowById(db, postId, user?.id || null);
 
     if (!row || row.deleted_at || row.status === 'deleted') {
@@ -705,7 +712,7 @@ class CommunityService {
     }
 
     const context = mapContext(row);
-    if (!isContextReadable(context, user)) {
+    if (!isContextReadable(context, user, subscriptionSnapshot)) {
       throw httpError(403, 'Access denied for this post', 'COMMUNITY_ACCESS_DENIED');
     }
 
@@ -757,15 +764,16 @@ class CommunityService {
             pin_sort_order: pinResult.rows[0]?.sort_order || null,
             pin_ends_at: pinResult.rows[0]?.ends_at || null,
           },
-          user
+          user,
+          subscriptionSnapshot
         ),
         scopes: scopesResult.rows
           .map((scope) => ({
             ...mapContext(scope),
             is_primary: scope.is_primary,
           }))
-          .filter((scope) => isContextReadable(scope, user)),
-        comments: buildCommentTree(commentRows, user),
+          .filter((scope) => isContextReadable(scope, user, subscriptionSnapshot)),
+        comments: buildCommentTree(commentRows, user, subscriptionSnapshot),
       },
     };
   }
@@ -776,13 +784,14 @@ class CommunityService {
       throw httpError(401, 'Authentication required', 'UNAUTHORIZED');
     }
 
+    const subscriptionSnapshot = await SubscriptionService.getUserSnapshot(user);
     const postRow = await getPostRowById(db, postId, user.id);
     if (!postRow || postRow.deleted_at || postRow.status !== 'published') {
       throw httpError(404, 'Community post not found', 'COMMUNITY_POST_NOT_FOUND');
     }
 
     const context = mapContext(postRow);
-    if (!isContextWritable(context, user, 'comment')) {
+    if (!isContextWritable(context, user, 'comment', subscriptionSnapshot)) {
       throw httpError(403, 'You cannot comment in this community context', 'COMMUNITY_ACCESS_DENIED');
     }
 
@@ -877,7 +886,7 @@ class CommunityService {
       );
 
       await client.query('COMMIT');
-      return { comment: mapComment(finalResult.rows[0], user) };
+      return { comment: mapComment(finalResult.rows[0], user, subscriptionSnapshot) };
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
@@ -892,6 +901,7 @@ class CommunityService {
       throw httpError(401, 'Authentication required', 'UNAUTHORIZED');
     }
 
+    const subscriptionSnapshot = await SubscriptionService.getUserSnapshot(user);
     const reactionType = payload.reaction_type || 'like';
     const active = payload.active !== false;
     const isPostTarget = targetType === 'post';
@@ -925,7 +935,7 @@ class CommunityService {
       }
 
       const context = mapContext(targetRow);
-      if (!isContextReadable(context, user)) {
+      if (!isContextReadable(context, user, subscriptionSnapshot)) {
         throw httpError(403, 'Access denied for this community target', 'COMMUNITY_ACCESS_DENIED');
       }
 
@@ -998,6 +1008,7 @@ class CommunityService {
       throw httpError(401, 'Authentication required', 'UNAUTHORIZED');
     }
 
+    const subscriptionSnapshot = await SubscriptionService.getUserSnapshot(user);
     const targetColumns = {
       post: 'post_id',
       comment: 'comment_id',
@@ -1040,7 +1051,7 @@ class CommunityService {
     }
 
     const context = mapContext(targetRow);
-    if (!isContextReadable(context, user)) {
+    if (!isContextReadable(context, user, subscriptionSnapshot)) {
       throw httpError(403, 'Access denied for this community target', 'COMMUNITY_ACCESS_DENIED');
     }
 
@@ -1080,6 +1091,7 @@ class CommunityService {
 
   static async listSessionQuestions({ reqUser, contextId, status, cursor, limit = 20 }) {
     const user = normalizeUser(reqUser);
+    const subscriptionSnapshot = user ? await SubscriptionService.getUserSnapshot(user) : null;
     const context = await getContextById(db, contextId);
 
     if (!context) {
@@ -1088,7 +1100,7 @@ class CommunityService {
     if (!SESSION_CONTEXT_TYPES.has(context.context_type)) {
       throw httpError(400, 'This context does not support session questions', 'SESSION_QUESTION_CONTEXT_INVALID');
     }
-    if (!isContextReadable(context, user)) {
+    if (!isContextReadable(context, user, subscriptionSnapshot)) {
       throw httpError(403, 'Access denied for this community context', 'COMMUNITY_ACCESS_DENIED');
     }
 
@@ -1143,7 +1155,7 @@ class CommunityService {
     const nextRow = result.rows.length > normalizedLimit ? rows[rows.length - 1] : null;
 
     return {
-      items: rows.map((row) => mapQuestion(row, user)),
+      items: rows.map((row) => mapQuestion(row, user, subscriptionSnapshot)),
       next_cursor: nextRow ? buildCursor(nextRow.created_at, nextRow.id) : null,
     };
   }
@@ -1154,6 +1166,7 @@ class CommunityService {
       throw httpError(401, 'Authentication required', 'UNAUTHORIZED');
     }
 
+    const subscriptionSnapshot = await SubscriptionService.getUserSnapshot(user);
     const context = await getContextById(db, payload.context_id);
     if (!context) {
       throw httpError(404, 'Community context not found', 'COMMUNITY_CONTEXT_NOT_FOUND');
@@ -1161,7 +1174,7 @@ class CommunityService {
     if (!SESSION_CONTEXT_TYPES.has(context.context_type)) {
       throw httpError(400, 'This context does not support session questions', 'SESSION_QUESTION_CONTEXT_INVALID');
     }
-    if (!isContextWritable(context, user, 'question')) {
+    if (!isContextWritable(context, user, 'question', subscriptionSnapshot)) {
       throw httpError(403, 'You cannot ask questions in this context', 'COMMUNITY_ACCESS_DENIED');
     }
 
@@ -1187,7 +1200,7 @@ class CommunityService {
     );
 
     const questionRow = await getSessionQuestionRowById(db, result.rows[0].id);
-    return { question: mapQuestion(questionRow, user) };
+    return { question: mapQuestion(questionRow, user, subscriptionSnapshot) };
   }
 
   static async getProfileSummary({ reqUser, userId }) {
@@ -1701,6 +1714,7 @@ class CommunityService {
 
   static async updateSessionQuestion({ actor, questionId, payload }) {
     const normalizedActor = normalizeUser(actor);
+    const subscriptionSnapshot = normalizedActor ? await SubscriptionService.getUserSnapshot(normalizedActor) : null;
     const result = await db.query(
       `
         SELECT
@@ -1731,7 +1745,12 @@ class CommunityService {
     }
 
     const isPrivileged = hasPrivilegedRole(normalizedActor);
-    const canManage = canManageSessionQuestion(mapContext(question), question, normalizedActor);
+    const canManage = canManageSessionQuestion(
+      mapContext(question),
+      question,
+      normalizedActor,
+      subscriptionSnapshot
+    );
     if (!canManage) {
       throw httpError(403, 'You cannot manage this question', 'COMMUNITY_ACCESS_DENIED');
     }
@@ -1781,7 +1800,7 @@ class CommunityService {
     );
 
     const refreshedQuestion = await getSessionQuestionRowById(db, updateResult.rows[0].id);
-    return { question: mapQuestion(refreshedQuestion, normalizedActor) };
+    return { question: mapQuestion(refreshedQuestion, normalizedActor, subscriptionSnapshot) };
   }
 }
 

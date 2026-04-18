@@ -3,6 +3,7 @@ const { Readable } = require('stream');
 const db = require('../db');
 const env = require('../config/env');
 const { authenticateUser, optionalAuthenticateUser } = require('../middlewares/auth');
+const SubscriptionService = require('../services/subscription.service');
 
 const router = express.Router();
 
@@ -481,6 +482,30 @@ function normalizeLimit(value, fallback = null) {
   return parsed;
 }
 
+function sanitizeTrainerCourseRow(row, user, snapshot) {
+  if (!row) {
+    return row;
+  }
+
+  const canAccessProtectedFields =
+    Number(row.price) <= 0 ||
+    isPrivileged(user) ||
+    row.trainer_id === user?.id ||
+    snapshot?.access?.canAccessFullLibrary ||
+    snapshot?.access?.hasAdminPlatform ||
+    SubscriptionService.canAccessCourse(snapshot, row.id);
+
+  if (canAccessProtectedFields) {
+    return row;
+  }
+
+  return {
+    ...row,
+    url: null,
+    media_url: null,
+  };
+}
+
 async function runSelect(req, res) {
   const {
     table,
@@ -533,10 +558,23 @@ async function runSelect(req, res) {
       selectSql ? db.query(selectSql, params) : Promise.resolve({ rows: [] }),
     ]);
 
+    const snapshot = req.user ? await SubscriptionService.getUserSnapshot(req.user) : null;
+    let rows = selectResult.rows;
+
+    if (table === 'contents') {
+      rows = rows
+        .filter((row) => SubscriptionService.isContentAccessible(row, snapshot))
+        .map((row) => SubscriptionService.sanitizeProtectedMedia(row, snapshot));
+    }
+
+    if (table === 'trainer_courses') {
+      rows = rows.map((row) => sanitizeTrainerCourseRow(row, req.user, snapshot));
+    }
+
     const total = countResult?.rows?.[0]?.total ?? null;
 
     if (single || maybeSingle) {
-      const row = selectResult.rows[0] || null;
+      const row = rows[0] || null;
       if (single && !row) {
         return res.status(404).json({ success: false, error: { message: 'Record not found.' }, data: null, count: total });
       }
@@ -544,11 +582,105 @@ async function runSelect(req, res) {
       return res.json({ success: true, data: row, count: total });
     }
 
-    return res.json({ success: true, data: selectResult.rows, count: total });
+    return res.json({ success: true, data: rows, count: total });
   } catch (error) {
     return res.status(error.statusCode || 500).json({
       success: false,
       error: { message: error.message || 'Failed to query records.' },
+    });
+  }
+}
+
+function getEqFilterValue(filters, column) {
+  const match = (filters || []).find((filter) => filter?.column === column && filter?.operator === 'eq');
+  return match?.value || null;
+}
+
+function rejectLegacySubscriptionMutation(res, message) {
+  return res.status(409).json({
+    success: false,
+    error: { message },
+  });
+}
+
+async function runLegacyCourseSubscriptionInsert(req, res) {
+  const rows = toArray(req.body?.payload).filter(Boolean);
+
+  if (!rows.length) {
+    return res.status(400).json({ success: false, error: { message: 'Insert payload is required.' } });
+  }
+
+  try {
+    const subscriptions = [];
+
+    for (const row of rows) {
+      const courseId = row?.course_id || row?.courseId || null;
+      if (!courseId) {
+        throw Object.assign(new Error('course_id is required.'), { statusCode: 400 });
+      }
+
+      const subscription = await SubscriptionService.grantSubscription({
+        actorId: req.user.id,
+        userId: req.user.id,
+        planCode: 'student',
+        source: 'manual',
+        metadata: {
+          course_id: courseId,
+        },
+      });
+
+      subscriptions.push({
+        id: subscription.id,
+        user_id: req.user.id,
+        course_id: courseId,
+        subscribed_at: subscription.starts_at,
+      });
+    }
+
+    const data = req.body?.single || req.body?.maybeSingle ? subscriptions[0] || null : subscriptions;
+    return res.json({ success: true, data });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      error: { message: error.message || 'Insert failed.' },
+    });
+  }
+}
+
+async function runLegacyCourseSubscriptionDelete(req, res) {
+  const courseId = getEqFilterValue(req.body?.filters, 'course_id');
+
+  if (!courseId) {
+    return res.status(400).json({
+      success: false,
+      error: { message: 'course_id filter is required for course subscription deletes.' },
+    });
+  }
+
+  try {
+    const subscription = await SubscriptionService.revokeSubscription({
+      actorId: req.user?.id || null,
+      userId: req.user.id,
+      planCode: 'student',
+      courseId,
+      reason: 'legacy_course_unsubscribe',
+    });
+
+    const data = {
+      id: subscription.id,
+      user_id: req.user.id,
+      course_id: courseId,
+      subscribed_at: subscription.starts_at,
+    };
+
+    return res.json({
+      success: true,
+      data: req.body?.single || req.body?.maybeSingle ? data : [data],
+    });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      error: { message: error.message || 'Delete failed.' },
     });
   }
 }
@@ -563,6 +695,17 @@ async function runInsert(req, res) {
 
   if (!req.user?.id) {
     return res.status(401).json({ success: false, error: { message: 'Authentication required.' } });
+  }
+
+  if (table === 'course_subscriptions') {
+    return runLegacyCourseSubscriptionInsert(req, res);
+  }
+
+  if (table === 'monthly_subscriptions') {
+    return rejectLegacySubscriptionMutation(
+      res,
+      'Direct writes to monthly_subscriptions are disabled. Use the subscriptions APIs or payment verification flow.'
+    );
   }
 
   try {
@@ -610,6 +753,13 @@ async function runUpdate(req, res) {
     return res.status(400).json({ success: false, error: { message: 'Unsupported mutation target.' } });
   }
 
+  if (table === 'course_subscriptions' || table === 'monthly_subscriptions') {
+    return rejectLegacySubscriptionMutation(
+      res,
+      `Direct updates to ${table} are disabled. Use backend-owned subscription APIs instead.`
+    );
+  }
+
   try {
     await assertMutationAllowed({ table, filters, user: req.user });
 
@@ -640,6 +790,17 @@ async function runDelete(req, res) {
 
   if (!config || config.readOnly) {
     return res.status(400).json({ success: false, error: { message: 'Unsupported mutation target.' } });
+  }
+
+  if (table === 'course_subscriptions') {
+    return runLegacyCourseSubscriptionDelete(req, res);
+  }
+
+  if (table === 'monthly_subscriptions') {
+    return rejectLegacySubscriptionMutation(
+      res,
+      'Direct deletes from monthly_subscriptions are disabled. Use backend-owned subscription APIs instead.'
+    );
   }
 
   try {
@@ -685,18 +846,7 @@ async function handlePaypalSubscription(req, res) {
   const accessToken = tokenPayload.access_token;
 
   if (action === 'check') {
-    const result = await db.query(
-      `
-        SELECT *
-        FROM monthly_subscriptions
-        WHERE user_id = $1
-          AND status = 'active'
-        LIMIT 1
-      `,
-      [req.user.id]
-    );
-
-    const subscription = result.rows[0] || null;
+    const subscription = await SubscriptionService.buildLegacyMonthlySubscription(req.user);
     const active = Boolean(subscription && subscription.expires_at && new Date(subscription.expires_at) > new Date());
     return res.json({ success: true, hasSubscription: active, subscription });
   }
@@ -722,20 +872,20 @@ async function handlePaypalSubscription(req, res) {
   if (active) {
     const expiresAt = new Date();
     expiresAt.setMonth(expiresAt.getMonth() + 1);
-
-    await db.query(
-      `
-        INSERT INTO monthly_subscriptions (user_id, paypal_subscription_id, status, started_at, expires_at)
-        VALUES ($1, $2, 'active', NOW(), $3)
-        ON CONFLICT (user_id)
-        DO UPDATE SET
-          paypal_subscription_id = EXCLUDED.paypal_subscription_id,
-          status = EXCLUDED.status,
-          started_at = EXCLUDED.started_at,
-          expires_at = EXCLUDED.expires_at
-      `,
-      [req.user.id, subscriptionId, expiresAt.toISOString()]
-    );
+    await SubscriptionService.grantSubscription({
+      actorId: req.user.id,
+      userId: req.user.id,
+      planCode: 'monthly',
+      source: 'future_payment',
+      provider: 'paypal',
+      providerReference: subscriptionId,
+      startsAt: new Date().toISOString(),
+      endsAt: expiresAt.toISOString(),
+      metadata: {
+        provider_status: subscriptionData.status,
+        provider_payload_id: subscriptionData.id || subscriptionId,
+      },
+    });
   }
 
   return res.json({ success: true, active, status: subscriptionData.status });

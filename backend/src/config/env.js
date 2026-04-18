@@ -62,6 +62,8 @@ const envSchema = z.object({
   PAYPAL_CLIENT_ID: z.string().optional(),
   PAYPAL_SECRET_KEY: z.string().optional(),
   LOVABLE_API_KEY: z.string().optional(),
+  DIRECTUS_URL: z.string().optional(),
+  DIRECTUS_TOKEN: z.string().optional(),
 });
 
 const result = envSchema.safeParse(process.env);

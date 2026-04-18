@@ -1,4 +1,5 @@
 const { getPrimaryRole, normalizeRoles } = require('../middlewares/rbac.middleware');
+const { canAccessCourse } = require('../domain/subscriptions');
 
 const PRIVILEGED_ROLES = new Set(['admin', 'moderator']);
 const AUTHENTICATED_VISIBILITIES = new Set([
@@ -47,7 +48,36 @@ function hasAllowedRoles(context, user) {
   return user.roles.some((role) => normalizedAllowedRoles.includes(role));
 }
 
-function isContextReadable(context, user) {
+function hasEntitlement(snapshot, entitlementCode) {
+  return Boolean(snapshot?.entitlements?.includes(entitlementCode) || snapshot?.access?.hasAdminPlatform);
+}
+
+function resolveContextCourseId(context) {
+  return context?.metadata?.course_id || context?.metadata?.courseId || (context?.context_type === 'course' ? context?.source_id : null);
+}
+
+function isPremiumContextReadable(context, user, subscriptionSnapshot) {
+  if (hasPrivilegedRole(user)) {
+    return true;
+  }
+
+  const requiredEntitlement = context?.metadata?.required_entitlement || context?.metadata?.requiredEntitlement || null;
+  if (requiredEntitlement) {
+    return hasEntitlement(subscriptionSnapshot, requiredEntitlement);
+  }
+
+  const courseId = resolveContextCourseId(context);
+  if (courseId) {
+    return canAccessCourse(subscriptionSnapshot, courseId);
+  }
+
+  return Boolean(
+    subscriptionSnapshot?.access?.canJoinPremiumRoom ||
+    subscriptionSnapshot?.access?.canAccessFullLibrary
+  );
+}
+
+function isContextReadable(context, user, subscriptionSnapshot = null) {
   if (!context || !context.is_active) {
     return false;
   }
@@ -57,18 +87,26 @@ function isContextReadable(context, user) {
   }
 
   if (AUTHENTICATED_VISIBILITIES.has(context.visibility)) {
-    return !!user && hasAllowedRoles(context, user);
+    if (!user || !hasAllowedRoles(context, user)) {
+      return false;
+    }
+
+    if (context.visibility === 'premium_only') {
+      return isPremiumContextReadable(context, user, subscriptionSnapshot);
+    }
+
+    return true;
   }
 
   return !!user && hasAllowedRoles(context, user);
 }
 
-function isContextWritable(context, user, intent = 'post') {
+function isContextWritable(context, user, intent = 'post', subscriptionSnapshot = null) {
   if (!context || !user || !context.is_active) {
     return false;
   }
 
-  if (!isContextReadable(context, user)) {
+  if (!isContextReadable(context, user, subscriptionSnapshot)) {
     return false;
   }
 
@@ -83,6 +121,10 @@ function isContextWritable(context, user, intent = 'post') {
     : [];
 
   if (requiredRoles.length === 0) {
+    if (intent === 'question' && !hasPrivilegedRole(user)) {
+      return Boolean(subscriptionSnapshot?.access?.canAskQuestion);
+    }
+
     return true;
   }
 
@@ -90,12 +132,12 @@ function isContextWritable(context, user, intent = 'post') {
   return user.roles.some((role) => normalizedRequiredRoles.includes(role));
 }
 
-function canManageSessionQuestion(context, question, user) {
+function canManageSessionQuestion(context, question, user, subscriptionSnapshot = null) {
   if (!user) {
     return false;
   }
 
-  if (hasPrivilegedRole(user)) {
+  if (hasPrivilegedRole(user) || subscriptionSnapshot?.access?.hasAdminPlatform) {
     return true;
   }
 

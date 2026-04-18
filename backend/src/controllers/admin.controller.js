@@ -3,9 +3,11 @@ const { randomUUID } = require('crypto');
 const { success, error } = require('../utils/response');
 const { getPrimaryRole, normalizeRoles } = require('../middlewares/rbac.middleware');
 const { ASSIGNABLE_APP_ROLES, normalizeRole, toStorageRole } = require('../utils/roles');
+const SubscriptionService = require('../services/subscription.service');
 
 const ALLOWED_ROLES = ASSIGNABLE_APP_ROLES;
 const ALLOWED_CONTENT_TYPES = ['article', 'audio', 'video'];
+const ALLOWED_CONTENT_ACCESS_TIERS = ['free', 'full', 'course'];
 const ALLOWED_CONTENT_CATEGORIES = [
   'general',
   'tahliya',
@@ -73,6 +75,11 @@ function normalizeContentCategory(category) {
   return ALLOWED_CONTENT_CATEGORIES.includes(normalized) ? normalized : null;
 }
 
+function normalizeContentAccessTier(accessTier) {
+  const normalized = String(accessTier || '').trim().toLowerCase();
+  return ALLOWED_CONTENT_ACCESS_TIERS.includes(normalized) ? normalized : null;
+}
+
 function normalizePinnedEntityType(entityType) {
   const normalized = String(entityType || '').trim().toLowerCase();
   return ALLOWED_PINNED_ENTITY_TYPES.includes(normalized) ? normalized : null;
@@ -95,6 +102,8 @@ async function fetchUserById(userId) {
         u.id,
         u.email,
         u.is_verified,
+        u.status,
+        u.metadata,
         u.created_at,
         p.full_name,
         p.avatar_url,
@@ -437,6 +446,179 @@ class AdminController {
     }
   }
 
+  static async getUser(req, res, next) {
+    try {
+      const user = await fetchUserById(req.params.id);
+      if (!user) {
+        return error(res, 'User not found', 404, 'USER_NOT_FOUND');
+      }
+      return success(res, { user });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async updateUserStatus(req, res, next) {
+    const status = String(req.body?.status || '').trim().toLowerCase();
+    const allowed = ['active', 'suspended', 'deactivated'];
+
+    if (!allowed.includes(status)) {
+      return error(res, `Invalid status. Allowed: ${allowed.join(', ')}`, 400, 'INVALID_STATUS');
+    }
+
+    const existingUser = await fetchUserById(req.params.id);
+    if (!existingUser) {
+      return error(res, 'User not found', 404, 'USER_NOT_FOUND');
+    }
+
+    try {
+      await db.query('UPDATE users SET status = $1, updated_at = NOW() WHERE id = $2', [
+        status,
+        req.params.id,
+      ]);
+
+      const user = await fetchUserById(req.params.id);
+
+      await insertAuditLog(db, req, {
+        action: 'user.status.updated',
+        entityType: 'user',
+        entityId: req.params.id,
+        details: {
+          previous_status: existingUser.status,
+          next_status: status,
+          reason: req.body?.reason || null,
+        },
+      });
+
+      return success(res, { user }, `User status updated to ${status}`);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async approveTrainer(req, res, next) {
+    const existingUser = await fetchUserById(req.params.id);
+    if (!existingUser) {
+      return error(res, 'User not found', 404, 'USER_NOT_FOUND');
+    }
+
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      // Set role to trainer
+      await client.query('DELETE FROM user_roles WHERE user_id = $1', [req.params.id]);
+      await client.query('INSERT INTO user_roles (user_id, role) VALUES ($1, $2)', [
+        req.params.id,
+        'trainer',
+      ]);
+      // Update any trainer-specific metadata if needed
+      await client.query(
+        "UPDATE users SET metadata = metadata || $1::jsonb WHERE id = $2",
+        [JSON.stringify({ trainer_approved_at: new Date().toISOString() }), req.params.id]
+      );
+      await client.query('COMMIT');
+
+      const user = await fetchUserById(req.params.id);
+
+      await insertAuditLog(db, req, {
+        action: 'user.trainer.approved',
+        entityType: 'user',
+        entityId: req.params.id,
+        details: {
+          previous_role: existingUser.role,
+          approved_by: req.user?.id,
+        },
+      });
+
+      return success(res, { user }, 'Trainer approved successfully');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      next(err);
+    } finally {
+      client.release();
+    }
+  }
+
+  static async listSubscriptions(req, res, next) {
+    try {
+      const subscriptions = await SubscriptionService.listAdminSubscriptions({
+        search: typeof req.query.search === 'string' ? req.query.search : '',
+        planCode: typeof req.query.plan_code === 'string' ? req.query.plan_code : null,
+        status: typeof req.query.status === 'string' ? req.query.status : null,
+        limit: toInt(req.query.limit, 50, { min: 1, max: 100 }),
+        offset: toInt(req.query.offset, 0, { min: 0, max: 10000 }),
+      });
+
+      return success(res, {
+        subscriptions,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async grantSubscription(req, res, next) {
+    try {
+      const subscription = await SubscriptionService.grantSubscription({
+        actorId: req.user?.id || null,
+        userId: req.body.user_id,
+        planCode: req.body.plan_code,
+        startsAt: req.body.starts_at || null,
+        endsAt: req.body.ends_at || null,
+        source: req.body.source || 'manual',
+        provider: req.body.provider || null,
+        providerReference: req.body.provider_reference || null,
+        metadata: req.body.metadata || {},
+      });
+
+      await insertAuditLog(db, req, {
+        action: 'subscription.granted',
+        entityType: 'subscription',
+        entityId: subscription.id,
+        details: {
+          user_id: subscription.user_id,
+          plan_code: subscription.plan_code,
+          source: subscription.source,
+          metadata: subscription.metadata || {},
+        },
+      });
+
+      return success(res, { subscription }, 'Subscription granted successfully', 201);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async revokeSubscription(req, res, next) {
+    try {
+      const subscription = await SubscriptionService.revokeSubscription({
+        actorId: req.user?.id || null,
+        subscriptionId: req.body.subscription_id || null,
+        userId: req.body.user_id || null,
+        planCode: req.body.plan_code || null,
+        courseId: req.body.course_id || null,
+        reason: req.body.reason || null,
+      });
+
+      await insertAuditLog(db, req, {
+        action: 'subscription.revoked',
+        entityType: 'subscription',
+        entityId: subscription.id,
+        details: {
+          user_id: subscription.user_id,
+          plan_code: subscription.plan_code,
+          course_id:
+            subscription.metadata?.course_id || subscription.metadata?.courseId || null,
+          reason: req.body.reason || null,
+        },
+      });
+
+      return success(res, { subscription }, 'Subscription revoked successfully');
+    } catch (err) {
+      next(err);
+    }
+  }
+
   static async listContents(req, res, next) {
     try {
       const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
@@ -500,6 +682,8 @@ class AdminController {
         description: req.body.description?.trim() || null,
         type,
         category,
+        access_tier: normalizeContentAccessTier(req.body.access_tier) || 'free',
+        course_id: req.body.course_id || null,
         media_url: req.body.media_url?.trim() || null,
         thumbnail_url: req.body.thumbnail_url?.trim() || null,
         content: req.body.content?.trim() || null,
@@ -509,6 +693,10 @@ class AdminController {
         metadata: req.body.metadata && typeof req.body.metadata === 'object' ? req.body.metadata : {},
       };
 
+      if (payload.access_tier === 'course' && !payload.course_id) {
+        return error(res, 'course_id is required when access_tier is course', 400, 'INVALID_CONTENT_PAYLOAD');
+      }
+
       const result = await db.query(
         `
           INSERT INTO contents (
@@ -516,6 +704,8 @@ class AdminController {
             description,
             type,
             category,
+            access_tier,
+            course_id,
             media_url,
             thumbnail_url,
             content,
@@ -532,6 +722,8 @@ class AdminController {
           payload.description,
           payload.type,
           payload.category,
+          payload.access_tier,
+          payload.course_id,
           payload.media_url,
           payload.thumbnail_url,
           payload.content,
@@ -571,6 +763,14 @@ class AdminController {
         description: req.body.description === '' ? null : req.body.description?.trim(),
         type: req.body.type ? normalizeContentType(req.body.type) : undefined,
         category: req.body.category ? normalizeContentCategory(req.body.category) : undefined,
+        access_tier:
+          req.body.access_tier !== undefined
+            ? normalizeContentAccessTier(req.body.access_tier)
+            : undefined,
+        course_id:
+          req.body.course_id !== undefined
+            ? req.body.course_id || null
+            : undefined,
         media_url: req.body.media_url === '' ? null : req.body.media_url?.trim(),
         thumbnail_url: req.body.thumbnail_url === '' ? null : req.body.thumbnail_url?.trim(),
         content: req.body.content === '' ? null : req.body.content?.trim(),
@@ -589,8 +789,16 @@ class AdminController {
             : undefined,
       };
 
-      if ((req.body.type && !payload.type) || (req.body.category && !payload.category)) {
+      if (
+        (req.body.type && !payload.type) ||
+        (req.body.category && !payload.category) ||
+        (req.body.access_tier !== undefined && !payload.access_tier)
+      ) {
         return error(res, 'Invalid content type or category', 400, 'INVALID_CONTENT_PAYLOAD');
+      }
+
+      if ((payload.access_tier || contentResult.rows[0].access_tier) === 'course' && payload.course_id === undefined && !contentResult.rows[0].course_id) {
+        return error(res, 'course_id is required when access_tier is course', 400, 'INVALID_CONTENT_PAYLOAD');
       }
 
       const { fields, values } = buildUpdateStatement(payload, [
@@ -598,6 +806,8 @@ class AdminController {
         'description',
         'type',
         'category',
+        'access_tier',
+        'course_id',
         'media_url',
         'thumbnail_url',
         'content',
@@ -1057,6 +1267,272 @@ class AdminController {
       `);
 
       return success(res, { notifications: result.rows });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async listReports(req, res, next) {
+    try {
+      const limit = toInt(req.query.limit, 50, { min: 1, max: 200 });
+      const status = req.query.status || 'pending';
+
+      const result = await db.query(
+        `
+          SELECT
+            r.*,
+            re.email AS reporter_email,
+            pr.full_name AS reporter_name,
+            COALESCE(p.title, q.body) AS target_preview
+          FROM community_reports r
+          JOIN users re ON re.id = r.reporter_id
+          LEFT JOIN profiles pr ON pr.id = re.id
+          LEFT JOIN community_posts p ON p.id = r.post_id
+          LEFT JOIN session_questions q ON q.id = r.question_id
+          WHERE r.status = $1
+          ORDER BY r.created_at DESC
+          LIMIT $2
+        `,
+        [status, limit]
+      );
+
+      return success(res, { reports: result.rows });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async resolveReport(req, res, next) {
+    const { id } = req.params;
+    const { status, note } = req.body; // resolved, dismissed
+
+    try {
+      const result = await db.query(
+        `
+          UPDATE community_reports
+          SET status = $1, resolution_note = $2, resolved_at = NOW(), assigned_to = $3
+          WHERE id = $4
+          RETURNING *
+        `,
+        [status, note || null, req.user.id, id]
+      );
+
+      if (result.rowCount === 0) {
+        return error(res, 'Report not found', 404, 'REPORT_NOT_FOUND');
+      }
+
+      await insertAuditLog(db, req, {
+        action: 'community.report.resolved',
+        entityType: 'report',
+        entityId: id,
+        details: { status, note },
+      });
+
+      return success(res, { report: result.rows[0] }, 'Report resolved successfully');
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async hidePost(req, res, next) {
+    const { id } = req.params;
+    try {
+      const result = await db.query(
+        "UPDATE community_posts SET status = 'hidden', updated_at = NOW() WHERE id = $1 RETURNING *",
+        [id]
+      );
+
+      if (result.rowCount === 0) {
+        return error(res, 'Post not found', 404, 'POST_NOT_FOUND');
+      }
+
+      await insertAuditLog(db, req, {
+        action: 'community.post.hidden',
+        entityType: 'post',
+        entityId: id,
+        details: { reason: req.body?.reason || 'Moderator action' },
+      });
+
+      return success(res, { post: result.rows[0] }, 'Post hidden successfully');
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async unhidePost(req, res, next) {
+    const { id } = req.params;
+    try {
+      const result = await db.query(
+        "UPDATE community_posts SET status = 'published', updated_at = NOW() WHERE id = $1 RETURNING *",
+        [id]
+      );
+
+      if (result.rowCount === 0) {
+        return error(res, 'Post not found', 404, 'POST_NOT_FOUND');
+      }
+
+      await insertAuditLog(db, req, {
+        action: 'community.post.unhidden',
+        entityType: 'post',
+        entityId: id,
+      });
+
+      return success(res, { post: result.rows[0] }, 'Post unhidden successfully');
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async pinPost(req, res, next) {
+    const { id } = req.params;
+    const { context_id, reason, ends_at } = req.body;
+
+    try {
+      const post = await db.query('SELECT primary_context_id FROM community_posts WHERE id = $1', [id]);
+      if (post.rowCount === 0) {
+        return error(res, 'Post not found', 404, 'POST_NOT_FOUND');
+      }
+
+      const ctxId = context_id || post.rows[0].primary_context_id;
+
+      const result = await db.query(
+        `
+          INSERT INTO community_pins (context_id, post_id, pinned_by, reason, ends_at)
+          VALUES ($1, $2, $3, $4, $5)
+          ON CONFLICT (context_id, post_id) DO UPDATE
+          SET reason = EXCLUDED.reason, ends_at = EXCLUDED.ends_at, created_at = NOW()
+          RETURNING *
+        `,
+        [ctxId, id, req.user?.id, reason || null, ends_at || null]
+      );
+
+      await insertAuditLog(db, req, {
+        action: 'community.post.pinned',
+        entityType: 'post',
+        entityId: id,
+        details: { context_id: ctxId, reason },
+      });
+
+      return success(res, { pin: result.rows[0] }, 'Post pinned successfully');
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async unpinPost(req, res, next) {
+    const { id } = req.params;
+    const { context_id } = req.query;
+
+    try {
+      let query = 'DELETE FROM community_pins WHERE post_id = $1';
+      const params = [id];
+
+      if (context_id) {
+        query += ' AND context_id = $2';
+        params.push(context_id);
+      }
+
+      const result = await db.query(query, params);
+
+      await insertAuditLog(db, req, {
+        action: 'community.post.unpinned',
+        entityType: 'post',
+        entityId: id,
+        details: { context_id },
+      });
+
+      return success(res, { deleted: result.rowCount > 0 }, 'Post unpinned successfully');
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async listSessions(req, res, next) {
+    try {
+      const limit = toInt(req.query.limit, 50, { min: 1, max: 200 });
+      const status = req.query.status || 'live';
+
+      const result = await db.query(
+        `
+          SELECT s.*, r.title AS room_title, p.full_name AS host_name
+          FROM audio_rooms s
+          LEFT JOIN rooms r ON r.id = s.id
+          LEFT JOIN profiles p ON p.id = s.host_id
+          WHERE s.status = $1
+          ORDER BY s.updated_at DESC
+          LIMIT $2
+        `,
+        [status, limit]
+      );
+
+      return success(res, { sessions: result.rows });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async endSession(req, res, next) {
+    const { id } = req.params;
+    try {
+      const result = await db.query(
+        `UPDATE audio_rooms SET status = 'ended', ended_at = NOW() WHERE id = $1 RETURNING *`,
+        [id]
+      );
+
+      if (result.rowCount === 0) {
+        return error(res, 'Session not found', 404, 'SESSION_NOT_FOUND');
+      }
+
+      await insertAuditLog(db, req, {
+        action: 'session.force_ended',
+        entityType: 'session',
+        entityId: id,
+        details: { reason: req.body?.reason || 'Moderator action' },
+      });
+
+      return success(res, { session: result.rows[0] }, 'Session ended successfully');
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async assignSessionHost(req, res, next) {
+    const { id } = req.params;
+    const { host_id } = req.body;
+
+    try {
+      const result = await db.query(
+        'UPDATE audio_rooms SET host_id = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+        [host_id, id]
+      );
+
+      if (result.rowCount === 0) {
+        return error(res, 'Session not found', 404, 'SESSION_NOT_FOUND');
+      }
+
+      await insertAuditLog(db, req, {
+        action: 'session.host_assigned',
+        entityType: 'session',
+        entityId: id,
+        details: { new_host_id: host_id },
+      });
+
+      return success(res, { session: result.rows[0] }, 'Host assigned successfully');
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async getUserEntitlements(req, res, next) {
+    try {
+      const user = await fetchUserById(req.params.id);
+      if (!user) {
+        return error(res, 'User not found', 404, 'USER_NOT_FOUND');
+      }
+
+      const contract = await SubscriptionService.getUserContract(user);
+
+      return success(res, { contract });
     } catch (err) {
       next(err);
     }

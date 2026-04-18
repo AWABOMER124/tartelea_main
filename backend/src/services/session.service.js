@@ -2,6 +2,7 @@ const db = require('../db');
 const env = require('../config/env');
 const { httpError } = require('../utils/httpError');
 const livekitService = require('./livekit.service');
+const SubscriptionService = require('./subscription.service');
 const { normalizeRoles, getPrimaryRole } = require('../middlewares/rbac.middleware');
 
 const SPEAKING_ROOM_ROLES = new Set(['host', 'co_host', 'moderator', 'speaker']);
@@ -73,7 +74,7 @@ function resolveRoomRole(row, user) {
   return 'listener';
 }
 
-function evaluateAccess(row, user) {
+function evaluateAccess(row, user, subscriptionSnapshot = null) {
   const status = deriveSessionStatus(row);
   const visibility = deriveVisibility(row);
   const roomRole = resolveRoomRole(row, user);
@@ -82,6 +83,7 @@ function evaluateAccess(row, user) {
   const participantCount = Number(row.participant_count) || 0;
   const isParticipant = Boolean(row.viewer_is_participant) || row.host_id === user?.id;
   const isPrivileged = isPrivilegedSystemUser(user) || roomRole === 'host';
+  const subscriptionAccess = subscriptionSnapshot?.access || null;
 
   let canJoin = false;
   let denialReason = null;
@@ -94,8 +96,10 @@ function evaluateAccess(row, user) {
     denialReason = 'SESSION_ENDED';
   } else if (participantCount >= maxParticipants && !isParticipant && !isPrivileged) {
     denialReason = 'SESSION_FULL';
-  } else if (visibility === 'restricted' && !env.SUBSCRIPTIONS_PAUSED && !isPrivileged) {
+  } else if (visibility === 'restricted' && !env.SUBSCRIPTIONS_PAUSED && !isPrivileged && !subscriptionAccess?.canJoinPremiumRoom) {
     denialReason = 'SUBSCRIPTION_REQUIRED';
+  } else if (visibility === 'public' && !isPrivileged && !subscriptionAccess?.canJoinRoom) {
+    denialReason = 'ROOM_ACCESS_REQUIRED';
   } else {
     canJoin = true;
   }
@@ -375,6 +379,7 @@ async function listPendingHandRaises(executor, sessionId) {
 class SessionService {
   static async listSessions({ reqUser, status, limit = 50, offset = 0 }) {
     const user = normalizeUser(reqUser);
+    const subscriptionSnapshot = user ? await SubscriptionService.getUserSnapshot(user) : null;
     const params = [user?.id || null];
     const where = ['1 = 1'];
 
@@ -448,7 +453,7 @@ class SessionService {
 
     const items = await Promise.all(
       result.rows.map(async (row) => {
-        const access = evaluateAccess(row, user);
+        const access = evaluateAccess(row, user, subscriptionSnapshot);
         const counts = await listSpeakerAndModeratorSummaries(db, row.id, row.host_id);
 
         return {
@@ -469,6 +474,7 @@ class SessionService {
 
   static async getSessionDetails({ reqUser, sessionId }) {
     const user = normalizeUser(reqUser);
+    const subscriptionSnapshot = user ? await SubscriptionService.getUserSnapshot(user) : null;
     const row = await getSessionRowById(db, sessionId, user?.id || null);
 
     if (!row) {
@@ -479,7 +485,7 @@ class SessionService {
       throw httpError(404, 'Session not found', 'SESSION_NOT_FOUND');
     }
 
-    const access = evaluateAccess(row, user);
+    const access = evaluateAccess(row, user, subscriptionSnapshot);
     const [counts, participants, handRaises] = await Promise.all([
       listSpeakerAndModeratorSummaries(db, row.id, row.host_id),
       listSessionParticipants(db, row.id, row.host_id),
@@ -499,6 +505,11 @@ class SessionService {
     const user = normalizeUser(reqUser);
     if (!user) {
       throw httpError(401, 'Authentication required', 'UNAUTHORIZED');
+    }
+
+    const subscriptionSnapshot = await SubscriptionService.getUserSnapshot(user);
+    if (!subscriptionSnapshot.access.canCreateRoom && !subscriptionSnapshot.access.canHostSessions) {
+      throw httpError(403, 'Your current entitlements do not allow room creation', 'ROOM_CREATION_NOT_ALLOWED');
     }
 
     const scheduledAt = payload.scheduled_at ? new Date(payload.scheduled_at).toISOString() : new Date().toISOString();
@@ -540,7 +551,7 @@ class SessionService {
     );
 
     const row = await getSessionRowById(db, result.rows[0].id, user.id);
-    const access = evaluateAccess(row, user);
+    const access = evaluateAccess(row, user, subscriptionSnapshot);
     const counts = await listSpeakerAndModeratorSummaries(db, row.id, row.host_id);
 
     return {
@@ -556,6 +567,8 @@ class SessionService {
       throw httpError(401, 'Authentication required', 'UNAUTHORIZED');
     }
 
+    const subscriptionSnapshot = await SubscriptionService.getUserSnapshot(user);
+
     const client = await db.connect();
     try {
       await client.query('BEGIN');
@@ -565,7 +578,7 @@ class SessionService {
         throw httpError(404, 'Session not found', 'SESSION_NOT_FOUND');
       }
 
-      const access = evaluateAccess(row, user);
+      const access = evaluateAccess(row, user, subscriptionSnapshot);
       if (!access.canJoin) {
         throw httpError(403, access.denialReason || 'Access denied', 'SESSION_ACCESS_DENIED');
       }
@@ -581,7 +594,7 @@ class SessionService {
       );
 
       const refreshedRow = await getSessionRowById(client, sessionId, user.id);
-      const refreshedAccess = evaluateAccess(refreshedRow, user);
+      const refreshedAccess = evaluateAccess(refreshedRow, user, subscriptionSnapshot);
       const counts = await listSpeakerAndModeratorSummaries(client, refreshedRow.id, refreshedRow.host_id);
 
       let token = null;
@@ -639,7 +652,11 @@ class SessionService {
     }
 
     const refreshedRow = await getSessionRowById(db, sessionId, user.id);
-    const access = evaluateAccess(refreshedRow, user);
+    const access = evaluateAccess(
+      refreshedRow,
+      user,
+      user ? await SubscriptionService.getUserSnapshot(user) : null
+    );
     const counts = await listSpeakerAndModeratorSummaries(db, refreshedRow.id, refreshedRow.host_id);
 
     return {
@@ -655,6 +672,8 @@ class SessionService {
       throw httpError(401, 'Authentication required', 'UNAUTHORIZED');
     }
 
+    const subscriptionSnapshot = await SubscriptionService.getUserSnapshot(user);
+
     const client = await db.connect();
     try {
       await client.query('BEGIN');
@@ -664,7 +683,7 @@ class SessionService {
         throw httpError(404, 'Session not found', 'SESSION_NOT_FOUND');
       }
 
-      const access = evaluateAccess(row, user);
+      const access = evaluateAccess(row, user, subscriptionSnapshot);
 
       const requireTarget = () => {
         if (!targetUserId) {

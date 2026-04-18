@@ -5,6 +5,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useBackendEntitlements } from "@/hooks/useBackendEntitlements";
 import { useToast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/useUserRole";
 import AppLayout from "@/components/layout/AppLayout";
@@ -104,6 +105,7 @@ const mapSessionItem = (item: BackendSessionSummaryItem): RoomCardModel => ({
 const Rooms = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { access } = useBackendEntitlements();
   const { isTrainer, isModerator, isAdmin, userId } = useUserRole();
   const [rooms, setRooms] = useState<RoomCardModel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -111,7 +113,7 @@ const Rooms = () => {
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
 
-  const canCreate = isTrainer || isModerator || isAdmin;
+  const canCreate = access.canCreateRoom || isTrainer || isModerator || isAdmin;
 
   const fetchRooms = useCallback(async () => {
     try {

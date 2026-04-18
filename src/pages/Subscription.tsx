@@ -1,6 +1,6 @@
 import AppLayout from "@/components/layout/AppLayout";
 import SubscriptionCard from "@/components/subscription/SubscriptionCard";
-import { useSubscription, SUBSCRIPTION_DISCOUNT } from "@/hooks/useSubscription";
+import { useSubscription } from "@/hooks/useSubscription";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -17,7 +17,8 @@ import {
 } from "lucide-react";
 
 const Subscription = () => {
-  const discountPercent = Math.round(SUBSCRIPTION_DISCOUNT * 100);
+  const { discountPercent: backendDiscountPercent } = useSubscription();
+  const discountPercent = Math.round(backendDiscountPercent * 100);
 
   const features = [
     {

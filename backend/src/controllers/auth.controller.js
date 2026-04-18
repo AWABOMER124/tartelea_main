@@ -1,4 +1,5 @@
 const AuthService = require('../services/auth.service');
+const SubscriptionService = require('../services/subscription.service');
 const { success } = require('../utils/response');
 const { buildAuthEnvelope, buildSessionEnvelope } = require('../utils/auth-contract');
 
@@ -7,13 +8,18 @@ class AuthController {
     try {
       const result = await AuthService.signup(req.body);
       const { message = 'Signup successful', token, accessToken, refreshToken, user, ...extra } = result;
+      const subscription = user?.id ? await SubscriptionService.getUserContract(user) : null;
       return success(
         res,
         buildAuthEnvelope({
           user,
           accessToken: accessToken || token || null,
           refreshToken: refreshToken || null,
-          extra,
+          extra: {
+            ...extra,
+            ...(subscription || {}),
+            subscription,
+          },
         }),
         message,
         201
@@ -28,13 +34,18 @@ class AuthController {
       const { email, code } = req.body;
       const result = await AuthService.verifyEmail(email, code);
       const { message = 'Email verified successfully', token, accessToken, refreshToken, user, ...extra } = result;
+      const subscription = user?.id ? await SubscriptionService.getUserContract(user) : null;
       return success(
         res,
         buildAuthEnvelope({
           user,
           accessToken: accessToken || token || null,
           refreshToken: refreshToken || null,
-          extra,
+          extra: {
+            ...extra,
+            ...(subscription || {}),
+            subscription,
+          },
         }),
         message
       );
@@ -48,13 +59,18 @@ class AuthController {
       const { email, password } = req.body;
       const result = await AuthService.login(email, password);
       const { message = 'Login successful', token, accessToken, refreshToken, user, ...extra } = result;
+      const subscription = user?.id ? await SubscriptionService.getUserContract(user) : null;
       return success(
         res,
         buildAuthEnvelope({
           user,
           accessToken: accessToken || token || null,
           refreshToken: refreshToken || null,
-          extra,
+          extra: {
+            ...extra,
+            ...(subscription || {}),
+            subscription,
+          },
         }),
         message
       );
@@ -68,13 +84,18 @@ class AuthController {
       const { idToken } = req.body;
       const result = await AuthService.googleLogin(idToken);
       const { message = 'Google login successful', token, accessToken, refreshToken, user, ...extra } = result;
+      const subscription = user?.id ? await SubscriptionService.getUserContract(user) : null;
       return success(
         res,
         buildAuthEnvelope({
           user,
           accessToken: accessToken || token || null,
           refreshToken: refreshToken || null,
-          extra,
+          extra: {
+            ...extra,
+            ...(subscription || {}),
+            subscription,
+          },
         }),
         message
       );
@@ -108,9 +129,16 @@ class AuthController {
   static async me(req, res, next) {
     try {
       const result = await AuthService.me(req.user.id);
+      const subscription = await SubscriptionService.getUserContract(result);
       return success(
         res,
-        buildSessionEnvelope({ user: result }),
+        buildSessionEnvelope({
+          user: result,
+          extra: {
+            ...subscription,
+            subscription,
+          },
+        }),
         'Current user fetched successfully'
       );
     } catch (err) {
