@@ -1,35 +1,18 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Check, X, Video, Headphones, Calendar } from "lucide-react";
 import { format, ar } from "@/lib/date-utils";
-
-interface Workshop {
-  id: string;
-  title: string;
-  description: string | null;
-  host_id: string;
-  host_name?: string;
-  category: string;
-  scheduled_at: string;
-  is_approved: boolean;
-  price: number;
-}
-
-interface Room {
-  id: string;
-  title: string;
-  description: string | null;
-  host_id: string;
-  host_name?: string;
-  category: string;
-  scheduled_at: string;
-  is_approved: boolean;
-  price: number;
-}
+import {
+  listAdminRooms,
+  listAdminWorkshops,
+  updateAdminRoomApproval,
+  updateAdminWorkshopApproval,
+  type AdminRoom,
+  type AdminWorkshop,
+} from "@/lib/backendAdmin";
 
 const categoryLabels: Record<string, string> = {
   quran: "القرآن",
@@ -42,112 +25,80 @@ const categoryLabels: Record<string, string> = {
 
 const EventsManagement = () => {
   const { toast } = useToast();
-  const [workshops, setWorkshops] = useState<Workshop[]>([]);
-  const [rooms, setRooms] = useState<Room[]>([]);
+  const [workshops, setWorkshops] = useState<AdminWorkshop[]>([]);
+  const [rooms, setRooms] = useState<AdminRoom[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchEvents();
+    void fetchEvents();
   }, []);
 
   const fetchEvents = async () => {
     setLoading(true);
 
-    // Fetch all workshops
-    const { data: workshopsData } = await supabase
-      .from("workshops")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    // Fetch all rooms
-    const { data: roomsData } = await supabase
-      .from("rooms")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    // Fetch host names
-    const hostIds = [
-      ...new Set([
-        ...(workshopsData?.map((w) => w.host_id) || []),
-        ...(roomsData?.map((r) => r.host_id) || []),
-      ]),
-    ];
-
-    const { data: profilesData } = await supabase
-      .from("profiles")
-      .select("id, full_name")
-      .in("id", hostIds);
-
-    const profilesMap = new Map(
-      profilesData?.map((p) => [p.id, p.full_name]) || []
-    );
-
-    setWorkshops(
-      (workshopsData || []).map((w) => ({
-        ...w,
-        host_name: profilesMap.get(w.host_id) || "مدرب",
-      }))
-    );
-
-    setRooms(
-      (roomsData || []).map((r) => ({
-        ...r,
-        host_name: profilesMap.get(r.host_id) || "مدرب",
-      }))
-    );
-
-    setLoading(false);
+    try {
+      const [workshopItems, roomItems] = await Promise.all([
+        listAdminWorkshops(),
+        listAdminRooms(),
+      ]);
+      setWorkshops(workshopItems);
+      setRooms(roomItems);
+    } catch (error) {
+      toast({
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "فشل تحميل الفعاليات",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleApproveWorkshop = async (id: string, approve: boolean) => {
-    setProcessingId(id);
-    const { error } = await supabase
-      .from("workshops")
-      .update({ is_approved: approve })
-      .eq("id", id);
+    setProcessingId(`workshop:${id}`);
 
-    if (error) {
-      toast({
-        title: "خطأ",
-        description: "فشل تحديث حالة الورشة",
-        variant: "destructive",
-      });
-    } else {
+    try {
+      await updateAdminWorkshopApproval(id, approve);
       toast({
         title: "تم",
-        description: approve ? "تمت الموافقة على الورشة" : "تم رفض الورشة",
+        description: approve ? "تمت الموافقة على الورشة" : "تم إلغاء اعتماد الورشة",
       });
-      fetchEvents();
+      await fetchEvents();
+    } catch (error) {
+      toast({
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "فشل تحديث حالة الورشة",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessingId(null);
     }
-    setProcessingId(null);
   };
 
   const handleApproveRoom = async (id: string, approve: boolean) => {
-    setProcessingId(id);
-    const { error } = await supabase
-      .from("rooms")
-      .update({ is_approved: approve })
-      .eq("id", id);
+    setProcessingId(`room:${id}`);
 
-    if (error) {
-      toast({
-        title: "خطأ",
-        description: "فشل تحديث حالة الغرفة",
-        variant: "destructive",
-      });
-    } else {
+    try {
+      await updateAdminRoomApproval(id, approve);
       toast({
         title: "تم",
-        description: approve ? "تمت الموافقة على الغرفة" : "تم رفض الغرفة",
+        description: approve ? "تمت الموافقة على الغرفة" : "تم إلغاء اعتماد الغرفة",
       });
-      fetchEvents();
+      await fetchEvents();
+    } catch (error) {
+      toast({
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "فشل تحديث حالة الغرفة",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessingId(null);
     }
-    setProcessingId(null);
   };
 
-  const pendingWorkshops = workshops.filter((w) => !w.is_approved);
-  const pendingRooms = rooms.filter((r) => !r.is_approved);
+  const pendingWorkshops = workshops.filter((workshop) => !workshop.is_approved);
+  const pendingRooms = rooms.filter((room) => !room.is_approved);
 
   if (loading) {
     return (
@@ -159,7 +110,6 @@ const EventsManagement = () => {
 
   return (
     <div className="space-y-6">
-      {/* Pending Workshops */}
       <div>
         <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
           <Video className="h-5 w-5" />
@@ -199,7 +149,7 @@ const EventsManagement = () => {
                           <Calendar className="h-3 w-3" />
                           {format(new Date(workshop.scheduled_at), "dd MMM yyyy HH:mm", { locale: ar })}
                         </span>
-                        <span>المدرب: {workshop.host_name}</span>
+                        <span>المدرب: {workshop.trainer_name}</span>
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -207,17 +157,17 @@ const EventsManagement = () => {
                         size="sm"
                         variant="outline"
                         className="text-destructive"
-                        onClick={() => handleApproveWorkshop(workshop.id, false)}
-                        disabled={processingId === workshop.id}
+                        onClick={() => void handleApproveWorkshop(workshop.id, false)}
+                        disabled={processingId === `workshop:${workshop.id}`}
                       >
                         <X className="h-4 w-4" />
                       </Button>
                       <Button
                         size="sm"
-                        onClick={() => handleApproveWorkshop(workshop.id, true)}
-                        disabled={processingId === workshop.id}
+                        onClick={() => void handleApproveWorkshop(workshop.id, true)}
+                        disabled={processingId === `workshop:${workshop.id}`}
                       >
-                        {processingId === workshop.id ? (
+                        {processingId === `workshop:${workshop.id}` ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                           <Check className="h-4 w-4" />
@@ -232,7 +182,6 @@ const EventsManagement = () => {
         )}
       </div>
 
-      {/* Pending Rooms */}
       <div>
         <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
           <Headphones className="h-5 w-5" />
@@ -280,17 +229,17 @@ const EventsManagement = () => {
                         size="sm"
                         variant="outline"
                         className="text-destructive"
-                        onClick={() => handleApproveRoom(room.id, false)}
-                        disabled={processingId === room.id}
+                        onClick={() => void handleApproveRoom(room.id, false)}
+                        disabled={processingId === `room:${room.id}`}
                       >
                         <X className="h-4 w-4" />
                       </Button>
                       <Button
                         size="sm"
-                        onClick={() => handleApproveRoom(room.id, true)}
-                        disabled={processingId === room.id}
+                        onClick={() => void handleApproveRoom(room.id, true)}
+                        disabled={processingId === `room:${room.id}`}
                       >
-                        {processingId === room.id ? (
+                        {processingId === `room:${room.id}` ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                           <Check className="h-4 w-4" />
@@ -305,7 +254,6 @@ const EventsManagement = () => {
         )}
       </div>
 
-      {/* All Events Summary */}
       <div>
         <h3 className="font-semibold text-foreground mb-3">
           جميع الفعاليات

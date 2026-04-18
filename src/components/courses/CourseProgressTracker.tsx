@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Loader2, CheckCircle } from "lucide-react";
+import { getCourseProgress, saveCourseProgress } from "@/lib/backendCourses";
 
 interface CourseProgressTrackerProps {
   courseId: string;
@@ -25,24 +25,20 @@ const CourseProgressTracker = ({
 
   useEffect(() => {
     if (userId && courseId) {
-      fetchProgress();
+      void fetchProgress();
     } else {
       setLoading(false);
     }
   }, [userId, courseId]);
 
   const fetchProgress = async () => {
-    const { data } = await supabase
-      .from("course_progress")
-      .select("progress_percent, completed_at")
-      .eq("course_id", courseId)
-      .eq("user_id", userId)
-      .maybeSingle();
+    const data = await getCourseProgress(courseId, userId!);
 
     if (data) {
       setProgress(data.progress_percent);
-      setIsCompleted(!!data.completed_at);
+      setIsCompleted(Boolean(data.completed_at));
     }
+
     setLoading(false);
   };
 
@@ -50,11 +46,11 @@ const CourseProgressTracker = ({
     setProgress(value[0]);
   };
 
-  const saveProgress = async () => {
+  const handleSaveProgress = async () => {
     if (!userId) {
       toast({
-        title: "تنبيه",
-        description: "يجب تسجيل الدخول لحفظ التقدم",
+        title: "طھظ†ط¨ظٹظ‡",
+        description: "ظٹط¬ط¨ طھط³ط¬ظٹظ„ ط§ظ„ط¯ط®ظˆظ„ ظ„ط­ظپط¸ ط§ظ„طھظ‚ط¯ظ…",
         variant: "destructive",
       });
       return;
@@ -62,74 +58,33 @@ const CourseProgressTracker = ({
 
     setSaving(true);
 
-    // Check if progress record exists
-    const { data: existing } = await supabase
-      .from("course_progress")
-      .select("id")
-      .eq("course_id", courseId)
-      .eq("user_id", userId)
-      .maybeSingle();
+    try {
+      await saveCourseProgress(courseId, userId, progress);
+      toast({ title: "طھظ… ط­ظپط¸ ط§ظ„طھظ‚ط¯ظ…" });
 
-    if (existing) {
-      // Update existing
-      const { error } = await supabase
-        .from("course_progress")
-        .update({
-          progress_percent: progress,
-          last_accessed_at: new Date().toISOString(),
-        })
-        .eq("id", existing.id);
-
-      if (error) {
+      if (progress === 100) {
+        setIsCompleted(true);
         toast({
-          title: "خطأ",
-          description: "فشل حفظ التقدم",
-          variant: "destructive",
+          title: "تهانينا!",
+          description: "لقد أكملت الدورة بنجاح وحصلت على شهادة!",
         });
-      } else {
-        toast({ title: "تم حفظ التقدم" });
-        if (progress === 100) {
-          setIsCompleted(true);
-          toast({
-            title: "🎉 تهانينا!",
-            description: "لقد أكملت الدورة بنجاح وحصلت على شهادة!",
-          });
-        }
       }
-    } else {
-      // Insert new
-      const { error } = await supabase.from("course_progress").insert({
-        course_id: courseId,
-        user_id: userId,
-        progress_percent: progress,
+    } catch {
+      toast({
+        title: "ط®ط·ط£",
+        description: "ظپط´ظ„ ط­ظپط¸ ط§ظ„طھظ‚ط¯ظ…",
+        variant: "destructive",
       });
-
-      if (error) {
-        toast({
-          title: "خطأ",
-          description: "فشل حفظ التقدم",
-          variant: "destructive",
-        });
-      } else {
-        toast({ title: "تم حفظ التقدم" });
-        if (progress === 100) {
-          setIsCompleted(true);
-          toast({
-            title: "🎉 تهانينا!",
-            description: "لقد أكملت الدورة بنجاح وحصلت على شهادة!",
-          });
-        }
-      }
+    } finally {
+      onProgressUpdate?.(progress);
+      setSaving(false);
     }
-
-    onProgressUpdate?.(progress);
-    setSaving(false);
   };
 
   if (!userId) {
     return (
       <div className="text-center text-sm text-muted-foreground py-4">
-        سجل الدخول لتتبع تقدمك
+        ط³ط¬ظ„ ط§ظ„ط¯ط®ظˆظ„ ظ„طھطھط¨ط¹ طھظ‚ط¯ظ…ظƒ
       </div>
     );
   }
@@ -145,7 +100,7 @@ const CourseProgressTracker = ({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium">تقدمك في الدورة</span>
+        <span className="text-sm font-medium">طھظ‚ط¯ظ…ظƒ ظپظٹ ط§ظ„ط¯ظˆط±ط©</span>
         <span className="text-sm text-muted-foreground">{progress}%</span>
       </div>
 
@@ -154,7 +109,7 @@ const CourseProgressTracker = ({
       {isCompleted ? (
         <div className="flex items-center gap-2 text-sm text-primary">
           <CheckCircle className="h-4 w-4" />
-          <span>أكملت هذه الدورة بنجاح!</span>
+          <span>ط£ظƒظ…ظ„طھ ظ‡ط°ظ‡ ط§ظ„ط¯ظˆط±ط© ط¨ظ†ط¬ط§ط­!</span>
         </div>
       ) : (
         <div className="space-y-3">
@@ -166,7 +121,7 @@ const CourseProgressTracker = ({
             className="w-full"
           />
           <Button
-            onClick={saveProgress}
+            onClick={handleSaveProgress}
             disabled={saving}
             size="sm"
             className="w-full"
@@ -174,7 +129,7 @@ const CourseProgressTracker = ({
             {saving ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              "حفظ التقدم"
+              "ط­ظپط¸ ط§ظ„طھظ‚ط¯ظ…"
             )}
           </Button>
         </div>

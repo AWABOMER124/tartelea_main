@@ -1,4 +1,5 @@
 /**
+ * DO NOT USE - LEGACY
  * STEP 2 freeze marker:
  * This page still reads/writes legacy community tables through Supabase directly.
  * It is no longer routed from `/community`; keep only as a transitional fallback reference.

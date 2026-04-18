@@ -27,6 +27,7 @@ router.get('/users', AdminController.listUsers);
 router.get('/users/:id', AdminController.getUser);
 router.get('/users/:id/entitlements', AdminController.getUserEntitlements);
 router.patch('/users/:id/role', requireAdmin, AdminController.updateUserRole);
+router.put('/users/:id/roles', requireAdmin, AdminController.updateUserRoles);
 router.patch('/users/:id/status', requireAdmin, AdminController.updateUserStatus);
 router.post('/users/:id/approve-trainer', requireAdmin, AdminController.approveTrainer);
 

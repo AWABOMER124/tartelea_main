@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,15 +28,18 @@ import {
 } from "@/components/ui/dialog";
 import { Plus, Trash2, Edit, Loader2, Eye } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import type { Database } from "@/integrations/supabase/types";
-
-type Content = Database["public"]["Tables"]["contents"]["Row"];
-type ContentCategory = Database["public"]["Enums"]["content_category"];
-type ContentType = Database["public"]["Enums"]["content_type"];
-type DepthLevel = Database["public"]["Enums"]["depth_level"];
+import {
+  createAdminContent,
+  deleteAdminContent,
+  updateAdminContent,
+  type AdminContentCategory,
+  type AdminContentDepth,
+  type AdminContentItem,
+  type AdminContentType,
+} from "@/lib/backendAdmin";
 
 interface ContentManagementProps {
-  contents: Content[];
+  contents: AdminContentItem[];
   onRefresh: () => void;
 }
 
@@ -50,9 +52,9 @@ const ContentManagement = ({ contents, onRefresh }: ContentManagementProps) => {
   const [form, setForm] = useState({
     title: "",
     description: "",
-    type: "article" as ContentType,
-    category: "quran" as ContentCategory,
-    depth_level: "beginner" as DepthLevel,
+    type: "article" as AdminContentType,
+    category: "quran" as AdminContentCategory,
+    depth_level: "beginner" as AdminContentDepth,
     url: "",
     is_sudan_awareness: false,
   });
@@ -78,32 +80,30 @@ const ContentManagement = ({ contents, onRefresh }: ContentManagementProps) => {
 
     setSubmitting(true);
 
-    if (editingId) {
-      const { error } = await supabase.from("contents").update(form).eq("id", editingId);
-      if (error) {
-        toast({ title: "خطأ", description: "فشل تحديث المحتوى", variant: "destructive" });
-      } else {
+    try {
+      if (editingId) {
+        await updateAdminContent(editingId, form);
         toast({ title: "تم بنجاح", description: "تم تحديث المحتوى" });
-        setDialogOpen(false);
-        resetForm();
-        onRefresh();
-      }
-    } else {
-      const { error } = await supabase.from("contents").insert(form);
-      if (error) {
-        toast({ title: "خطأ", description: "فشل إضافة المحتوى", variant: "destructive" });
       } else {
-        toast({ title: "تم بنجاح", description: "تم إضافة المحتوى" });
-        setDialogOpen(false);
-        resetForm();
-        onRefresh();
+        await createAdminContent(form);
+        toast({ title: "تم بنجاح", description: "تمت إضافة المحتوى" });
       }
-    }
 
-    setSubmitting(false);
+      setDialogOpen(false);
+      resetForm();
+      onRefresh();
+    } catch (error) {
+      toast({
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "فشلت العملية",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const handleEdit = (content: Content) => {
+  const handleEdit = (content: AdminContentItem) => {
     setEditingId(content.id);
     setForm({
       title: content.title,
@@ -112,18 +112,22 @@ const ContentManagement = ({ contents, onRefresh }: ContentManagementProps) => {
       category: content.category,
       depth_level: content.depth_level,
       url: content.url || "",
-      is_sudan_awareness: content.is_sudan_awareness || false,
+      is_sudan_awareness: Boolean(content.is_sudan_awareness),
     });
     setDialogOpen(true);
   };
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from("contents").delete().eq("id", id);
-    if (error) {
-      toast({ title: "خطأ", description: "فشل حذف المحتوى", variant: "destructive" });
-    } else {
+    try {
+      await deleteAdminContent(id);
       toast({ title: "تم بنجاح", description: "تم حذف المحتوى" });
       onRefresh();
+    } catch (error) {
+      toast({
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "فشل حذف المحتوى",
+        variant: "destructive",
+      });
     }
   };
 
@@ -147,7 +151,7 @@ const ContentManagement = ({ contents, onRefresh }: ContentManagementProps) => {
                 <Label>العنوان</Label>
                 <Input
                   value={form.title}
-                  onChange={(e) => setForm({ ...form, title: e.target.value })}
+                  onChange={(event) => setForm({ ...form, title: event.target.value })}
                   placeholder="أدخل عنوان المحتوى"
                 />
               </div>
@@ -155,7 +159,7 @@ const ContentManagement = ({ contents, onRefresh }: ContentManagementProps) => {
                 <Label>الوصف</Label>
                 <Textarea
                   value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  onChange={(event) => setForm({ ...form, description: event.target.value })}
                   placeholder="أدخل وصف المحتوى"
                   rows={3}
                 />
@@ -163,7 +167,7 @@ const ContentManagement = ({ contents, onRefresh }: ContentManagementProps) => {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>النوع</Label>
-                  <Select value={form.type} onValueChange={(value: ContentType) => setForm({ ...form, type: value })}>
+                  <Select value={form.type} onValueChange={(value: AdminContentType) => setForm({ ...form, type: value })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="article">مقال</SelectItem>
@@ -174,20 +178,22 @@ const ContentManagement = ({ contents, onRefresh }: ContentManagementProps) => {
                 </div>
                 <div className="space-y-2">
                   <Label>التصنيف</Label>
-                  <Select value={form.category} onValueChange={(value: ContentCategory) => setForm({ ...form, category: value })}>
+                  <Select value={form.category} onValueChange={(value: AdminContentCategory) => setForm({ ...form, category: value })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="quran">قرآن</SelectItem>
                       <SelectItem value="values">قيم</SelectItem>
                       <SelectItem value="community">مجتمع</SelectItem>
                       <SelectItem value="sudan_awareness">الوعي السوداني</SelectItem>
+                      <SelectItem value="arab_awareness">الوعي العربي</SelectItem>
+                      <SelectItem value="islamic_awareness">الوعي الإسلامي</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
               <div className="space-y-2">
                 <Label>المستوى</Label>
-                <Select value={form.depth_level} onValueChange={(value: DepthLevel) => setForm({ ...form, depth_level: value })}>
+                <Select value={form.depth_level} onValueChange={(value: AdminContentDepth) => setForm({ ...form, depth_level: value })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="beginner">مبتدئ</SelectItem>
@@ -200,7 +206,7 @@ const ContentManagement = ({ contents, onRefresh }: ContentManagementProps) => {
                 <Label>الرابط (اختياري)</Label>
                 <Input
                   value={form.url}
-                  onChange={(e) => setForm({ ...form, url: e.target.value })}
+                  onChange={(event) => setForm({ ...form, url: event.target.value })}
                   placeholder="https://..."
                   dir="ltr"
                 />
@@ -210,12 +216,12 @@ const ContentManagement = ({ contents, onRefresh }: ContentManagementProps) => {
                   type="checkbox"
                   id="is_sudan"
                   checked={form.is_sudan_awareness}
-                  onChange={(e) => setForm({ ...form, is_sudan_awareness: e.target.checked })}
+                  onChange={(event) => setForm({ ...form, is_sudan_awareness: event.target.checked })}
                   className="rounded"
                 />
                 <Label htmlFor="is_sudan">محتوى الوعي السوداني</Label>
               </div>
-              <Button onClick={handleSubmit} disabled={submitting || !form.title} className="w-full">
+              <Button onClick={() => void handleSubmit()} disabled={submitting || !form.title} className="w-full">
                 {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : editingId ? "تحديث" : "إضافة"}
               </Button>
             </div>
@@ -241,7 +247,17 @@ const ContentManagement = ({ contents, onRefresh }: ContentManagementProps) => {
                   {content.type === "article" ? "مقال" : content.type === "audio" ? "صوتي" : "فيديو"}
                 </TableCell>
                 <TableCell>
-                  {content.category === "quran" ? "قرآن" : content.category === "values" ? "قيم" : content.category === "community" ? "مجتمع" : "الوعي"}
+                  {content.category === "quran"
+                    ? "قرآن"
+                    : content.category === "values"
+                      ? "قيم"
+                      : content.category === "community"
+                        ? "مجتمع"
+                        : content.category === "sudan_awareness"
+                          ? "الوعي السوداني"
+                          : content.category === "arab_awareness"
+                            ? "الوعي العربي"
+                            : "الوعي الإسلامي"}
                 </TableCell>
                 <TableCell>
                   <div className="flex gap-1">
@@ -251,7 +267,7 @@ const ContentManagement = ({ contents, onRefresh }: ContentManagementProps) => {
                     <Button variant="ghost" size="icon" onClick={() => handleEdit(content)}>
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(content.id)}>
+                    <Button variant="ghost" size="icon" onClick={() => void handleDelete(content.id)}>
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </div>

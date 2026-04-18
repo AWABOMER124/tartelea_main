@@ -1,23 +1,12 @@
 import { useState, useEffect, useRef } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Loader2, MessageSquare, User, Lock, Paperclip, Image, FileText, X } from "lucide-react";
+import { Send, Loader2, MessageSquare, User, Lock, Paperclip, FileText, X } from "lucide-react";
 import { formatDistanceToNow, ar } from "@/lib/date-utils";
-
-interface ChatMessage {
-  id: string;
-  message: string;
-  user_id: string;
-  created_at: string;
-  author_name?: string;
-  avatar_url?: string;
-  attachment_url?: string | null;
-  attachment_type?: string | null;
-}
+import { listCourseChatMessages, sendCourseChatMessage, type CourseChatMessage } from "@/lib/backendCourses";
 
 interface CourseGroupChatProps {
   courseId: string;
@@ -27,7 +16,7 @@ interface CourseGroupChatProps {
 
 const CourseGroupChat = ({ courseId, userId, isSubscribed }: CourseGroupChatProps) => {
   const { toast } = useToast();
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<CourseChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -36,49 +25,21 @@ const CourseGroupChat = ({ courseId, userId, isSubscribed }: CourseGroupChatProp
   const [uploading, setUploading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const profilesCache = useRef<Map<string, { name: string; avatar: string | null }>>(new Map());
 
   useEffect(() => {
     if (isSubscribed && userId) {
-      fetchMessages();
-      const channel = supabase
-        .channel(`course-chat-${courseId}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "INSERT",
-            schema: "public",
-            table: "course_chat_messages",
-            filter: `course_id=eq.${courseId}`,
-          },
-          async (payload) => {
-            const msg = payload.new as ChatMessage;
-            const profile = await getProfile(msg.user_id);
-            msg.author_name = profile.name;
-            msg.avatar_url = profile.avatar;
-            setMessages((prev) => [...prev, msg]);
-          }
-        )
-        .on(
-          "postgres_changes",
-          {
-            event: "DELETE",
-            schema: "public",
-            table: "course_chat_messages",
-            filter: `course_id=eq.${courseId}`,
-          },
-          (payload) => {
-            setMessages((prev) => prev.filter((m) => m.id !== payload.old.id));
-          }
-        )
-        .subscribe();
+      void fetchMessages();
+      const intervalId = window.setInterval(() => {
+        void fetchMessages();
+      }, 15000);
 
       return () => {
-        supabase.removeChannel(channel);
+        window.clearInterval(intervalId);
       };
-    } else {
-      setLoading(false);
     }
+
+    setLoading(false);
+    return undefined;
   }, [courseId, userId, isSubscribed]);
 
   useEffect(() => {
@@ -87,165 +48,83 @@ const CourseGroupChat = ({ courseId, userId, isSubscribed }: CourseGroupChatProp
     }
   }, [messages]);
 
-  const getProfile = async (id: string) => {
-    if (profilesCache.current.has(id)) {
-      return profilesCache.current.get(id)!;
-    }
-    const { data } = await supabase
-      .from("profiles")
-      .select("full_name, avatar_url")
-      .eq("id", id)
-      .maybeSingle();
-    const profile = { name: data?.full_name || "مستخدم", avatar: data?.avatar_url || null };
-    profilesCache.current.set(id, profile);
-    return profile;
-  };
-
   const fetchMessages = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("course_chat_messages")
-      .select("*")
-      .eq("course_id", courseId)
-      .order("created_at", { ascending: true })
-      .limit(100);
 
-    if (error) {
+    try {
+      const data = await listCourseChatMessages(courseId);
+      setMessages(data);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    if (data) {
-      const userIds = [...new Set(data.map((m) => m.user_id))];
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, full_name, avatar_url")
-        .in("id", userIds);
-
-      const profileMap = new Map(
-        profiles?.map((p) => [p.id, { name: p.full_name || "مستخدم", avatar: p.avatar_url }]) || []
-      );
-
-      profileMap.forEach((v, k) => profilesCache.current.set(k, v));
-
-      setMessages(
-        data.map((m) => ({
-          ...m,
-          author_name: profileMap.get(m.user_id)?.name || "مستخدم",
-          avatar_url: profileMap.get(m.user_id)?.avatar || null,
-        }))
-      );
-    }
-    setLoading(false);
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
     if (!file) return;
 
-    // Max 5MB
     if (file.size > 5 * 1024 * 1024) {
       toast({
-        title: "خطأ",
-        description: "حجم الملف يجب أن لا يتجاوز 5 ميجابايت",
+        title: "ط®ط·ط£",
+        description: "ط­ط¬ظ… ط§ظ„ظ…ظ„ظپ ظٹط¬ط¨ ط£ظ† ظ„ط§ ظٹطھط¬ط§ظˆط² 5 ظ…ظٹط¬ط§ط¨ط§ظٹطھ",
         variant: "destructive",
       });
       return;
     }
 
     setAttachmentFile(file);
+
     if (file.type.startsWith("image/")) {
       const reader = new FileReader();
-      reader.onload = (ev) => setAttachmentPreview(ev.target?.result as string);
+      reader.onload = (loadEvent) => setAttachmentPreview(loadEvent.target?.result as string);
       reader.readAsDataURL(file);
-    } else {
-      setAttachmentPreview(null);
+      return;
     }
+
+    setAttachmentPreview(null);
   };
 
   const clearAttachment = () => {
     setAttachmentFile(null);
     setAttachmentPreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  const uploadAttachment = async (file: File): Promise<{ url: string; type: string } | null> => {
-    const ext = file.name.split(".").pop();
-    const path = `${userId}/${courseId}/${Date.now()}.${ext}`;
-    const { error } = await supabase.storage
-      .from("chat-attachments")
-      .upload(path, file);
-
-    if (error) {
-      toast({ title: "خطأ", description: "فشل رفع الملف", variant: "destructive" });
-      return null;
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
-
-    const { data: urlData } = await supabase.storage
-      .from("chat-attachments")
-      .createSignedUrl(path, 60 * 60 * 24 * 7); // 7 days
-
-    if (!urlData?.signedUrl) {
-      toast({ title: "خطأ", description: "فشل إنشاء رابط الملف", variant: "destructive" });
-      return null;
-    }
-
-    const type = file.type.startsWith("image/") ? "image" : "file";
-    return { url: urlData.signedUrl, type };
   };
 
   const handleSend = async () => {
     if ((!newMessage.trim() && !attachmentFile) || !userId || sending) return;
 
     setSending(true);
-    setUploading(!!attachmentFile);
+    setUploading(Boolean(attachmentFile));
 
-    let attachmentUrl: string | null = null;
-    let attachmentType: string | null = null;
-
-    if (attachmentFile) {
-      const result = await uploadAttachment(attachmentFile);
-      if (result) {
-        attachmentUrl = result.url;
-        attachmentType = result.type;
-      } else {
-        setSending(false);
-        setUploading(false);
-        return;
-      }
-    }
-
-    const { error } = await supabase.from("course_chat_messages").insert({
-      course_id: courseId,
-      user_id: userId,
-      message: newMessage.trim() || (attachmentType === "image" ? "📷 صورة" : "📎 مرفق"),
-      attachment_url: attachmentUrl,
-      attachment_type: attachmentType,
-    });
-
-    if (error) {
-      toast({
-        title: "خطأ",
-        description: "فشل إرسال الرسالة",
-        variant: "destructive",
+    try {
+      await sendCourseChatMessage({
+        courseId,
+        userId,
+        message: newMessage,
+        attachmentFile,
       });
-    } else {
       setNewMessage("");
       clearAttachment();
+      await fetchMessages();
+    } catch {
+      toast({
+        title: "ط®ط·ط£",
+        description: "ظپط´ظ„ ط¥ط±ط³ط§ظ„ ط§ظ„ط±ط³ط§ظ„ط©",
+        variant: "destructive",
+      });
+    } finally {
+      setSending(false);
+      setUploading(false);
     }
-    setSending(false);
-    setUploading(false);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      void handleSend();
     }
-  };
-
-  const isImageUrl = (url: string) => {
-    return /\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i.test(url);
   };
 
   if (!isSubscribed) {
@@ -254,10 +133,10 @@ const CourseGroupChat = ({ courseId, userId, isSubscribed }: CourseGroupChatProp
         <CardContent className="py-8 text-center space-y-3">
           <Lock className="h-10 w-10 text-muted-foreground mx-auto" />
           <p className="text-muted-foreground font-medium">
-            مجموعة الدردشة متاحة للمشتركين فقط
+            ظ…ط¬ظ…ظˆط¹ط© ط§ظ„ط¯ط±ط¯ط´ط© ظ…طھط§ط­ط© ظ„ظ„ظ…ط´طھط±ظƒظٹظ† ظپظ‚ط·
           </p>
           <p className="text-sm text-muted-foreground">
-            اشترك في الدورة للانضمام إلى مجموعة النقاش والتدبر الجماعي
+            ط§ط´طھط±ظƒ ظپظٹ ط§ظ„ط¯ظˆط±ط© ظ„ظ„ط§ظ†ط¶ظ…ط§ظ… ط¥ظ„ظ‰ ظ…ط¬ظ…ظˆط¹ط© ط§ظ„ظ†ظ‚ط§ط´ ظˆط§ظ„طھط¯ط¨ط± ط§ظ„ط¬ظ…ط§ط¹ظٹ
           </p>
         </CardContent>
       </Card>
@@ -268,9 +147,9 @@ const CourseGroupChat = ({ courseId, userId, isSubscribed }: CourseGroupChatProp
     <Card className="flex flex-col">
       <div className="p-4 border-b flex items-center gap-2">
         <MessageSquare className="h-5 w-5 text-primary" />
-        <h3 className="font-semibold">مجموعة الدردشة</h3>
+        <h3 className="font-semibold">ظ…ط¬ظ…ظˆط¹ط© ط§ظ„ط¯ط±ط¯ط´ط©</h3>
         <span className="text-xs text-muted-foreground mr-auto">
-          {messages.length} رسالة
+          {messages.length} ط±ط³ط§ظ„ط©
         </span>
       </div>
 
@@ -282,21 +161,25 @@ const CourseGroupChat = ({ courseId, userId, isSubscribed }: CourseGroupChatProp
         ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2">
             <MessageSquare className="h-10 w-10" />
-            <p className="text-sm">لا توجد رسائل بعد. ابدأ المحادثة!</p>
+            <p className="text-sm">ظ„ط§ طھظˆط¬ط¯ ط±ط³ط§ط¦ظ„ ط¨ط¹ط¯. ط§ط¨ط¯ط£ ط§ظ„ظ…ط­ط§ط¯ط«ط©!</p>
           </div>
         ) : (
           <div className="space-y-3">
-            {messages.map((msg) => {
-              const isOwn = msg.user_id === userId;
+            {messages.map((message) => {
+              const isOwn = message.user_id === userId;
+              const isAttachmentOnly =
+                Boolean(message.attachment_url) &&
+                (message.message === "تم إرفاق صورة" || message.message === "تم إرفاق ملف");
+
               return (
                 <div
-                  key={msg.id}
+                  key={message.id}
                   className={`flex gap-2 ${isOwn ? "flex-row-reverse" : ""}`}
                 >
                   <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                    {msg.avatar_url ? (
+                    {message.avatar_url ? (
                       <img
-                        src={msg.avatar_url}
+                        src={message.avatar_url}
                         alt=""
                         className="w-full h-full object-cover rounded-full"
                       />
@@ -313,21 +196,20 @@ const CourseGroupChat = ({ courseId, userId, isSubscribed }: CourseGroupChatProp
                   >
                     {!isOwn && (
                       <p className="text-xs font-medium mb-1 opacity-70">
-                        {msg.author_name}
+                        {message.author_name}
                       </p>
                     )}
-                    {/* Attachment */}
-                    {msg.attachment_url && msg.attachment_type === "image" ? (
-                      <a href={msg.attachment_url} target="_blank" rel="noopener noreferrer" className="block mb-1">
+                    {message.attachment_url && message.attachment_type === "image" ? (
+                      <a href={message.attachment_url} target="_blank" rel="noopener noreferrer" className="block mb-1">
                         <img
-                          src={msg.attachment_url}
+                          src={message.attachment_url}
                           alt="مرفق"
                           className="rounded-lg max-w-full max-h-48 object-cover"
                         />
                       </a>
-                    ) : msg.attachment_url ? (
+                    ) : message.attachment_url ? (
                       <a
-                        href={msg.attachment_url}
+                        href={message.attachment_url}
                         target="_blank"
                         rel="noopener noreferrer"
                         className={`flex items-center gap-2 mb-1 text-xs underline ${
@@ -338,15 +220,15 @@ const CourseGroupChat = ({ courseId, userId, isSubscribed }: CourseGroupChatProp
                         تحميل المرفق
                       </a>
                     ) : null}
-                    {msg.message && !(msg.attachment_url && (msg.message === "📷 صورة" || msg.message === "📎 مرفق")) && (
-                      <p className="text-sm leading-relaxed">{msg.message}</p>
+                    {message.message && !isAttachmentOnly && (
+                      <p className="text-sm leading-relaxed">{message.message}</p>
                     )}
                     <p
                       className={`text-[10px] mt-1 ${
                         isOwn ? "text-primary-foreground/60" : "text-muted-foreground"
                       }`}
                     >
-                      {formatDistanceToNow(new Date(msg.created_at), {
+                      {formatDistanceToNow(new Date(message.created_at), {
                         addSuffix: true,
                         locale: ar,
                       })}
@@ -359,7 +241,6 @@ const CourseGroupChat = ({ courseId, userId, isSubscribed }: CourseGroupChatProp
         )}
       </ScrollArea>
 
-      {/* Attachment preview */}
       {attachmentFile && (
         <div className="px-3 pt-2 flex items-center gap-2">
           <div className="flex items-center gap-2 bg-muted rounded-lg px-3 py-1.5 text-sm flex-1">
@@ -395,16 +276,16 @@ const CourseGroupChat = ({ courseId, userId, isSubscribed }: CourseGroupChatProp
           <Paperclip className="h-4 w-4" />
         </Button>
         <Input
-          placeholder="اكتب رسالتك..."
+          placeholder="ط§ظƒطھط¨ ط±ط³ط§ظ„طھظƒ..."
           value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
+          onChange={(event) => setNewMessage(event.target.value)}
           onKeyDown={handleKeyDown}
           disabled={sending}
           className="flex-1"
         />
         <Button
           size="icon"
-          onClick={handleSend}
+          onClick={() => void handleSend()}
           disabled={sending || (!newMessage.trim() && !attachmentFile)}
         >
           {sending ? (

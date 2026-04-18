@@ -50,17 +50,74 @@ cp .env.local.example .env.local
 
 Use `backend/.env.local` when you need local-only settings without editing the shared `backend/.env`.
 
-3. Create the target PostgreSQL database, then apply the schema:
+3. Pick one local database story and apply the schema.
+
+Option 1: host-machine PostgreSQL
+
+```bash
+cp .env.local.example .env.local
+```
+
+Then set one of the following:
+
+- `DB_HOST=localhost`, `DB_PORT=5432`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`
+- or `DATABASE_URL=postgres://user:password@localhost:5432/database`
+
+After that, create the database and apply the schema:
 
 ```bash
 psql -U your_user -d your_db -f schema.sql
 ```
 
-Or use the setup script that reads from `backend/schema.sql`:
+Option 2: Docker Compose database
+
+```bash
+docker compose up -d db
+cp .env.local.example .env.local
+```
+
+Then set `DB_HOST=db` inside `backend/.env.local`.
+
+Apply the schema with either `psql` or the setup script that reads from `backend/schema.sql`:
 
 ```bash
 npm run setup:db
 ```
+
+4. Run local sanity checks before starting the API:
+
+```bash
+npm run check:db
+npm run check:subscriptions
+npm run sanity:dev
+```
+
+What each command verifies:
+
+- `npm run check:db`: basic database reachability and environment diagnostics
+- `npm run check:subscriptions`: subscription catalog rows and entitlement wiring
+- `npm run sanity:dev`: runs the database check first, then the subscription check if PostgreSQL is reachable
+
+If the database is still unreachable, the backend now prints actionable hints such as:
+
+- use `DB_HOST=localhost` for local PostgreSQL
+- use `DB_HOST=db` for Docker Compose
+- set `DATABASE_URL` for a managed PostgreSQL service
+
+5. Start the API:
+
+```bash
+npm run dev
+```
+
+## Troubleshooting Local DB
+
+If `npm run check:db` fails:
+
+- `ENOTFOUND <host>`: the configured host is not resolvable on this machine. Switch to `localhost`, `db`, or a valid managed database host.
+- `ECONNREFUSED localhost:5432`: PostgreSQL is not running or not listening on port `5432`.
+- `password authentication failed`: credentials in `.env.local` do not match the target database.
+- `database "<name>" does not exist`: create the database first, then run `npm run setup:db`.
 
 To validate the subscription catalog once the database is reachable:
 
@@ -73,12 +130,6 @@ If the command cannot connect to PostgreSQL, confirm one of the following:
 - `backend/.env.local` points to a reachable `localhost` database
 - `DATABASE_URL` points to a managed PostgreSQL instance
 - Docker Compose is running and the backend is using `DB_HOST=db`
-
-4. Start the API:
-
-```bash
-npm run dev
-```
 
 ## Auth And Email Flags
 
@@ -150,7 +201,9 @@ Example response:
 ```bash
 npm run dev
 npm run setup:db
+npm run check:db
 npm run check:subscriptions
+npm run sanity:dev
 npm test
 ```
 

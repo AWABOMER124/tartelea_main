@@ -1,13 +1,15 @@
 const db = require('../src/db');
 const env = require('../src/config/env');
 const SubscriptionService = require('../src/services/subscription.service');
+const { describeDbIssue, getDbTarget } = require('../src/utils/dbDiagnostics');
 
-async function checkSubscriptionCatalog() {
+async function checkSubscriptionCatalog({ closePool = true } = {}) {
   console.log('Checking subscription catalog seeding...');
   console.log(`Environment file: ${env.ENV_FILE_PATH}`);
   if (env.ENV_LOCAL_FILE_LOADED) {
     console.log(`Environment override: ${env.ENV_LOCAL_FILE_PATH}`);
   }
+  console.log(`Database target: ${getDbTarget(env)}`);
 
   try {
     const plans = await SubscriptionService.listPlans();
@@ -22,23 +24,26 @@ async function checkSubscriptionCatalog() {
 
     console.log(`Total entitlements in DB: ${entitlementsResult.rows[0]?.total ?? 0}`);
     console.log(`Total plans in DB: ${plansResult.rows[0]?.total ?? 0}`);
+    return { ok: true };
   } catch (error) {
+    const issue = describeDbIssue(error, env);
     console.error('Subscription catalog check failed.');
-
-    if (error?.code === 'ENOTFOUND') {
-      console.error(`Database host could not be resolved: ${error.hostname || env.DB_HOST}`);
-      console.error('Use DB_HOST=localhost for a host machine database, DB_HOST=db inside Docker Compose, or set DATABASE_URL.');
-    } else if (error?.code === 'ECONNREFUSED') {
-      console.error(`Database is not accepting connections on ${env.DB_HOST}:${env.DB_PORT}.`);
-      console.error('Start PostgreSQL locally or provide a reachable DATABASE_URL / DB_HOST override.');
-    } else {
-      console.error(error);
-    }
+    console.error(issue.summary);
+    issue.hints.forEach((hint) => console.error(`- ${hint}`));
 
     process.exitCode = 1;
+    return { ok: false, error, issue };
   } finally {
-    await db.pool.end().catch(() => {});
+    if (closePool) {
+      await db.pool.end().catch(() => {});
+    }
   }
 }
 
-void checkSubscriptionCatalog();
+if (require.main === module) {
+  void checkSubscriptionCatalog();
+}
+
+module.exports = {
+  checkSubscriptionCatalog,
+};

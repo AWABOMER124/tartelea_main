@@ -3,6 +3,7 @@ const env = require('./config/env');
 const logger = require('./utils/logger');
 const app = require('./app');
 const { pool } = require('./db');
+const { describeDbIssue, getDbTarget } = require('./utils/dbDiagnostics');
 
 const port = env.PORT || 3000;
 const server = http.createServer(app);
@@ -26,8 +27,15 @@ const startServer = async () => {
       logger.info(`Server is running on http://0.0.0.0:${port} in ${env.NODE_ENV} mode`);
     });
   } catch (err) {
+    const issue = describeDbIssue(err, env);
     logger.error('Failed to connect to the database. Retrying in 5 seconds.', {
       error: err.message,
+      code: err.code,
+      summary: issue.summary,
+      hints: issue.hints,
+      target: getDbTarget(env),
+      envFilePath: env.ENV_FILE_PATH,
+      envLocalFileLoaded: env.ENV_LOCAL_FILE_LOADED,
     });
     setTimeout(startServer, 5000);
   }

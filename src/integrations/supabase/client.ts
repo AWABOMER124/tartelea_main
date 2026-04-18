@@ -1,3 +1,10 @@
+/**
+ * STEP 7 transition guardrail:
+ * DO NOT USE FOR NEW FLOWS.
+ * This file is a backend compatibility adapter that preserves legacy call sites while
+ * the remaining non-critical screens are migrated off Supabase-style APIs.
+ * Primary application flows must talk to explicit backend helpers instead.
+ */
 import {
   BACKEND_SESSION_EVENT,
   clearBackendSession,

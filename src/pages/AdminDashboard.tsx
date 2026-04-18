@@ -1,11 +1,10 @@
 /**
- * STEP 3 transitional note:
- * This dashboard still contains several non-community Supabase management surfaces.
- * Community moderation and community pinning now run through backend admin/community APIs.
+ * STEP 7 closure note:
+ * Admin dashboard summary and approval tabs now read/write through backend `/admin/*` routes.
+ * New admin work must avoid `@/integrations/supabase/client` and use backend admin helpers instead.
  */
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useToast } from "@/hooks/use-toast";
 import AppLayout from "@/components/layout/AppLayout";
@@ -18,19 +17,24 @@ import TrainerCoursesManagement from "@/components/admin/TrainerCoursesManagemen
 import EventsManagement from "@/components/admin/EventsManagement";
 import CommunityPinsManagement from "@/components/admin/CommunityPinsManagement";
 import { listAdminCommunityPosts } from "@/lib/backendCommunityAdmin";
-import type { Database } from "@/integrations/supabase/types";
-
-type Content = Database["public"]["Tables"]["contents"]["Row"];
-type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+import {
+  listAdminContents,
+  listAdminCourses,
+  listAdminRooms,
+  listAdminUsers,
+  listAdminWorkshops,
+  type AdminContentItem,
+  type AdminUser,
+} from "@/lib/backendAdmin";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { isModerator, isAdmin, loading: roleLoading } = useUserRole();
 
-  const [contents, setContents] = useState<Content[]>([]);
+  const [contents, setContents] = useState<AdminContentItem[]>([]);
   const [communityPostsCount, setCommunityPostsCount] = useState(0);
-  const [users, setUsers] = useState<Profile[]>([]);
+  const [users, setUsers] = useState<AdminUser[]>([]);
   const [pendingCoursesCount, setPendingCoursesCount] = useState(0);
   const [pendingEventsCount, setPendingEventsCount] = useState(0);
   const [loadingData, setLoadingData] = useState(true);
@@ -56,24 +60,26 @@ const AdminDashboard = () => {
     setLoadingData(true);
 
     try {
-      const [contentsRes, usersRes, coursesRes, workshopsRes, roomsRes, communityPostsRes] = await Promise.all([
-        supabase.from("contents").select("*").order("created_at", { ascending: false }),
-        supabase.from("profiles").select("*").order("created_at", { ascending: false }),
-        supabase.from("trainer_courses").select("id").eq("is_approved", false),
-        supabase.from("workshops").select("id").eq("is_approved", false),
-        supabase.from("rooms").select("id").eq("is_approved", false),
+      const [contentItems, userItems, courseItems, workshopItems, roomItems, communityPostsRes] = await Promise.all([
+        listAdminContents(),
+        listAdminUsers(),
+        listAdminCourses(),
+        listAdminWorkshops(),
+        listAdminRooms(),
         listAdminCommunityPosts({ limit: 1, offset: 0 }),
       ]);
 
-      if (contentsRes.data) setContents(contentsRes.data);
-      if (usersRes.data) setUsers(usersRes.data);
-      if (coursesRes.data) setPendingCoursesCount(coursesRes.data.length);
-      const eventsCount = (workshopsRes.data?.length || 0) + (roomsRes.data?.length || 0);
-      setPendingEventsCount(eventsCount);
+      setContents(contentItems);
+      setUsers(userItems);
+      setPendingCoursesCount(courseItems.filter((course) => !course.is_approved).length);
+      setPendingEventsCount(
+        workshopItems.filter((workshop) => !workshop.is_approved).length +
+        roomItems.filter((room) => !room.is_approved).length,
+      );
       setCommunityPostsCount(communityPostsRes.total || 0);
     } catch (error) {
       toast({
-        title: "تعذر تحميل بيانات المجتمع",
+        title: "تعذر تحميل بيانات الإدارة",
         description: error instanceof Error ? error.message : "حدث خطأ غير متوقع",
         variant: "destructive",
       });

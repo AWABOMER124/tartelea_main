@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,33 +12,10 @@ import {
   FileText,
   Headphones,
   Loader2,
-  GraduationCap,
   User,
   ExternalLink,
 } from "lucide-react";
-import type { Database } from "@/integrations/supabase/types";
-
-type ContentType = Database["public"]["Enums"]["content_type"];
-type ContentCategory = Database["public"]["Enums"]["content_category"];
-type DepthLevel = Database["public"]["Enums"]["depth_level"];
-
-interface TrainerCourse {
-  id: string;
-  trainer_id: string;
-  title: string;
-  description: string | null;
-  type: ContentType;
-  category: ContentCategory;
-  depth_level: DepthLevel;
-  url: string | null;
-  is_approved: boolean | null;
-  created_at: string | null;
-  updated_at: string | null;
-}
-
-interface TrainerCourseWithProfile extends TrainerCourse {
-  trainer_name?: string;
-}
+import { listAdminCourses, updateAdminCourseApproval, type AdminCourse } from "@/lib/backendAdmin";
 
 const typeIcons = {
   article: FileText,
@@ -70,128 +46,49 @@ const depthLabels = {
 
 const TrainerCoursesManagement = () => {
   const { toast } = useToast();
-  const [courses, setCourses] = useState<TrainerCourseWithProfile[]>([]);
+  const [courses, setCourses] = useState<AdminCourse[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchCourses();
+    void fetchCourses();
   }, []);
 
   const fetchCourses = async () => {
     setLoading(true);
 
-    // Fetch all trainer courses
-    const { data: coursesData, error: coursesError } = await supabase
-      .from("trainer_courses")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (coursesError) {
+    try {
+      setCourses(await listAdminCourses());
+    } catch (error) {
       toast({
         title: "خطأ",
-        description: "فشل تحميل الدورات",
+        description: error instanceof Error ? error.message : "فشل تحميل الدورات",
         variant: "destructive",
       });
+    } finally {
       setLoading(false);
-      return;
     }
-
-    // Fetch trainer profiles
-    const trainerIds = [...new Set(coursesData?.map((c) => c.trainer_id) || [])];
-    const { data: profilesData } = await supabase
-      .from("profiles")
-      .select("id, full_name")
-      .in("id", trainerIds);
-
-    const profilesMap = new Map(
-      profilesData?.map((p) => [p.id, p.full_name]) || []
-    );
-
-    const coursesWithProfiles: TrainerCourseWithProfile[] = (coursesData || []).map(
-      (course) => ({
-        ...course,
-        trainer_name: profilesMap.get(course.trainer_id) || "مدرب غير معروف",
-      })
-    );
-
-    setCourses(coursesWithProfiles);
-    setLoading(false);
   };
 
-  const handleApprove = async (courseId: string) => {
+  const handleApproval = async (courseId: string, isApproved: boolean) => {
     setProcessingId(courseId);
 
-    const { error } = await supabase
-      .from("trainer_courses")
-      .update({ is_approved: true, updated_at: new Date().toISOString() })
-      .eq("id", courseId);
-
-    if (error) {
-      toast({
-        title: "خطأ",
-        description: "فشل اعتماد الدورة",
-        variant: "destructive",
-      });
-    } else {
+    try {
+      await updateAdminCourseApproval(courseId, isApproved);
       toast({
         title: "تم بنجاح",
-        description: "تم اعتماد الدورة",
+        description: isApproved ? "تم اعتماد الدورة" : "تم إلغاء اعتماد الدورة",
       });
-      fetchCourses();
-    }
-
-    setProcessingId(null);
-  };
-
-  const handleReject = async (courseId: string) => {
-    setProcessingId(courseId);
-
-    const { error } = await supabase
-      .from("trainer_courses")
-      .delete()
-      .eq("id", courseId);
-
-    if (error) {
+      await fetchCourses();
+    } catch (error) {
       toast({
         title: "خطأ",
-        description: "فشل رفض الدورة",
+        description: error instanceof Error ? error.message : "فشل تحديث حالة الدورة",
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "تم بنجاح",
-        description: "تم رفض وحذف الدورة",
-      });
-      fetchCourses();
+    } finally {
+      setProcessingId(null);
     }
-
-    setProcessingId(null);
-  };
-
-  const handleRevoke = async (courseId: string) => {
-    setProcessingId(courseId);
-
-    const { error } = await supabase
-      .from("trainer_courses")
-      .update({ is_approved: false, updated_at: new Date().toISOString() })
-      .eq("id", courseId);
-
-    if (error) {
-      toast({
-        title: "خطأ",
-        description: "فشل إلغاء اعتماد الدورة",
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "تم بنجاح",
-        description: "تم إلغاء اعتماد الدورة",
-      });
-      fetchCourses();
-    }
-
-    setProcessingId(null);
   };
 
   if (loading) {
@@ -202,13 +99,10 @@ const TrainerCoursesManagement = () => {
     );
   }
 
-  const pendingCourses = courses.filter((c) => !c.is_approved);
-  const approvedCourses = courses.filter((c) => c.is_approved);
+  const pendingCourses = courses.filter((course) => !course.is_approved);
+  const approvedCourses = courses.filter((course) => course.is_approved);
 
-  const renderCourseCard = (
-    course: TrainerCourseWithProfile,
-    showActions: "pending" | "approved"
-  ) => {
+  const renderCourseCard = (course: AdminCourse, view: "pending" | "approved") => {
     const TypeIcon = typeIcons[course.type];
 
     return (
@@ -261,11 +155,11 @@ const TrainerCoursesManagement = () => {
               )}
 
               <div className="flex gap-2 mt-4">
-                {showActions === "pending" ? (
+                {view === "pending" ? (
                   <>
                     <Button
                       size="sm"
-                      onClick={() => handleApprove(course.id)}
+                      onClick={() => void handleApproval(course.id, true)}
                       disabled={processingId === course.id}
                       className="gap-1"
                     >
@@ -278,8 +172,8 @@ const TrainerCoursesManagement = () => {
                     </Button>
                     <Button
                       size="sm"
-                      variant="destructive"
-                      onClick={() => handleReject(course.id)}
+                      variant="outline"
+                      onClick={() => void handleApproval(course.id, false)}
                       disabled={processingId === course.id}
                       className="gap-1"
                     >
@@ -288,14 +182,14 @@ const TrainerCoursesManagement = () => {
                       ) : (
                         <XCircle className="h-3 w-3" />
                       )}
-                      رفض
+                      إبقاء غير معتمد
                     </Button>
                   </>
                 ) : (
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => handleRevoke(course.id)}
+                    onClick={() => void handleApproval(course.id, false)}
                     disabled={processingId === course.id}
                     className="gap-1"
                   >

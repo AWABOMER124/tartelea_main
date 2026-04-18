@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/layout/AppLayout";
 import ContentCard from "@/components/content/ContentCard";
 import FilterChip from "@/components/ui/FilterChip";
+import { listLibraryContent } from "@/lib/backendContent";
 
 type ContentType = "all" | "article" | "audio" | "video";
 type CategoryType = "all" | "quran" | "values" | "community" | "sudan_awareness";
@@ -16,28 +16,21 @@ const Library = () => {
   const [depthFilter, setDepthFilter] = useState<DepthType>("all");
 
   useEffect(() => {
-    fetchContents();
+    void fetchContents();
   }, [typeFilter, categoryFilter, depthFilter]);
 
   const fetchContents = async () => {
     setLoading(true);
-    let query = supabase.from("contents").select("*").order("created_at", { ascending: false });
-
-    if (typeFilter !== "all") {
-      query = query.eq("type", typeFilter);
-    }
-    if (categoryFilter !== "all") {
-      query = query.eq("category", categoryFilter);
-    }
-    if (depthFilter !== "all") {
-      query = query.eq("depth_level", depthFilter);
-    }
-
-    const { data, error } = await query;
-    if (!error && data) {
+    try {
+      const data = await listLibraryContent({
+        type: typeFilter,
+        category: categoryFilter,
+        depthLevel: depthFilter,
+      });
       setContents(data);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const typeFilters = [

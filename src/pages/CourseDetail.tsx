@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { useSubscription } from "@/hooks/useSubscription";
 import AppLayout from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +10,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import CourseProgressTracker from "@/components/courses/CourseProgressTracker";
 import CourseGroupChat from "@/components/courses/CourseGroupChat";
+import {
+  getCourseDetail,
+  subscribeToCourse,
+  submitCourseComment,
+  submitCourseRating,
+  unsubscribeFromCourse,
+  type Course,
+  type CourseComment,
+} from "@/lib/backendCourses";
 import {
   Video,
   FileText,
@@ -25,31 +35,6 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { formatDistanceToNow, ar } from "@/lib/date-utils";
-import type { Database } from "@/integrations/supabase/types";
-
-type ContentType = Database["public"]["Enums"]["content_type"];
-
-interface Course {
-  id: string;
-  title: string;
-  description: string | null;
-  type: ContentType;
-  category: string;
-  depth_level: string;
-  url: string | null;
-  trainer_id: string;
-  trainer_name?: string;
-  views_count: number | null;
-}
-
-interface Comment {
-  id: string;
-  body: string;
-  author_id: string;
-  author_name?: string;
-  created_at: string;
-  parent_id: string | null;
-}
 
 const typeIcons = {
   article: FileText,
@@ -58,215 +43,145 @@ const typeIcons = {
 };
 
 const categoryLabels: Record<string, string> = {
-  quran: "القرآن",
-  values: "القيم",
-  community: "المجتمع",
-  sudan_awareness: "الوعي السوداني",
-  arab_awareness: "الوعي العربي",
-  islamic_awareness: "الوعي الإسلامي",
+  quran: "ط§ظ„ظ‚ط±ط¢ظ†",
+  values: "ط§ظ„ظ‚ظٹظ…",
+  community: "ط§ظ„ظ…ط¬طھظ…ط¹",
+  sudan_awareness: "ط§ظ„ظˆط¹ظٹ ط§ظ„ط³ظˆط¯ط§ظ†ظٹ",
+  arab_awareness: "ط§ظ„ظˆط¹ظٹ ط§ظ„ط¹ط±ط¨ظٹ",
+  islamic_awareness: "ط§ظ„ظˆط¹ظٹ ط§ظ„ط¥ط³ظ„ط§ظ…ظٹ",
 };
 
 const depthLabels: Record<string, string> = {
-  beginner: "مبتدئ",
-  intermediate: "متوسط",
-  advanced: "متقدم",
+  beginner: "ظ…ط¨طھط¯ط¦",
+  intermediate: "ظ…طھظˆط³ط·",
+  advanced: "ظ…طھظ‚ط¯ظ…",
 };
 
 const CourseDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+  const { user } = useAuth();
+  const { access, scopedCourseIds, roleOverrides } = useSubscription();
+
   const [course, setCourse] = useState<Course | null>(null);
+  const [comments, setComments] = useState<CourseComment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userId, setUserId] = useState<string | null>(null);
-  
   const [isSubscribed, setIsSubscribed] = useState(false);
-  const [subscriberCount, setSubscriberCount] = useState(0);
-  const [subscribing, setSubscribing] = useState(false);
-  
   const [userRating, setUserRating] = useState<number>(0);
-  const [avgRating, setAvgRating] = useState<number>(0);
-  const [ratingCount, setRatingCount] = useState<number>(0);
-  const [ratingLoading, setRatingLoading] = useState(false);
-  
-  const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
+  const [subscribing, setSubscribing] = useState(false);
+  const [ratingLoading, setRatingLoading] = useState(false);
   const [submittingComment, setSubmittingComment] = useState(false);
 
-  useEffect(() => {
-    checkUser();
-  }, []);
+  const userId = user?.id || null;
+  const hasScopedCourseAccess = Boolean(id && scopedCourseIds.includes(id));
+  const hasContractAccess =
+    access.canAccessFullLibrary ||
+    roleOverrides.admin ||
+    roleOverrides.trainer ||
+    hasScopedCourseAccess;
+  const hasCourseAccess = isSubscribed || hasContractAccess;
+
+  const commentCount = useMemo(() => comments.length, [comments.length]);
 
   useEffect(() => {
-    if (id) {
-      fetchCourse();
-      fetchComments();
-      incrementViews();
-    }
-  }, [id]);
-
-  useEffect(() => {
-    if (id && userId) {
-      fetchUserData();
-    }
-  }, [id, userId]);
-
-  const checkUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    setUserId(user?.id || null);
-  };
-
-  const fetchCourse = async () => {
-    setLoading(true);
-    
-    const { data: courseData, error } = await supabase
-      .from("trainer_courses")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle();
-
-    if (error || !courseData) {
-      toast({
-        title: "خطأ",
-        description: "الدورة غير موجودة",
-        variant: "destructive",
-      });
-      navigate("/courses");
+    if (!id) {
       return;
     }
 
-    // Get trainer name
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("full_name")
-      .eq("id", courseData.trainer_id)
-      .maybeSingle();
+    void loadCourse();
+  }, [id, userId, hasContractAccess]);
 
-    setCourse({
-      ...courseData,
-      trainer_name: profileData?.full_name || "مدرب",
-    });
-
-    // Get subscriber count
-    const { count } = await supabase
-      .from("course_subscriptions")
-      .select("*", { count: "exact", head: true })
-      .eq("course_id", id);
-    
-    setSubscriberCount(count || 0);
-
-    // Get ratings
-    const { data: ratingsData } = await supabase
-      .from("course_ratings")
-      .select("rating")
-      .eq("course_id", id);
-
-    if (ratingsData && ratingsData.length > 0) {
-      const avg = ratingsData.reduce((sum, r) => sum + r.rating, 0) / ratingsData.length;
-      setAvgRating(Math.round(avg * 10) / 10);
-      setRatingCount(ratingsData.length);
+  const loadCourse = async () => {
+    if (!id) {
+      return;
     }
 
-    setLoading(false);
-  };
+    setLoading(true);
 
-  const fetchUserData = async () => {
-    // Check subscription
-    const { data: subData } = await supabase
-      .from("course_subscriptions")
-      .select("id")
-      .eq("course_id", id)
-      .eq("user_id", userId)
-      .maybeSingle();
-    
-    setIsSubscribed(!!subData);
+    try {
+      const payload = await getCourseDetail(id, userId);
 
-    // Get user rating
-    const { data: ratingData } = await supabase
-      .from("course_ratings")
-      .select("rating")
-      .eq("course_id", id)
-      .eq("user_id", userId)
-      .maybeSingle();
-    
-    setUserRating(ratingData?.rating || 0);
-  };
+      if (!payload) {
+        toast({
+          title: "ط®ط·ط£",
+          description: "ط§ظ„ط¯ظˆط±ط© ط؛ظٹط± ظ…ظˆط¬ظˆط¯ط©",
+          variant: "destructive",
+        });
+        navigate("/courses");
+        return;
+      }
 
-  const fetchComments = async () => {
-    const { data: commentsData } = await supabase
-      .from("course_comments")
-      .select("*")
-      .eq("course_id", id)
-      .order("created_at", { ascending: false });
-
-    if (commentsData) {
-      const authorIds = [...new Set(commentsData.map(c => c.author_id))];
-      const { data: profilesData } = await supabase
-        .from("profiles")
-        .select("id, full_name")
-        .in("id", authorIds);
-
-      const profilesMap = new Map(
-        profilesData?.map(p => [p.id, p.full_name]) || []
-      );
-
-      setComments(commentsData.map(c => ({
-        ...c,
-        author_name: profilesMap.get(c.author_id) || "مستخدم",
-      })));
+      setCourse(payload.course);
+      setComments(payload.comments);
+      setIsSubscribed(payload.isSubscribed);
+      setUserRating(payload.userRating);
+    } catch (error) {
+      toast({
+        title: "طªط¹ط°ط± طھط­ظ…ظٹظ„ ط§ظ„ط¯ظˆط±ط©",
+        description: error instanceof Error ? error.message : "ط­ط¯ط« ط®ط·ط£ ط؛ظٹط± ظ…طھظˆظ‚ط¹",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const incrementViews = async () => {
-    // Simple view increment - could be enhanced with actual RPC function
-    // For now we just track via subscriptions and ratings
   };
 
   const handleSubscribe = async () => {
+    if (!id) {
+      return;
+    }
+
     if (!userId) {
       toast({
-        title: "تنبيه",
-        description: "يجب تسجيل الدخول للاشتراك",
+        title: "طھظ†ط¨ظٹظ‡",
+        description: "ظٹط¬ط¨ طھط³ط¬ظٹظ„ ط§ظ„ط¯ط®ظˆظ„ ظ„ظ„ط§ط´طھط±ط§ظƒ",
         variant: "destructive",
+      });
+      return;
+    }
+
+    if (hasContractAccess && !isSubscribed) {
+      toast({
+        title: "ظ…طھط§ط­ ط¶ظ…ظ† ط§ط´طھط±ط§ظƒظƒ",
+        description: "ظ„ط§ طھط­طھط§ط¬ ط¥ظ„ظ‰ ط§ط´طھط±ط§ظƒ ط¯ظˆط±ط© ظ…ط³طھظ‚ظ„ ظ„ظ„ظˆطµظˆظ„.",
       });
       return;
     }
 
     setSubscribing(true);
 
-    if (isSubscribed) {
-      const { error } = await supabase
-        .from("course_subscriptions")
-        .delete()
-        .eq("course_id", id)
-        .eq("user_id", userId);
-
-      if (!error) {
-        setIsSubscribed(false);
-        setSubscriberCount(prev => Math.max(0, prev - 1));
-        toast({ title: "تم إلغاء الاشتراك" });
+    try {
+      if (isSubscribed) {
+        await unsubscribeFromCourse(id, userId);
+        toast({ title: "طھظ… ط¥ظ„ط؛ط§ط، ط§ظ„ط§ط´طھط±ط§ظƒ" });
+      } else {
+        await subscribeToCourse(id, userId);
+        toast({ title: "طھظ… ط§ظ„ط§ط´طھط±ط§ظƒ ط¨ظ†ط¬ط§ط­" });
       }
-    } else {
-      const { error } = await supabase
-        .from("course_subscriptions")
-        .insert({ course_id: id, user_id: userId });
 
-      if (!error) {
-        setIsSubscribed(true);
-        setSubscriberCount(prev => prev + 1);
-        toast({ title: "تم الاشتراك بنجاح" });
-      }
+      await loadCourse();
+    } catch (error) {
+      toast({
+        title: "ط®ط·ط£",
+        description: error instanceof Error ? error.message : "ط­ط¯ط« ط®ط·ط£ ط؛ظٹط± ظ…طھظˆظ‚ط¹",
+        variant: "destructive",
+      });
+    } finally {
+      setSubscribing(false);
     }
-
-    setSubscribing(false);
   };
 
   const handleRate = async (rating: number) => {
+    if (!id) {
+      return;
+    }
+
     if (!userId) {
       toast({
-        title: "تنبيه",
-        description: "يجب تسجيل الدخول للتقييم",
+        title: "طھظ†ط¨ظٹظ‡",
+        description: "ظٹط¬ط¨ طھط³ط¬ظٹظ„ ط§ظ„ط¯ط®ظˆظ„ ظ„ظ„طھظ‚ظٹظٹظ…",
         variant: "destructive",
       });
       return;
@@ -274,43 +189,31 @@ const CourseDetail = () => {
 
     setRatingLoading(true);
 
-    if (userRating > 0) {
-      // Update existing rating
-      await supabase
-        .from("course_ratings")
-        .update({ rating })
-        .eq("course_id", id)
-        .eq("user_id", userId);
-    } else {
-      // Insert new rating
-      await supabase
-        .from("course_ratings")
-        .insert({ course_id: id, user_id: userId, rating });
-      setRatingCount(prev => prev + 1);
+    try {
+      await submitCourseRating(id, userId, rating, userRating > 0);
+      setUserRating(rating);
+      await loadCourse();
+      toast({ title: "طھظ… ط­ظپط¸ طھظ‚ظٹظٹظ…ظƒ" });
+    } catch (error) {
+      toast({
+        title: "ط®ط·ط£",
+        description: error instanceof Error ? error.message : "ط­ط¯ط« ط®ط·ط£ ط؛ظٹط± ظ…طھظˆظ‚ط¹",
+        variant: "destructive",
+      });
+    } finally {
+      setRatingLoading(false);
     }
-
-    setUserRating(rating);
-    
-    // Recalculate average
-    const { data: ratingsData } = await supabase
-      .from("course_ratings")
-      .select("rating")
-      .eq("course_id", id);
-
-    if (ratingsData && ratingsData.length > 0) {
-      const avg = ratingsData.reduce((sum, r) => sum + r.rating, 0) / ratingsData.length;
-      setAvgRating(Math.round(avg * 10) / 10);
-    }
-
-    setRatingLoading(false);
-    toast({ title: "تم حفظ تقييمك" });
   };
 
   const handleSubmitComment = async () => {
+    if (!id) {
+      return;
+    }
+
     if (!userId) {
       toast({
-        title: "تنبيه",
-        description: "يجب تسجيل الدخول للتعليق",
+        title: "طھظ†ط¨ظٹظ‡",
+        description: "ظٹط¬ط¨ طھط³ط¬ظٹظ„ ط§ظ„ط¯ط®ظˆظ„ ظ„ظ„طھط¹ظ„ظٹظ‚",
         variant: "destructive",
       });
       return;
@@ -320,27 +223,20 @@ const CourseDetail = () => {
 
     setSubmittingComment(true);
 
-    const { error } = await supabase
-      .from("course_comments")
-      .insert({
-        course_id: id,
-        author_id: userId,
-        body: newComment.trim(),
-      });
-
-    if (error) {
+    try {
+      await submitCourseComment(id, userId, newComment.trim());
+      setNewComment("");
+      await loadCourse();
+      toast({ title: "طھظ…طھ ط¥ط¶ط§ظپط© ط§ظ„طھط¹ظ„ظٹظ‚" });
+    } catch (error) {
       toast({
-        title: "خطأ",
-        description: "فشل إضافة التعليق",
+        title: "ط®ط·ط£",
+        description: error instanceof Error ? error.message : "ظپط´ظ„ ط¥ط¶ط§ظپط© ط§ظ„طھط¹ظ„ظٹظ‚",
         variant: "destructive",
       });
-    } else {
-      setNewComment("");
-      fetchComments();
-      toast({ title: "تمت إضافة التعليق" });
+    } finally {
+      setSubmittingComment(false);
     }
-
-    setSubmittingComment(false);
   };
 
   if (loading) {
@@ -360,7 +256,6 @@ const CourseDetail = () => {
   return (
     <AppLayout>
       <div className="px-4 py-6 space-y-6">
-        {/* Back Button */}
         <Button
           variant="ghost"
           size="sm"
@@ -368,15 +263,14 @@ const CourseDetail = () => {
           className="gap-2"
         >
           <ArrowRight className="h-4 w-4" />
-          العودة للدورات
+          ط§ظ„ط¹ظˆط¯ط© ظ„ظ„ط¯ظˆط±ط§طھ
         </Button>
 
-        {/* Course Header */}
         <div className="space-y-4">
           <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
             <TypeIcon className="h-10 w-10 text-primary" />
           </div>
-          
+
           <div className="text-center space-y-2">
             <h1 className="text-2xl font-display font-bold text-foreground">
               {course.title}
@@ -387,15 +281,14 @@ const CourseDetail = () => {
             </div>
           </div>
 
-          {/* Stats */}
           <div className="flex justify-center gap-6 text-sm text-muted-foreground">
             <div className="flex items-center gap-1">
               <Users className="h-4 w-4" />
-              <span>{subscriberCount} مشترك</span>
+              <span>{course.subscriber_count} ظ…ط´طھط±ظƒ</span>
             </div>
             <div className="flex items-center gap-1">
               <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-              <span>{avgRating} ({ratingCount} تقييم)</span>
+              <span>{course.avg_rating} ({course.rating_count} طھظ‚ظٹظٹظ…)</span>
             </div>
           </div>
 
@@ -405,72 +298,70 @@ const CourseDetail = () => {
             </p>
           )}
 
-          <Link 
+          <Link
             to={`/trainer/${course.trainer_id}`}
             className="text-center text-sm text-muted-foreground hover:text-primary transition-colors"
           >
-            المدرب: <span className="underline">{course.trainer_name}</span>
+            ط§ظ„ظ…ط¯ط±ط¨: <span className="underline">{course.trainer_name}</span>
           </Link>
         </div>
 
-        {/* Action Buttons */}
         <div className="flex gap-3">
           <Button
-            onClick={handleSubscribe}
+            onClick={() => void handleSubscribe()}
             disabled={subscribing}
-            variant={isSubscribed ? "outline" : "default"}
+            variant={isSubscribed || hasContractAccess ? "outline" : "default"}
             className="flex-1 gap-2"
           >
             {subscribing ? (
               <Loader2 className="h-4 w-4 animate-spin" />
+            ) : hasContractAccess && !isSubscribed ? (
+              "متاح ضمن اشتراكك"
             ) : isSubscribed ? (
               <>
                 <CheckCircle className="h-4 w-4" />
-                مشترك
+                ظ…ط´طھط±ظƒ
               </>
             ) : (
-              "اشترك الآن"
+              "ط§ط´طھط±ظƒ ط§ظ„ط¢ظ†"
             )}
           </Button>
           {course.url && (
             <Button variant="secondary" asChild className="gap-2">
               <a href={course.url} target="_blank" rel="noopener noreferrer">
                 <ExternalLink className="h-4 w-4" />
-                عرض المحتوى
+                ط¹ط±ط¶ ط§ظ„ظ…ط­طھظˆظ‰
               </a>
             </Button>
           )}
         </div>
 
-        {/* Progress Tracker */}
-        {isSubscribed && (
+        {hasCourseAccess && (
           <Card>
             <CardContent className="py-4">
               <div className="flex items-center gap-2 mb-3">
                 <TrendingUp className="h-5 w-5 text-primary" />
-                <h3 className="font-semibold">تتبع التقدم</h3>
+                <h3 className="font-semibold">طھطھط¨ط¹ ط§ظ„طھظ‚ط¯ظ…</h3>
               </div>
               <CourseProgressTracker courseId={id!} userId={userId} />
             </CardContent>
           </Card>
         )}
 
-        {/* Group Chat Section */}
         <CourseGroupChat
           courseId={id!}
           userId={userId}
-          isSubscribed={isSubscribed}
+          isSubscribed={hasCourseAccess}
         />
 
-        {/* Rating Section */}
         <Card>
           <CardContent className="py-4">
-            <h3 className="font-semibold mb-3">قيّم هذه الدورة</h3>
+            <h3 className="font-semibold mb-3">ظ‚ظٹظ‘ظ… ظ‡ط°ظ‡ ط§ظ„ط¯ظˆط±ط©</h3>
             <div className="flex gap-2 justify-center">
               {[1, 2, 3, 4, 5].map((star) => (
                 <button
                   key={star}
-                  onClick={() => handleRate(star)}
+                  onClick={() => void handleRate(star)}
                   disabled={ratingLoading}
                   className="p-1 transition-transform hover:scale-110"
                 >
@@ -486,30 +377,28 @@ const CourseDetail = () => {
             </div>
             {userRating > 0 && (
               <p className="text-center text-sm text-muted-foreground mt-2">
-                تقييمك: {userRating} من 5
+                طھظ‚ظٹظٹظ…ظƒ: {userRating} ظ…ظ† 5
               </p>
             )}
           </CardContent>
         </Card>
 
-        {/* Comments Section */}
         <div className="space-y-4">
           <h3 className="font-semibold flex items-center gap-2">
             <MessageCircle className="h-5 w-5" />
-            التعليقات ({comments.length})
+            ط§ظ„طھط¹ظ„ظٹظ‚ط§طھ ({commentCount})
           </h3>
 
-          {/* Add Comment */}
           <div className="flex gap-2">
             <Textarea
-              placeholder="أضف تعليقاً..."
+              placeholder="ط£ط¶ظپ طھط¹ظ„ظٹظ‚ط§ظ‹..."
               value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
+              onChange={(event) => setNewComment(event.target.value)}
               className="min-h-[80px]"
             />
           </div>
           <Button
-            onClick={handleSubmitComment}
+            onClick={() => void handleSubmitComment()}
             disabled={submittingComment || !newComment.trim()}
             className="w-full gap-2"
           >
@@ -518,17 +407,16 @@ const CourseDetail = () => {
             ) : (
               <>
                 <Send className="h-4 w-4" />
-                إرسال التعليق
+                ط¥ط±ط³ط§ظ„ ط§ظ„طھط¹ظ„ظٹظ‚
               </>
             )}
           </Button>
 
-          {/* Comments List */}
           <div className="space-y-3">
             {comments.length === 0 ? (
               <Card>
                 <CardContent className="py-6 text-center text-muted-foreground">
-                  لا توجد تعليقات بعد
+                  ظ„ط§ طھظˆط¬ط¯ طھط¹ظ„ظٹظ‚ط§طھ ط¨ط¹ط¯
                 </CardContent>
               </Card>
             ) : (

@@ -1,7 +1,5 @@
-import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -18,23 +16,17 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Shield, User, Crown, UserCheck, Loader2, GraduationCap, Plus } from "lucide-react";
-import type { Database } from "@/integrations/supabase/types";
-
-type Profile = Database["public"]["Tables"]["profiles"]["Row"];
-type AppRole = Database["public"]["Enums"]["app_role"];
-
-interface UserWithRoles extends Profile {
-  roles: AppRole[];
-}
+import { Shield, User, Crown, UserCheck, Loader2, GraduationCap } from "lucide-react";
+import { updateAdminUserRoles, type AdminUser } from "@/lib/backendAdmin";
+import type { PlatformRole } from "@/lib/platformRoles";
 
 interface UserManagementProps {
-  users: Profile[];
+  users: AdminUser[];
   isAdmin: boolean;
   onRefresh: () => void;
 }
 
-const roleIcons: Record<AppRole, typeof Shield> = {
+const roleIcons: Record<PlatformRole, typeof Shield> = {
   admin: Crown,
   moderator: Shield,
   trainer: GraduationCap,
@@ -42,7 +34,7 @@ const roleIcons: Record<AppRole, typeof Shield> = {
   guest: User,
 };
 
-const roleLabels: Record<AppRole, string> = {
+const roleLabels: Record<PlatformRole, string> = {
   admin: "مدير",
   moderator: "مشرف",
   trainer: "مدرب",
@@ -50,7 +42,7 @@ const roleLabels: Record<AppRole, string> = {
   guest: "زائر",
 };
 
-const roleColors: Record<AppRole, string> = {
+const roleColors: Record<PlatformRole, string> = {
   admin: "bg-accent text-accent-foreground",
   moderator: "bg-primary/10 text-primary",
   trainer: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
@@ -58,43 +50,13 @@ const roleColors: Record<AppRole, string> = {
   guest: "bg-muted text-muted-foreground",
 };
 
-const allRoles: AppRole[] = ["admin", "moderator", "trainer", "member", "guest"];
+const allRoles: PlatformRole[] = ["admin", "moderator", "trainer", "member", "guest"];
 
 const UserManagement = ({ users, isAdmin, onRefresh }: UserManagementProps) => {
   const { toast } = useToast();
-  const [usersWithRoles, setUsersWithRoles] = useState<UserWithRoles[]>([]);
-  const [loadingRoles, setLoadingRoles] = useState(true);
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchUserRoles();
-  }, [users]);
-
-  const fetchUserRoles = async () => {
-    setLoadingRoles(true);
-    
-    // Fetch ALL roles for all users
-    const { data: roles } = await supabase
-      .from("user_roles")
-      .select("user_id, role");
-
-    // Group roles by user
-    const rolesMap = new Map<string, AppRole[]>();
-    roles?.forEach((r) => {
-      const existing = rolesMap.get(r.user_id) || [];
-      rolesMap.set(r.user_id, [...existing, r.role]);
-    });
-    
-    const enrichedUsers = users.map((user) => ({
-      ...user,
-      roles: rolesMap.get(user.id) || ["member"],
-    }));
-
-    setUsersWithRoles(enrichedUsers);
-    setLoadingRoles(false);
-  };
-
-  const handleRoleToggle = async (userId: string, role: AppRole, currentRoles: AppRole[]) => {
+  const handleRoleToggle = async (userId: string, role: PlatformRole, currentRoles: PlatformRole[]) => {
     if (!isAdmin) {
       toast({
         title: "غير مصرح",
@@ -104,67 +66,36 @@ const UserManagement = ({ users, isAdmin, onRefresh }: UserManagementProps) => {
       return;
     }
 
-    setUpdatingUserId(userId);
     const hasRole = currentRoles.includes(role);
+    const nextRoles = hasRole
+      ? currentRoles.filter((currentRole) => currentRole !== role)
+      : [...currentRoles, role];
 
-    if (hasRole) {
-      // Remove role
-      const { error } = await supabase
-        .from("user_roles")
-        .delete()
-        .eq("user_id", userId)
-        .eq("role", role);
+    setUpdatingUserId(userId);
 
-      if (error) {
-        toast({
-          title: "خطأ",
-          description: "فشل إزالة الصلاحية",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "تم بنجاح",
-          description: `تم إزالة صلاحية ${roleLabels[role]}`,
-        });
-        fetchUserRoles();
-      }
-    } else {
-      // Add role
-      const { error } = await supabase
-        .from("user_roles")
-        .insert({ user_id: userId, role });
-
-      if (error) {
-        toast({
-          title: "خطأ",
-          description: "فشل إضافة الصلاحية",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "تم بنجاح",
-          description: `تم إضافة صلاحية ${roleLabels[role]}`,
-        });
-        fetchUserRoles();
-      }
+    try {
+      await updateAdminUserRoles(userId, nextRoles.length ? nextRoles : ["member"]);
+      toast({
+        title: "تم بنجاح",
+        description: "تم تحديث صلاحيات المستخدم",
+      });
+      onRefresh();
+    } catch (error) {
+      toast({
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "فشل تحديث الصلاحيات",
+        variant: "destructive",
+      });
+    } finally {
+      setUpdatingUserId(null);
     }
-
-    setUpdatingUserId(null);
   };
-
-  if (loadingRoles) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="font-semibold text-foreground">
-          إدارة المستخدمين ({usersWithRoles.length})
+          إدارة المستخدمين ({users.length})
         </h2>
         {!isAdmin && (
           <Badge variant="outline" className="text-muted-foreground">
@@ -175,7 +106,7 @@ const UserManagement = ({ users, isAdmin, onRefresh }: UserManagementProps) => {
 
       <div className="bg-card border border-border rounded-lg p-3 mb-4">
         <p className="text-sm text-muted-foreground">
-          <strong>ملاحظة:</strong> يمكن للمستخدم امتلاك أدوار متعددة في نفس الوقت. مثلاً: مدرب + مشرف.
+          <strong>ملاحظة:</strong> هذه الواجهة تحدّث الأدوار الآن عبر مسار إداري رسمي في الباك إند، وليس عبر كتابة مباشرة إلى جدول `user_roles`.
         </p>
       </div>
 
@@ -184,13 +115,14 @@ const UserManagement = ({ users, isAdmin, onRefresh }: UserManagementProps) => {
           <TableHeader>
             <TableRow>
               <TableHead>المستخدم</TableHead>
+              <TableHead>البريد</TableHead>
               <TableHead>البلد</TableHead>
               <TableHead>الصلاحيات</TableHead>
               <TableHead>تاريخ التسجيل</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {usersWithRoles.map((user) => (
+            {users.map((user) => (
               <TableRow key={user.id}>
                 <TableCell>
                   <div className="flex items-center gap-2">
@@ -202,6 +134,7 @@ const UserManagement = ({ users, isAdmin, onRefresh }: UserManagementProps) => {
                     </span>
                   </div>
                 </TableCell>
+                <TableCell>{user.email}</TableCell>
                 <TableCell>{user.country || "-"}</TableCell>
                 <TableCell>
                   {isAdmin ? (
@@ -233,7 +166,7 @@ const UserManagement = ({ users, isAdmin, onRefresh }: UserManagementProps) => {
                                     <div
                                       key={role}
                                       className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-1 rounded"
-                                      onClick={() => handleRoleToggle(user.id, role, user.roles)}
+                                      onClick={() => void handleRoleToggle(user.id, role, user.roles)}
                                     >
                                       <Checkbox checked={hasRole} />
                                       <RoleIcon className="h-4 w-4" />
@@ -268,12 +201,9 @@ const UserManagement = ({ users, isAdmin, onRefresh }: UserManagementProps) => {
                 </TableCell>
               </TableRow>
             ))}
-            {usersWithRoles.length === 0 && (
+            {users.length === 0 && (
               <TableRow>
-                <TableCell
-                  colSpan={4}
-                  className="text-center text-muted-foreground"
-                >
+                <TableCell colSpan={5} className="text-center text-muted-foreground">
                   لا يوجد مستخدمين
                 </TableCell>
               </TableRow>

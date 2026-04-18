@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { BookOpen, Users, Heart, Globe, Sparkles, GraduationCap, Video, Headphones, Crown, LucideIcon } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useSubscription } from "@/hooks/useSubscription";
 import { Button } from "@/components/ui/button";
 import AppLayout from "@/components/layout/AppLayout";
 import FeaturedCourses from "@/components/courses/FeaturedCourses";
@@ -29,22 +29,12 @@ const NavButton = ({ to, icon: Icon, label, iconColor, bgColor, hoverBg, hoverBo
 
 const Index = () => {
   const { user, loading: authLoading } = useAuth();
+  const { hasSubscription } = useSubscription();
   const [isSubscribed, setIsSubscribed] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
-    const checkSub = async () => {
-      const { data } = await supabase
-        .from("monthly_subscriptions")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("status", "active")
-        .gt("expires_at", new Date().toISOString())
-        .maybeSingle();
-      setIsSubscribed(!!data);
-    };
-    checkSub();
-  }, [user]);
+    setIsSubscribed(Boolean(user && hasSubscription));
+  }, [hasSubscription, user]);
 
   return (
     <AppLayout>

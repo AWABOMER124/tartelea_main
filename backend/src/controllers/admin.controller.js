@@ -65,6 +65,25 @@ function normalizeUserRoleInput(role) {
   return ALLOWED_ROLES.includes(normalized) ? normalized : null;
 }
 
+function normalizeUserRolesInput(roles) {
+  const normalizedRoles = Array.isArray(roles)
+    ? roles.map((role) => normalizeUserRoleInput(role)).filter(Boolean)
+    : [];
+
+  const uniqueRoles = [...new Set(normalizedRoles)];
+  const rolesWithoutGuest = uniqueRoles.filter((role) => role !== 'guest');
+
+  if (rolesWithoutGuest.length > 0) {
+    return rolesWithoutGuest;
+  }
+
+  if (uniqueRoles.includes('guest')) {
+    return ['guest'];
+  }
+
+  return ['member'];
+}
+
 function normalizeContentType(type) {
   const normalized = String(type || '').trim().toLowerCase();
   return ALLOWED_CONTENT_TYPES.includes(normalized) ? normalized : null;
@@ -446,6 +465,50 @@ class AdminController {
     }
   }
 
+  static async updateUserRoles(req, res, next) {
+    const roles = normalizeUserRolesInput(req.body?.roles);
+    const existingUser = await fetchUserById(req.params.id);
+
+    if (!existingUser) {
+      return error(res, 'User not found', 404, 'USER_NOT_FOUND');
+    }
+
+    const client = await db.connect();
+
+    try {
+      await client.query('BEGIN');
+      await client.query('DELETE FROM user_roles WHERE user_id = $1', [req.params.id]);
+
+      for (const role of roles) {
+        await client.query('INSERT INTO user_roles (user_id, role) VALUES ($1, $2)', [
+          req.params.id,
+          toStorageRole(role),
+        ]);
+      }
+
+      await client.query('COMMIT');
+
+      const user = await fetchUserById(req.params.id);
+      await insertAuditLog(db, req, {
+        action: 'user.roles.updated',
+        entityType: 'user',
+        entityId: req.params.id,
+        details: {
+          previous_roles: existingUser.roles,
+          next_roles: user?.roles || roles,
+          email: existingUser.email,
+        },
+      });
+
+      return success(res, { user }, 'User roles updated successfully');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      next(err);
+    } finally {
+      client.release();
+    }
+  }
+
   static async getUser(req, res, next) {
     try {
       const user = await fetchUserById(req.params.id);
@@ -714,7 +777,7 @@ class AdminController {
             is_sudan_awareness,
             metadata
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb)
           RETURNING *
         `,
         [

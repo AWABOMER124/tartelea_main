@@ -1,4 +1,5 @@
 /**
+ * DO NOT USE - LEGACY
  * STEP 2 freeze marker:
  * This detail view is still bound to legacy Supabase community tables.
  * It is no longer routed from `/community/:id`; keep only as a transitional legacy reference.

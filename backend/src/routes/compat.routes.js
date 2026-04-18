@@ -1,3 +1,9 @@
+/**
+ * STEP 7 legacy bridge:
+ * This route exists only to preserve transitional Supabase-shaped clients.
+ * It is not a source of truth for subscriptions, access decisions, or new product logic.
+ * New backend work must use explicit domain routes/services instead of extending this file.
+ */
 const express = require('express');
 const { Readable } = require('stream');
 const db = require('../db');

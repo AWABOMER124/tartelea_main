@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useCourses, useUserCourseSubscriptions, useSubscribeToCourse, useUnsubscribeFromCourse } from "@/hooks/useCourses";
+import { useAuth } from "@/hooks/useAuth";
 import AppLayout from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -68,6 +68,7 @@ const CourseCardSkeleton = () => (
 
 const Courses = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [selectedDepth, setSelectedDepth] = useState("all");
   const [userId, setUserId] = useState<string | null>(null);
   const [subscribingId, setSubscribingId] = useState<string | null>(null);
@@ -78,8 +79,8 @@ const Courses = () => {
   const unsubscribeMutation = useUnsubscribeFromCourse();
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id || null));
-  }, []);
+    setUserId(user?.id || null);
+  }, [user?.id]);
 
   const handleSubscribe = async (courseId: string) => {
     if (!userId) {

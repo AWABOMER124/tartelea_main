@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,9 +21,7 @@ import {
   SkipForward
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Database } from "@/integrations/supabase/types";
-
-type Content = Database["public"]["Tables"]["contents"]["Row"];
+import { getLibraryContent, type BackendContentItem as Content } from "@/lib/backendContent";
 
 const typeIcons = {
   article: FileText,
@@ -57,22 +54,18 @@ const ContentDetail = () => {
 
   useEffect(() => {
     if (id) {
-      fetchContent();
+      void fetchContent();
     }
   }, [id]);
 
   const fetchContent = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("contents")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle();
-
-    if (!error && data) {
+    try {
+      const data = await getLibraryContent(id!);
       setContent(data);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handlePlayPause = () => {
