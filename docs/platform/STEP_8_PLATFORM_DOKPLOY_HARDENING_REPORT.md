@@ -13,6 +13,7 @@ Key outcomes delivered in this pass:
 - Added a backend readiness endpoint (`/api/v1/ready`) for dependency-aware health.
 - Removed hardcoded Traefik test URLs from the web + Flutter clients (config must come from environment).
 - Added Dokploy-oriented stack templates and a practical runbook/checklist.
+- Documented separate-app deployment patterns (same-domain path routing vs separate API domain).
 
 Important note:
 
@@ -172,6 +173,10 @@ Yes, with the following conditions:
 - LiveKit domain/ports are configured and reachable from clients.
 - Directus is deployed behind Traefik and only accessed through the backend gateway (current code follows this).
 
+For separate Dokploy apps:
+
+- Either route `/api/*` and `/uploads/*` directly to the backend using Traefik (recommended, avoids CORS), or build the web app with an absolute `VITE_BACKEND_API_BASE_URL` and set backend `ALLOWED_ORIGINS` accordingly.
+
 ### Ready for production?
 
 Almost. Remaining must-do items are operational rather than code:
@@ -190,4 +195,3 @@ Almost. Remaining must-do items are operational rather than code:
 - Local Compose (sanitized): `docker-compose.yml`
 - Backend env examples: `backend/.env.example`, `backend/.env.local.example`
 - Health endpoints: `backend/src/routes/index.js`
-

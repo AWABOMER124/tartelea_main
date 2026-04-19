@@ -19,6 +19,48 @@ Nothing here should contain real secrets.
 - `web` proxies `/api/*` + `/uploads/*` to `backend` over the private Docker network.
 - Only LiveKit UDP port range is exposed publicly (required for WebRTC media).
 
+## Deploying Web + Backend as Separate Dokploy Apps
+
+Dokploy often deploys each service as an independent app. You have two valid routing patterns:
+
+### Pattern A (Recommended): Same Domain, Path-Based Routing (No CORS)
+
+Use one domain (example: `tartelea.example.com`) and let Traefik route:
+
+- `/` -> Web app (nginx static)
+- `/api/*` -> Backend app (port 3000)
+- `/uploads/*` -> Backend app (port 3000)
+
+In this pattern, the web app can keep:
+
+- `VITE_BACKEND_API_BASE_URL=/api/v1`
+
+and browser calls stay same-origin.
+
+### Pattern B: Separate Domains (Requires CORS)
+
+Example:
+
+- Web: `https://app.tartelea.example.com`
+- API: `https://api.tartelea.example.com`
+
+In this pattern, build the web app with:
+
+- `VITE_BACKEND_API_BASE_URL=https://api.tartelea.example.com/api/v1`
+
+and configure the backend with:
+
+- `ALLOWED_ORIGINS=https://app.tartelea.example.com`
+
+## Web Build-Time Configuration (Vite)
+
+Vite variables are injected at **build time**. The web `Dockerfile` supports build args:
+
+- `VITE_BACKEND_API_BASE_URL`
+- `VITE_LIVEKIT_URL` (required for LiveKit join in production)
+- `VITE_USE_BACKEND_COMMUNITY`
+- `VITE_CLOUDFLARE_STREAM_CUSTOMER_CODE`
+
 ## Network validation checklist
 
 - Exactly one reverse proxy at the edge (Traefik in Dokploy). Do not run a second host-level nginx.
@@ -56,4 +98,3 @@ Nothing here should contain real secrets.
 Frontend should not talk to Directus directly.
 
 Only the backend should access the Directus API using `DIRECTUS_URL` + `DIRECTUS_TOKEN`.
-
