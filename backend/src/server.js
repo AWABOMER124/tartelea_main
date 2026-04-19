@@ -9,6 +9,31 @@ const port = env.PORT || 3000;
 const server = http.createServer(app);
 
 const startServer = async () => {
+  if (env.NODE_ENV === 'production') {
+    const warnings = [];
+
+    const allowedOrigins = (env.ALLOWED_ORIGINS || '')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    if (allowedOrigins.includes('*')) {
+      warnings.push('ALLOWED_ORIGINS contains "*" (overly permissive for production).');
+    }
+
+    if (String(env.JWT_SECRET).toLowerCase().includes('change_me')) {
+      warnings.push('JWT_SECRET looks like a placeholder value.');
+    }
+
+    if (!env.DATABASE_URL && String(env.DB_PASSWORD).toLowerCase().includes('change_me')) {
+      warnings.push('DB_PASSWORD looks like a placeholder value.');
+    }
+
+    if (warnings.length) {
+      logger.warn('Potentially insecure production environment detected.', { warnings });
+    }
+  }
+
   try {
     await pool.query('SELECT 1');
     logger.info('Database connection established.');

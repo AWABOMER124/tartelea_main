@@ -1,0 +1,174 @@
+version: "3.8"
+
+# Dokploy-oriented stack template (EXAMPLE).
+#
+# Notes:
+# - This template assumes Dokploy provides a Traefik network (external) for HTTP(S) routing.
+# - Do NOT expose PostgreSQL/Valkey/MinIO ports publicly.
+# - LiveKit requires UDP port range to be reachable from the internet.
+# - Replace placeholders using Dokploy secrets and environment variables.
+
+networks:
+  private:
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK:-traefik}
+
+volumes:
+  postgres_data:
+  minio_data:
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - private
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  valkey:
+    image: valkey/valkey:7-alpine
+    command: ["valkey-server", "--requirepass", "${VALKEY_PASSWORD}"]
+    networks:
+      - private
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    command: ["server", "--console-address", ":9001", "/data"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    networks:
+      - private
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      EMAIL_ENABLED: ${EMAIL_ENABLED:-false}
+      EMAIL_HOST: ${EMAIL_HOST:-}
+      EMAIL_PORT: ${EMAIL_PORT:-}
+      EMAIL_USER: ${EMAIL_USER:-}
+      EMAIL_PASS: ${EMAIL_PASS:-}
+      REQUIRE_EMAIL_VERIFICATION: ${REQUIRE_EMAIL_VERIFICATION:-false}
+      AUTO_VERIFY_EMAIL: ${AUTO_VERIFY_EMAIL:-true}
+      OTP_DEV_FALLBACK: ${OTP_DEV_FALLBACK:-false}
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-}
+      DIRECTUS_URL: ${DIRECTUS_URL:-http://directus:8055}
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - private
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    depends_on:
+      - backend
+    networks:
+      - private
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.tartelea-web.rule=Host(`${PUBLIC_WEB_HOST}`)"
+      - "traefik.http.routers.tartelea-web.entrypoints=websecure"
+      - "traefik.http.routers.tartelea-web.tls=true"
+      - "traefik.http.services.tartelea-web.loadbalancer.server.port=80"
+    restart: unless-stopped
+
+  directus:
+    image: directus/directus:10
+    environment:
+      KEY: ${DIRECTUS_KEY:-change_me}
+      SECRET: ${DIRECTUS_SECRET:-change_me}
+      ADMIN_EMAIL: ${DIRECTUS_ADMIN_EMAIL:-admin@example.com}
+      ADMIN_PASSWORD: ${DIRECTUS_ADMIN_PASSWORD:-change_me}
+      DB_CLIENT: pg
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+
+      # Redis/Valkey shared configuration (Directus v10 consolidated vars)
+      REDIS_HOST: valkey
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${VALKEY_PASSWORD}
+      CACHE_STORE: redis
+      RATE_LIMITER_STORE: redis
+      SYNCHRONIZATION_STORE: redis
+      MESSENGER_STORE: redis
+
+      # MinIO (S3-compatible) storage for Directus media
+      STORAGE_LOCATIONS: minio
+      STORAGE_MINIO_DRIVER: s3
+      STORAGE_MINIO_KEY: ${MINIO_ROOT_USER}
+      STORAGE_MINIO_SECRET: ${MINIO_ROOT_PASSWORD}
+      STORAGE_MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
+      STORAGE_MINIO_BUCKET: ${MINIO_BUCKET:-directus}
+      STORAGE_MINIO_REGION: ${MINIO_REGION:-us-east-1}
+      STORAGE_MINIO_FORCE_PATH_STYLE: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - private
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.tartelea-cms.rule=Host(`${PUBLIC_DIRECTUS_HOST}`)"
+      - "traefik.http.routers.tartelea-cms.entrypoints=websecure"
+      - "traefik.http.routers.tartelea-cms.tls=true"
+      - "traefik.http.services.tartelea-cms.loadbalancer.server.port=8055"
+    restart: unless-stopped
+
+  livekit:
+    image: livekit/livekit-server:latest
+    command: ["--config", "/etc/livekit/livekit.yaml"]
+    volumes:
+      - ./livekit.yaml:/etc/livekit/livekit.yaml:ro
+    ports:
+      # ICE over TCP must be exposed directly (not behind TLS).
+      - "7881:7881"
+      # WebRTC UDP port range must be reachable from the internet.
+      - "50000-60000:50000-60000/udp"
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.tartelea-livekit.rule=Host(`${PUBLIC_LIVEKIT_HOST}`)"
+      - "traefik.http.routers.tartelea-livekit.entrypoints=websecure"
+      - "traefik.http.routers.tartelea-livekit.tls=true"
+      - "traefik.http.services.tartelea-livekit.loadbalancer.server.port=7880"
+    restart: unless-stopped
+

@@ -1,0 +1,18 @@
+# LiveKit config (EXAMPLE)
+#
+# IMPORTANT:
+# - The `keys:` section must match the API key/secret used by the backend to mint tokens.
+# - Expose UDP port range (below) publicly.
+# - Expose `rtc.tcp_port` publicly (ICE/TCP).
+
+port: 7880
+
+rtc:
+  tcp_port: 7881
+  port_range_start: 50000
+  port_range_end: 60000
+
+# API key / secret pairs used for JWT token auth.
+keys:
+  your_api_key: your_api_secret
+

@@ -32,9 +32,13 @@ export interface ParticipantQuality {
   quality: ConnectionQuality;
 }
 
-const DEFAULT_LIVEKIT_URL =
-  import.meta.env.VITE_LIVEKIT_URL?.trim() ||
-  "https://tartelea-nodejs-ncyno3-ed08c5-72-62-41-242.traefik.me";
+const DEFAULT_LIVEKIT_URL = (() => {
+  const configured = import.meta.env.VITE_LIVEKIT_URL?.trim();
+  if (configured) return configured;
+
+  // Local dev convenience only. Production must configure VITE_LIVEKIT_URL.
+  return import.meta.env.DEV ? "ws://localhost:7880" : "";
+})();
 
 export const useLiveKitRoom = ({ sessionId, enabled }: UseLiveKitRoomOptions) => {
   const [room, setRoom] = useState<Room | null>(null);
@@ -180,6 +184,11 @@ export const useLiveKitRoom = ({ sessionId, enabled }: UseLiveKitRoomOptions) =>
           });
         },
       );
+
+      if (!DEFAULT_LIVEKIT_URL) {
+        setError("LiveKit URL is not configured. Set VITE_LIVEKIT_URL.");
+        return;
+      }
 
       await livekitRoom.connect(DEFAULT_LIVEKIT_URL, joinPayload.token);
       setRoom(livekitRoom);
