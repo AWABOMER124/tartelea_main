@@ -41,9 +41,41 @@ class DirectusService {
       }
 
       return await response.json();
-  } catch (error) {
+    } catch (error) {
       if (error.status) throw error;
       logger.error('Directus Connection Error', { error: error.message, url });
+      throw httpError(503, 'Failed to connect to content service', 'CMS_CONNECTION_FAILED');
+    }
+  }
+
+  async fetchAsset(fileId) {
+    if (!this.baseUrl) {
+      throw httpError(
+        503,
+        'Content service is not configured (Directus). Set DIRECTUS_URL and DIRECTUS_TOKEN.',
+        'DIRECTUS_NOT_CONFIGURED'
+      );
+    }
+
+    const url = `${this.baseUrl}/assets/${encodeURIComponent(fileId)}`;
+    const headers = {};
+
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    try {
+      const response = await fetch(url, { headers });
+
+      if (!response.ok) {
+        logger.error(`Directus Asset error: ${response.status} ${response.statusText}`, { url });
+        throw httpError(response.status, 'CMS Asset Error', 'CMS_ASSET_ERROR');
+      }
+
+      return response;
+    } catch (error) {
+      if (error.status) throw error;
+      logger.error('Directus Asset Connection Error', { error: error.message, url });
       throw httpError(503, 'Failed to connect to content service', 'CMS_CONNECTION_FAILED');
     }
   }
