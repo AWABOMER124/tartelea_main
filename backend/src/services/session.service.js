@@ -3,12 +3,36 @@ const env = require('../config/env');
 const { httpError } = require('../utils/httpError');
 const livekitService = require('./livekit.service');
 const SubscriptionService = require('./subscription.service');
+const logger = require('../utils/logger');
 const { normalizeRoles, getPrimaryRole } = require('../middlewares/rbac.middleware');
+const crypto = require('node:crypto');
 
 const SPEAKING_ROOM_ROLES = new Set(['host', 'co_host', 'moderator', 'speaker']);
 const MODERATION_ROOM_ROLES = new Set(['host', 'co_host', 'moderator']);
 const KICK_ROOM_ROLES = new Set(['host', 'co_host']);
 const PRIVILEGED_SYSTEM_ROLES = new Set(['admin', 'moderator']);
+
+let roomsHasCreatedByColumn = null;
+
+async function getRoomsHasCreatedByColumn() {
+  if (roomsHasCreatedByColumn !== null) {
+    return roomsHasCreatedByColumn;
+  }
+
+  const result = await db.query(
+    `
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'rooms'
+        AND column_name = 'created_by'
+      LIMIT 1
+    `
+  );
+
+  roomsHasCreatedByColumn = result.rowCount > 0;
+  return roomsHasCreatedByColumn;
+}
 
 function normalizeUser(user) {
   if (!user) {
@@ -47,7 +71,7 @@ function deriveVisibility(row) {
 }
 
 function getLivekitRoomName(row) {
-  return row.livekit_room_name || row.id;
+  return row.livekit_room || row.livekit_room_name || row.id;
 }
 
 function isPrivilegedSystemUser(user) {
@@ -155,11 +179,13 @@ function mapSessionSummary(row, access, counts = {}) {
     description: row.description,
     program_id: row.program_id || null,
     track_id: row.track_id || null,
+    created_at: row.created_at,
     start_time: row.scheduled_at || row.created_at,
     end_time: row.ended_at || null,
     actual_started_at: row.actual_started_at || null,
     scheduled_at: row.scheduled_at || row.created_at,
     status: deriveSessionStatus(row),
+    is_live: Boolean(row.is_live),
     visibility: deriveVisibility(row),
     category: row.category || 'community',
     image_url: row.image_url || null,
@@ -522,41 +548,95 @@ class SessionService {
     }
 
     const scheduledAt = payload.scheduled_at ? new Date(payload.scheduled_at).toISOString() : new Date().toISOString();
+    const roomId = crypto.randomUUID();
+    const slug = `session-${roomId}`;
+    const livekitRoom = roomId;
+
+    const hasCreatedByColumn = await getRoomsHasCreatedByColumn();
 
     const result = await db.query(
-      `
-        INSERT INTO rooms (
-          title,
-          description,
-          host_id,
-          category,
-          scheduled_at,
-          duration_minutes,
-          is_live,
-          is_approved,
-          price,
-          max_participants,
-          access_type,
-          image_url,
-          actual_started_at,
-          ended_at,
-          updated_at
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, FALSE, FALSE, $7, $8, $9, $10, NULL, NULL, NOW())
-        RETURNING *
-      `,
-      [
-        payload.title.trim(),
-        payload.description?.trim() || null,
-        user.id,
-        payload.category || 'community',
-        scheduledAt,
-        payload.duration_minutes || 30,
-        payload.price || 0,
-        payload.max_participants || 50,
-        payload.access_type || 'public',
-        payload.image_url || null,
-      ]
+      hasCreatedByColumn
+        ? `
+            INSERT INTO rooms (
+              id,
+              title,
+              slug,
+              livekit_room,
+              description,
+              created_by,
+              host_id,
+              category,
+              scheduled_at,
+              duration_minutes,
+              is_live,
+              is_approved,
+              price,
+              max_participants,
+              access_type,
+              image_url,
+              actual_started_at,
+              ended_at,
+              updated_at
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, FALSE, TRUE, $11, $12, $13, $14, NULL, NULL, NOW())
+            RETURNING *
+          `
+        : `
+            INSERT INTO rooms (
+              id,
+              title,
+              slug,
+              livekit_room,
+              description,
+              host_id,
+              category,
+              scheduled_at,
+              duration_minutes,
+              is_live,
+              is_approved,
+              price,
+              max_participants,
+              access_type,
+              image_url,
+              actual_started_at,
+              ended_at,
+              updated_at
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, FALSE, TRUE, $10, $11, $12, $13, NULL, NULL, NOW())
+            RETURNING *
+          `,
+      hasCreatedByColumn
+        ? [
+            roomId,
+            payload.title.trim(),
+            slug,
+            livekitRoom,
+            payload.description?.trim() || null,
+            user.id,
+            user.id,
+            payload.category || 'community',
+            scheduledAt,
+            payload.duration_minutes || 30,
+            payload.price || 0,
+            payload.max_participants || 50,
+            payload.access_type || 'public',
+            payload.image_url || null,
+          ]
+        : [
+            roomId,
+            payload.title.trim(),
+            slug,
+            livekitRoom,
+            payload.description?.trim() || null,
+            user.id,
+            payload.category || 'community',
+            scheduledAt,
+            payload.duration_minutes || 30,
+            payload.price || 0,
+            payload.max_participants || 50,
+            payload.access_type || 'public',
+            payload.image_url || null,
+          ]
     );
 
     const row = await getSessionRowById(db, result.rows[0].id, user.id);
@@ -745,6 +825,7 @@ class SessionService {
             `
               UPDATE rooms
               SET is_live = TRUE,
+                  is_approved = TRUE,
                   actual_started_at = NOW(),
                   ended_at = NULL,
                   updated_at = NOW()
@@ -784,6 +865,11 @@ class SessionService {
             `,
             [sessionId, targetUserId, user.id]
           );
+          logger.info('[SESSIONS][ROLE] promote speaker', {
+            sessionId,
+            actorId: user.id,
+            targetUserId,
+          });
           break;
 
         case 'demote_listener':
@@ -802,6 +888,11 @@ class SessionService {
             `,
             [sessionId, targetUserId]
           );
+          logger.info('[SESSIONS][ROLE] demote to listener', {
+            sessionId,
+            actorId: user.id,
+            targetUserId,
+          });
           break;
 
         case 'promote_co_host':
@@ -818,6 +909,11 @@ class SessionService {
             `,
             [sessionId, targetUserId, user.id]
           );
+          logger.info('[SESSIONS][ROLE] promote co_host', {
+            sessionId,
+            actorId: user.id,
+            targetUserId,
+          });
           break;
 
         case 'promote_moderator':
@@ -834,6 +930,11 @@ class SessionService {
             `,
             [sessionId, targetUserId, user.id]
           );
+          logger.info('[SESSIONS][ROLE] promote moderator', {
+            sessionId,
+            actorId: user.id,
+            targetUserId,
+          });
           break;
 
         case 'kick':
@@ -897,6 +998,11 @@ class SessionService {
             `,
             [sessionId, targetUserId, user.id]
           );
+          logger.info('[SESSIONS][ROLE] accept hand -> speaker', {
+            sessionId,
+            actorId: user.id,
+            targetUserId,
+          });
           break;
 
         case 'reject_hand':
