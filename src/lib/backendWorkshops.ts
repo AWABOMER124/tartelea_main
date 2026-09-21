@@ -145,6 +145,33 @@ export const listWorkshopRecordings = async (workshopId?: string) => {
   return rows(response.data);
 };
 
+export const listWorkshopRecordingsWithMetadata = async () => {
+  const recordings = await listWorkshopRecordings();
+  if (!recordings.length) return [];
+
+  const workshopIds = [...new Set(recordings.map((recording) => recording.workshop_id))];
+  const workshopsResponse = await compatSelect<BackendWorkshop[]>("workshops", {
+    filters: [{ column: "id", operator: "in", value: workshopIds }],
+  });
+  const workshops = rows(workshopsResponse.data);
+  const hostMap = await profileMapFor(workshops.map((workshop) => workshop.host_id));
+  const workshopMap = new Map(workshops.map((workshop) => [workshop.id, workshop]));
+
+  return recordings.map((recording) => {
+    const workshop = workshopMap.get(recording.workshop_id);
+    return {
+      ...recording,
+      workshop: {
+        id: workshop?.id || recording.workshop_id,
+        title: workshop?.title || "ورشة عمل",
+        description: workshop?.description || null,
+        category: workshop?.category || "quran",
+        host_name: workshop ? hostMap.get(workshop.host_id) || "مدرب" : "مدرب",
+      },
+    };
+  });
+};
+
 export const createWorkshopRecording = async (payload: {
   workshop_id: string;
   recording_url: string;
