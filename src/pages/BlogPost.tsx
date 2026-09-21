@@ -49,7 +49,7 @@ const BlogPost = () => {
   if (loading) {
     return (
       <AppLayout>
-        <div className="px-4 py-8 max-w-3xl mx-auto animate-pulse space-y-4">
+        <div className="mx-auto max-w-3xl space-y-4 px-4 py-8 sm:px-6">
           <div className="h-8 bg-muted rounded w-2/3" />
           <div className="h-4 bg-muted rounded w-1/3" />
           <div className="h-64 bg-muted rounded" />
@@ -61,7 +61,7 @@ const BlogPost = () => {
   if (!post) {
     return (
       <AppLayout>
-        <div className="px-4 py-16 text-center">
+        <div className="mx-auto max-w-xl px-4 py-20 text-center">
           <p className="text-muted-foreground">المقال غير موجود</p>
           <Button variant="ghost" onClick={() => navigate("/blog")} className="mt-4 gap-2">
             <ArrowRight className="h-4 w-4" />
@@ -82,7 +82,7 @@ const BlogPost = () => {
         type="article"
       />
 
-      <article className="px-4 py-8 max-w-3xl mx-auto space-y-6">
+      <article className="mx-auto max-w-3xl space-y-6 px-4 py-8 sm:px-6 sm:py-10">
         <Button variant="ghost" size="sm" onClick={() => navigate("/blog")} className="gap-2">
           <ArrowRight className="h-4 w-4" />
           العودة للمدونة
@@ -92,7 +92,7 @@ const BlogPost = () => {
           <Badge variant="secondary">
             {categoryLabels[post.category] || post.category}
           </Badge>
-          <h1 className="text-3xl md:text-4xl font-display font-bold text-foreground leading-tight">
+          <h1 className="text-3xl font-bold md:text-4xl text-foreground leading-tight">
             {post.title}
           </h1>
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
