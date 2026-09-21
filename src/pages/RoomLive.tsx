@@ -483,7 +483,7 @@ const RoomLive = () => {
       </div>
 
       <div className="bg-card/80 backdrop-blur-sm border-t border-border px-2 py-1">
-        <RoomReactions roomId={id} />
+        <RoomReactions room={liveKit.room} />
       </div>
 
       <RoomControls
