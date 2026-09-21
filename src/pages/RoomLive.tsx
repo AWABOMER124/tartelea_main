@@ -67,7 +67,7 @@ const RoomLive = () => {
   const { isRecording, isUploading, formattedDuration, startRecording, stopRecording } =
     useRoomRecording({
       roomId: id || "",
-      localStream: null,
+      room: liveKit.room,
     });
 
   const roomManage = useRoomManage(id);
