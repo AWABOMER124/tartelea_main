@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ChevronRight, ChevronLeft, Calendar, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
+import { listServiceBookings } from "@/lib/backendBookings";
 
 interface Booking {
   id: string;
@@ -49,47 +49,20 @@ const BookingCalendar = ({ userId, role }: BookingCalendarProps) => {
   const fetchBookings = async () => {
     setLoading(true);
 
-    const startOfMonth = new Date(year, month, 1).toISOString();
-    const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59).toISOString();
+    try {
+      const allBookings = await listServiceBookings(role);
+      const startOfMonth = new Date(year, month, 1).getTime();
+      const endOfMonth = new Date(year, month + 1, 1).getTime();
 
-    const column = role === "trainer" ? "trainer_id" : "student_id";
-
-    const { data: bookingsData } = await supabase
-      .from("service_bookings")
-      .select(`
-        *,
-        service:trainer_services(title)
-      `)
-      .eq(column, userId)
-      .gte("scheduled_at", startOfMonth)
-      .lte("scheduled_at", endOfMonth)
-      .order("scheduled_at");
-
-    if (bookingsData) {
-      // Fetch profiles separately
-      const userIds = new Set<string>();
-      bookingsData.forEach((b) => {
-        userIds.add(b.student_id);
-        userIds.add(b.trainer_id);
-      });
-
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, full_name")
-        .in("id", Array.from(userIds));
-
-      const profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
-
-      const enriched = bookingsData.map((booking) => ({
-        ...booking,
-        student: profileMap.get(booking.student_id),
-        trainer: profileMap.get(booking.trainer_id),
-      }));
-
-      setBookings(enriched);
+      setBookings(
+        allBookings.filter((booking) => {
+          const time = new Date(booking.scheduled_at).getTime();
+          return time >= startOfMonth && time < endOfMonth;
+        }),
+      );
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const getDaysInMonth = (year: number, month: number) => {
