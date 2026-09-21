@@ -1,4 +1,4 @@
-import { Moon, Sun, User } from "lucide-react";
+import { Moon, Sun, Info } from "lucide-react";
 import { Link } from "react-router-dom";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import { useTheme } from "@/hooks/useTheme";
@@ -27,9 +27,9 @@ const TopBar = () => {
           <Link
             to="/founder"
             className="w-10 h-10 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            aria-label="المؤسس"
+            aria-label="عن المدرسة والمؤسس"
           >
-            <User className="h-5 w-5" />
+            <Info className="h-5 w-5" />
           </Link>
           <NotificationBell />
         </div>
