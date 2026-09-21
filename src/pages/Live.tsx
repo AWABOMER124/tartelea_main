@@ -14,7 +14,7 @@ const liveDestinations = [
 const Live = () => (
   <AppLayout>
     <PageMeta title="مباشر" description="الغرف والورش المباشرة والقادمة في المدرسة الترتيلية." path="/live" />
-    <div className="mx-auto max-w-5xl space-y-8 px-4 py-6 sm:px-6 sm:py-10">
+    <div className="page-shell max-w-6xl space-y-8">
       <header className="max-w-2xl space-y-2">
         <div className="flex items-center gap-2 text-sm font-semibold text-spiritual-green"><Radio className="h-4 w-4" /> مباشر وقادم</div>
         <h1 className="text-2xl font-bold text-foreground sm:text-3xl">كن قريباً من اللقاء</h1>
@@ -23,9 +23,9 @@ const Live = () => (
 
       <UpcomingWorkshopsAnnouncement />
 
-      <section aria-label="أقسام البث والجلسات" className="grid gap-3 sm:grid-cols-2">
+      <section aria-label="أقسام البث والجلسات" className="grid gap-4 md:grid-cols-2">
         {liveDestinations.map(({ to, icon: Icon, title, description }) => (
-          <Link key={to} to={to} className="group rounded-2xl border border-border bg-card p-5 shadow-sm outline-none transition-colors hover:border-primary/25 focus-visible:ring-2 focus-visible:ring-ring">
+          <Link key={to} to={to} className="group rounded-xl border border-border bg-card p-5 outline-none transition-colors hover:border-primary/25 focus-visible:ring-2 focus-visible:ring-ring">
             <div className="flex items-start gap-4">
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-spiritual-green/10 text-spiritual-green"><Icon className="h-5 w-5" /></span>
               <div className="min-w-0 flex-1">
