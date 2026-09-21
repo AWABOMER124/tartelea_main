@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { format, ar } from "@/lib/date-utils";
 import PriceDisplay from "@/components/subscription/PriceDisplay";
-import { getWorkshop, joinWorkshop, leaveWorkshop, listWorkshopRecordings } from "@/lib/backendWorkshops";
+import { getWorkshop, joinWorkshop, leaveWorkshop, listUserWorkshopParticipations, listWorkshopRecordings } from "@/lib/backendWorkshops";
 
 interface Workshop {
   id: string;
@@ -123,11 +123,7 @@ const WorkshopDetail = () => {
   const checkParticipation = async () => {
     if (!userId || !id) return;
     try {
-      const data = await getWorkshop(id);
-      setIsJoined(Boolean(data && (data as any).participant_count >= 0));
-      const ids = await import("@/lib/backendWorkshops").then((module) =>
-        module.listUserWorkshopParticipations(userId),
-      );
+      const ids = await listUserWorkshopParticipations(userId);
       setIsJoined(ids.includes(id));
     } catch {
       setIsJoined(false);
@@ -158,19 +154,26 @@ const WorkshopDetail = () => {
 
     setJoiningLoading(true);
 
-    if (isJoined) {
-      await leaveWorkshop(id!, userId);
-      setIsJoined(false);
-      toast({ title: "تم", description: "تم إلغاء مشاركتك" });
+    try {
+      if (isJoined) {
+        await leaveWorkshop(id!, userId);
+        setIsJoined(false);
+        toast({ title: "تم", description: "تم إلغاء مشاركتك" });
+      } else {
+        await joinWorkshop(id!, userId);
+        setIsJoined(true);
+        toast({ title: "تم بنجاح", description: "تم تسجيلك في الورشة" });
+      }
       void fetchWorkshopDetails();
-    } else {
-      await joinWorkshop(id!, userId);
-      setIsJoined(true);
-      toast({ title: "تم بنجاح", description: "تم تسجيلك في الورشة" });
-      void fetchWorkshopDetails();
+    } catch {
+      toast({
+        title: "خطأ",
+        description: isJoined ? "فشل إلغاء المشاركة" : "فشل الانضمام",
+        variant: "destructive",
+      });
+    } finally {
+      setJoiningLoading(false);
     }
-
-    setJoiningLoading(false);
   };
 
   const formatDuration = (seconds: number | null) => {
