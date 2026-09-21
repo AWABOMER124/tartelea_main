@@ -205,8 +205,17 @@ const Workshops = () => {
               return (
                 <Card 
                   key={workshop.id} 
-                  className="overflow-hidden cursor-pointer border-border shadow-sm transition-colors hover:border-primary/25"
+                  role="link"
+                  tabIndex={0}
+                  aria-label={`فتح الورشة: ${workshop.title}`}
+                  className="cursor-pointer overflow-hidden border-border shadow-sm transition-colors hover:border-primary/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   onClick={() => navigate(`/workshops/${workshop.id}`)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      navigate(`/workshops/${workshop.id}`);
+                    }
+                  }}
                 >
                   <CardContent className="p-4">
                     <div className="flex gap-4">
@@ -214,7 +223,7 @@ const Workshops = () => {
                         <Video className="h-8 w-8 text-primary" />
                         {workshop.is_live && (
                           <div className="absolute -top-1 -right-1 bg-destructive rounded-full p-1">
-                            <Radio className="h-3 w-3 text-destructive-foreground animate-pulse" />
+                            <Radio className="h-3 w-3 text-destructive-foreground" />
                           </div>
                         )}
                       </div>

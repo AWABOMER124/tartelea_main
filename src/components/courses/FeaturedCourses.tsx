@@ -26,9 +26,9 @@ const depthColors = {
 };
 
 const depthLabels: Record<string, string> = {
-  beginner: "مبتدئ",
-  intermediate: "متوسط",
-  advanced: "متقدم",
+  beginner: "تخلية",
+  intermediate: "تحلية",
+  advanced: "تجلّي",
 };
 
 const FeaturedCourses = () => {

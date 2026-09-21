@@ -172,10 +172,10 @@ const BackendPostDetailPage = ({ postId }: BackendPostDetailPageProps) => {
     <AppLayout>
       <PageMeta
         title={post?.title || "تفاصيل المنشور"}
-        description="تفاصيل منشور المجتمع الرسمي عبر Community Lite في الباك إند."
+        description="اقرأ المنشور وشارك في النقاش داخل مجتمع المدرسة الترتيلية."
         path={`/community/${postId}`}
       />
-      <div className="px-4 py-6 space-y-6">
+      <div className="mx-auto w-full max-w-4xl space-y-6 px-4 py-6 sm:px-6 sm:py-10">
         <Button variant="ghost" onClick={() => navigate("/community")} className="gap-2 px-0">
           <ArrowRight className="h-4 w-4" />
           العودة إلى المجتمع
@@ -210,7 +210,7 @@ const BackendPostDetailPage = ({ postId }: BackendPostDetailPageProps) => {
               </div>
 
               {post.title && (
-                <h1 className="text-xl font-display font-bold text-foreground">{post.title}</h1>
+                <h1 className="text-xl font-bold text-foreground">{post.title}</h1>
               )}
 
               <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-7">{post.body}</p>
@@ -250,7 +250,7 @@ const BackendPostDetailPage = ({ postId }: BackendPostDetailPageProps) => {
 
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-2">
-                <h2 className="text-lg font-display font-bold text-foreground">التعليقات</h2>
+                <h2 className="text-lg font-bold text-foreground">التعليقات</h2>
                 {!isAuthenticated && (
                   <Badge variant="outline">سجل الدخول للتفاعل</Badge>
                 )}
