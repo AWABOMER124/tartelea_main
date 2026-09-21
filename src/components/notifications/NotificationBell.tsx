@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,6 +8,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import NotificationList from "./NotificationList";
+import { listNotifications, markAllNotificationsRead, markNotificationRead } from "@/lib/backendMessaging";
 
 interface Notification {
   id: string;
@@ -30,67 +30,56 @@ const NotificationBell = () => {
 
 
   useEffect(() => {
-    if (userId) {
-      fetchNotifications();
-      
-      // Subscribe to realtime notifications
-      const channel = supabase
-        .channel('notifications')
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'notifications',
-            filter: `user_id=eq.${userId}`,
-          },
-          (payload) => {
-            setNotifications((prev) => [payload.new as Notification, ...prev]);
-            setUnreadCount((prev) => prev + 1);
-          }
-        )
-        .subscribe();
+    if (!userId) return;
 
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }
+    let active = true;
+    const refresh = async () => {
+      try {
+        const data = await listNotifications();
+        if (!active) return;
+        setNotifications(data);
+        setUnreadCount(data.filter((notification) => !notification.is_read).length);
+      } catch {
+        // Notification polling should not interrupt the rest of the application.
+      }
+    };
+
+    void refresh();
+    const interval = window.setInterval(() => {
+      void refresh();
+    }, 15000);
+
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
   }, [userId]);
 
 
-  const fetchNotifications = async () => {
-    const { data } = await supabase
-      .from("notifications")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(20);
-
-    if (data) {
-      setNotifications(data);
-      setUnreadCount(data.filter((n) => !n.is_read).length);
+  const markAsRead = async (id: string) => {
+    try {
+      await markNotificationRead(id);
+      setNotifications((prev) =>
+        prev.map((notification) =>
+          notification.id === id ? { ...notification, is_read: true } : notification,
+        ),
+      );
+      setUnreadCount((prev) => Math.max(0, prev - 1));
+    } catch {
+      // Preserve the current state; a later poll will reconcile it.
     }
   };
 
-  const markAsRead = async (id: string) => {
-    await supabase
-      .from("notifications")
-      .update({ is_read: true })
-      .eq("id", id);
-
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
-    );
-    setUnreadCount((prev) => Math.max(0, prev - 1));
-  };
-
   const markAllAsRead = async () => {
-    await supabase
-      .from("notifications")
-      .update({ is_read: true })
-      .eq("is_read", false);
-
-    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
-    setUnreadCount(0);
+    try {
+      await markAllNotificationsRead();
+      setNotifications((prev) =>
+        prev.map((notification) => ({ ...notification, is_read: true })),
+      );
+      setUnreadCount(0);
+    } catch {
+      // Preserve the current state; a later poll will reconcile it.
+    }
   };
 
   if (!userId) return null;
@@ -98,7 +87,7 @@ const NotificationBell = () => {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
+        <Button variant="ghost" size="icon" className="relative" aria-label="الإشعارات">
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
             <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
