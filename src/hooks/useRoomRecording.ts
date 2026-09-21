@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { uploadRoomRecording } from "@/lib/backendRoomRecordings";
 
 interface UseRoomRecordingProps {
   roomId: string;
@@ -78,38 +78,27 @@ export const useRoomRecording = ({ roomId, localStream }: UseRoomRecordingProps)
     setIsUploading(true);
     try {
       const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-      const fileName = `${roomId}/${Date.now()}.webm`;
-
-      // Upload to storage
-      const { error: uploadError } = await supabase.storage
-        .from("room-recordings")
-        .upload(fileName, blob, {
-          contentType: "audio/webm",
-          upsert: false,
-        });
-
-      if (uploadError) throw uploadError;
-
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from("room-recordings")
-        .getPublicUrl(fileName);
-
-      // Save record to DB
-      const { error: dbError } = await supabase.from("room_recordings").insert({
-        room_id: roomId,
-        recording_url: urlData.publicUrl,
-        duration_seconds: duration,
-        file_size_bytes: blob.size,
-        is_available: true,
+      const file = new File([blob], `room-${roomId}-${Date.now()}.webm`, {
+        type: "audio/webm",
       });
 
-      if (dbError) throw dbError;
+      await uploadRoomRecording({
+        roomId,
+        file,
+        durationSeconds: duration,
+      });
 
-      toast({ title: "✅ تم حفظ التسجيل", description: "التسجيل متاح الآن في الأرشيف" });
+      toast({
+        title: "✅ تم حفظ التسجيل",
+        description: "التسجيل متاح الآن في الأرشيف",
+      });
     } catch (err) {
       console.error("Upload error:", err);
-      toast({ title: "خطأ", description: "فشل رفع التسجيل", variant: "destructive" });
+      toast({
+        title: "خطأ",
+        description: err instanceof Error ? err.message : "فشل رفع التسجيل",
+        variant: "destructive",
+      });
     } finally {
       setIsUploading(false);
       chunksRef.current = [];
