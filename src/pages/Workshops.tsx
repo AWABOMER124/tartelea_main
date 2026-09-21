@@ -215,7 +215,7 @@ const Workshops = () => {
                       event.preventDefault();
                       navigate(`/workshops/${workshop.id}`);
                     }
-                  }
+                  }}
                 >
                   <CardContent className="p-4">
                     <div className="flex gap-4">
