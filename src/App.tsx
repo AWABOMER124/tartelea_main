@@ -73,7 +73,7 @@ const AppInner = () => {
     if (isNativePlatform()) {
       import('@capacitor/status-bar').then(({ StatusBar, Style }) => {
         StatusBar.setStyle({ style: Style.Light }).catch(() => {});
-        StatusBar.setBackgroundColor({ color: '#F2EDE4' }).catch(() => {});
+        StatusBar.setBackgroundColor({ color: '#F7F5F1' }).catch(() => {});
       });
     }
   }, []);

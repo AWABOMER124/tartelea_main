@@ -8,6 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import FilterChip from "@/components/ui/FilterChip";
+import PageMeta from "@/components/seo/PageMeta";
+import { DiscoveryHeader, DiscoveryPage, EmptyState, FilterGroup, FilterPanel, ResultsHeading } from "@/components/layout/DiscoveryPage";
+import { Link } from "react-router-dom";
 import {
   Video,
   FileText,
@@ -47,7 +50,7 @@ const depthFilters = [
 ];
 
 const CourseCardSkeleton = () => (
-  <Card className="overflow-hidden">
+  <Card className="overflow-hidden rounded-2xl border-border shadow-sm">
     <CardContent className="p-4">
       <div className="flex gap-4">
         <Skeleton className="w-16 h-16 rounded-xl flex-shrink-0" />
@@ -123,57 +126,37 @@ const Courses = () => {
 
   return (
     <AppLayout>
-      <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-6 sm:px-6 sm:py-10">
-        <header className="max-w-2xl space-y-2">
-          <p className="text-sm font-semibold text-spiritual-green">تعلّم بمنهج</p>
-          <h1 className="text-2xl font-bold text-foreground sm:text-3xl">المسارات</h1>
-          <p className="leading-7 text-muted-foreground">اختر مساراً واضحاً وتدرّج من التخلية إلى التحلية ثم التجلّي.</p>
-        </header>
+      <PageMeta title="المسارات" description="مسارات المدرسة الترتيلية من التخلية إلى التحلية ثم التجلّي." path="/courses" />
+      <DiscoveryPage>
+        <DiscoveryHeader eyebrow="رحلة متدرّجة" title="المسارات" description="اختر محطة الرحلة، ثم ابدأ مساراً يقودك من الفهم إلى الأثر بخطوات واضحة." icon={BookOpen} />
 
-        {/* Filters */}
-        <div className="flex gap-2 overflow-x-auto pb-2">
-          {depthFilters.map((filter) => (
-            <FilterChip
-              key={filter.value}
-              label={filter.label}
-              isActive={selectedDepth === filter.value}
-              onClick={() => setSelectedDepth(filter.value)}
-            />
-          ))}
-        </div>
+        <FilterPanel><FilterGroup label="المحطة">{depthFilters.map((filter) => <FilterChip key={filter.value} label={filter.label} isActive={selectedDepth === filter.value} onClick={() => setSelectedDepth(filter.value)} />)}</FilterGroup></FilterPanel>
 
-        {/* Courses List */}
+        <ResultsHeading count={filteredCourses.length} label="المسارات المتاحة" />
+
         {coursesLoading ? (
-          <div className="space-y-4">
-            {[1, 2, 3].map((i) => (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {[1, 2, 3, 4].map((i) => (
               <CourseCardSkeleton key={i} />
             ))}
           </div>
         ) : filteredCourses.length === 0 ? (
-          <Card className="border-dashed shadow-none">
-            <CardContent className="py-10 text-center">
-              <BookOpen className="mx-auto mb-3 h-9 w-9 text-muted-foreground/50" />
-              <p className="font-semibold text-foreground">لا توجد مسارات في هذا المستوى</p>
-              <p className="mt-1 text-sm text-muted-foreground">جرّب مستوى آخر أو عد لاحقاً عند إضافة مسارات جديدة.</p>
-            </CardContent>
-          </Card>
+          <EmptyState icon={BookOpen} title="لا توجد مسارات في هذه المحطة" description="اختر محطة أخرى أو اعرض جميع المسارات المتاحة." />
         ) : (
-          <div className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
             {filteredCourses.map((course) => {
               const TypeIcon = typeIcons[course.type];
               const isSubscribed = subscriptions.includes(course.id);
 
               return (
-                <Card key={course.id} className="overflow-hidden border-border shadow-sm">
-                  <CardContent className="p-4">
+                <Card key={course.id} className="flex h-full flex-col overflow-hidden rounded-2xl border-border shadow-sm transition-colors hover:border-primary/25">
+                  <CardContent className="flex h-full flex-col p-5">
                     <div className="flex gap-4">
-                      <div className="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <TypeIcon className="h-8 w-8 text-primary" />
+                      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                        <TypeIcon className="h-6 w-6 text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-foreground line-clamp-1">
-                          {course.title}
-                        </h3>
+                        <Link to={`/courses/${course.id}`} className="line-clamp-1 font-semibold text-foreground outline-none hover:text-primary focus-visible:underline">{course.title}</Link>
                         {course.description && (
                           <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
                             {course.description}
@@ -187,7 +170,7 @@ const Courses = () => {
                             {depthLabels[course.depth_level]}
                           </Badge>
                         </div>
-                        <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
+                        <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                           <span className="flex items-center gap-1">
                             <Users className="h-4 w-4" />
                             {course.subscriber_count} مشترك
@@ -200,7 +183,7 @@ const Courses = () => {
                       onClick={() => handleSubscribe(course.id)}
                       disabled={subscribingId === course.id}
                       variant={isSubscribed ? "outline" : "default"}
-                      className="mt-4 min-h-11 w-full gap-2"
+                      className="mt-4 w-full gap-2"
                     >
                       {subscribingId === course.id ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -219,7 +202,7 @@ const Courses = () => {
             })}
           </div>
         )}
-      </div>
+      </DiscoveryPage>
     </AppLayout>
   );
 };

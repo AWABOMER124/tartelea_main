@@ -15,9 +15,10 @@ export default {
     },
     extend: {
       fontFamily: {
-        body: ["'Cairo'", "Amiri", "sans-serif"],
-        display: ["Amiri", "'Cairo'", "serif"],
-        arabic: ["'Cairo'", "Amiri", "sans-serif"],
+        body: ["'Cairo'", "sans-serif"],
+        display: ["'Cairo'", "sans-serif"],
+        arabic: ["'Cairo'", "sans-serif"],
+        quran: ["Amiri", "serif"],
       },
       colors: {
         border: "hsl(var(--border))",

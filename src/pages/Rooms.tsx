@@ -36,6 +36,8 @@ import {
   Users,
 } from "lucide-react";
 import { format, ar } from "@/lib/date-utils";
+import PageMeta from "@/components/seo/PageMeta";
+import { DiscoveryHeader, DiscoveryPage, EmptyState, FilterGroup, FilterPanel, ResultsHeading } from "@/components/layout/DiscoveryPage";
 
 interface RoomCardModel {
   id: string;
@@ -241,34 +243,14 @@ const Rooms = () => {
 
   return (
     <AppLayout>
-      <div className="page-shell max-w-6xl space-y-7">
-        <header className="max-w-2xl space-y-2">
-          <p className="text-sm font-semibold text-spiritual-green">مجالس صوتية</p>
-          <h1 className="text-2xl font-bold text-foreground sm:text-3xl">الغرف الصوتية</h1>
-          <p className="leading-7 text-muted-foreground">انضم إلى المجالس المباشرة أو سجّل للجلسات القادمة، وارجع إلى التسجيلات وقتما شئت.</p>
-        </header>
-
-        <div className="flex gap-2">
-          {canCreate && (
-            <Button onClick={() => setShowCreateDialog(true)} className="flex-1 gap-2">
-              <Plus className="h-4 w-4" />
-              إنشاء غرفة جديدة
-            </Button>
-          )}
-          <Button
-            variant="outline"
-            onClick={() => navigate("/room-recordings")}
-            className="gap-2"
-          >
-            <Archive className="h-4 w-4" />
-            الأرشيف
-          </Button>
-        </div>
+      <PageMeta title="الغرف الصوتية" description="جلسات المدرسة الترتيلية الصوتية المباشرة والقادمة." path="/rooms" />
+      <DiscoveryPage>
+        <DiscoveryHeader eyebrow="استمع وشارك" title="الغرف الصوتية" description="جلسات حوارية مباشرة وقادمة؛ اختر ما يناسبك وسجّل حضورك بخطوة واضحة." icon={Headphones} actions={<>{canCreate && <Button onClick={() => setShowCreateDialog(true)} className="gap-2"><Plus className="h-4 w-4" />إنشاء غرفة</Button>}<Button variant="outline" onClick={() => navigate("/room-recordings")} className="gap-2"><Archive className="h-4 w-4" />التسجيلات</Button></>} />
 
         {liveRooms.length > 0 && (
-          <div className="grid gap-4 lg:grid-cols-2">
+          <section className="space-y-3 rounded-2xl border border-spiritual-green/20 bg-spiritual-green/5 p-4 sm:p-5">
             <div className="flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full bg-spiritual-green" />
+              <span className="h-2.5 w-2.5 rounded-full bg-green-500 animate-pulse" />
               <h2 className="text-sm font-bold text-foreground">يحدث الآن</h2>
             </div>
 
@@ -276,7 +258,7 @@ const Rooms = () => {
               {liveRooms.map((room) => (
                 <Card
                   key={`live-${room.id}`}
-                  className="cursor-pointer overflow-hidden border-spiritual-green/30 bg-card shadow-sm transition-colors hover:border-spiritual-green/50"
+                  className="cursor-pointer overflow-hidden rounded-2xl border-spiritual-green/25 bg-card shadow-sm transition-colors hover:border-spiritual-green/50"
                   onClick={() => void handleEnterLive(room)}
                 >
                   <CardContent className="p-4">
@@ -354,40 +336,27 @@ const Rooms = () => {
                 </Card>
               ))}
             </div>
-          </div>
+          </section>
         )}
 
-        <div className="flex gap-2 overflow-x-auto pb-2">
-          {statusFilters.map((filter) => (
-            <FilterChip
-              key={filter.value}
-              label={filter.label}
-              isActive={selectedStatus === filter.value}
-              onClick={() => setSelectedStatus(filter.value)}
-            />
-          ))}
-        </div>
+        <FilterPanel><FilterGroup label="الحالة">{statusFilters.map((filter) => <FilterChip key={filter.value} label={filter.label} isActive={selectedStatus === filter.value} onClick={() => setSelectedStatus(filter.value)} />)}</FilterGroup></FilterPanel>
+
+        <ResultsHeading count={filteredRooms.length} label="الجلسات المتاحة" />
 
         {loading ? (
-          <div className="flex items-center justify-center py-8">
+          <div className="flex items-center justify-center rounded-2xl border border-border bg-card py-16">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
         ) : filteredRooms.length === 0 ? (
-          <Card className="border-dashed shadow-none">
-            <CardContent className="py-10 text-center">
-              <Headphones className="mx-auto mb-3 h-9 w-9 text-muted-foreground/50" />
-              <p className="font-semibold text-foreground">لا توجد جلسات في هذا القسم</p>
-              <p className="mt-1 text-sm text-muted-foreground">يمكنك مراجعة الأرشيف أو العودة عند إعلان مجلس جديد.</p>
-            </CardContent>
-          </Card>
+          <EmptyState icon={Headphones} title="لا توجد جلسات بهذه الحالة" description="اختر حالة أخرى أو عد لاحقاً لمتابعة الجلسات الجديدة." />
         ) : (
-          <div className="space-y-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             {filteredRooms.map((room) => {
               const scheduledDate = new Date(room.scheduledAt);
 
               return (
-                <Card key={room.id} className="overflow-hidden rounded-xl border-border shadow-none">
-                  <CardContent className="p-4">
+                <Card key={room.id} className="flex h-full flex-col overflow-hidden rounded-2xl border-border shadow-sm transition-colors hover:border-primary/25">
+                  <CardContent className="flex h-full flex-col p-5">
                     <div className="flex gap-3">
                       <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0 relative overflow-hidden">
                         {room.imageUrl ? (
@@ -473,7 +442,7 @@ const Rooms = () => {
                       </div>
                     </div>
 
-                    <div className="flex gap-2 mt-3">
+                    <div className="mt-auto flex gap-2 pt-4">
                       {room.isLive ? (
                         <Button
                           onClick={() => void handleEnterLive(room)}
@@ -520,7 +489,7 @@ const Rooms = () => {
             })}
           </div>
         )}
-      </div>
+      </DiscoveryPage>
 
       <CreateRoomDialog
         open={showCreateDialog}
