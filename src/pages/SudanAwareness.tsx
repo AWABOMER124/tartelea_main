@@ -1,243 +1,284 @@
-/**
- * STEP 2 transitional marker:
- * Sudan awareness still embeds legacy Supabase community widgets for a dedicated content surface.
- * It is not the primary `/community` owner anymore and should remain frozen until migrated.
- */
-import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/useAuth";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import AppLayout from "@/components/layout/AppLayout";
 import ContentCard from "@/components/content/ContentCard";
-import PostCard from "@/components/community/PostCard";
-import PostCommentsDialog from "@/components/community/PostCommentsDialog";
-import { Heart, Users, BookOpen } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  type BackendCommunityContext,
+  type BackendCommunityPost,
+  listBackendCommunityContexts,
+  listBackendCommunityFeed,
+  reactToBackendCommunityPost,
+} from "@/lib/backendCommunity";
+import {
+  listLibraryContent,
+  type BackendContentItem,
+} from "@/lib/backendContent";
+import { Heart, Users, BookOpen, Loader2, MessageCircle, ThumbsUp } from "lucide-react";
+import { formatDistanceToNow, ar } from "@/lib/date-utils";
+
+const isSudanContext = (context: BackendCommunityContext) => {
+  const haystack = [
+    context.slug,
+    context.title,
+    context.subtitle,
+    context.source_id,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return (
+    context.source_id === "sudan_awareness" ||
+    haystack.includes("sudan") ||
+    haystack.includes("السودان") ||
+    haystack.includes("السوداني")
+  );
+};
 
 const SudanAwareness = () => {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
-  const [contents, setContents] = useState<any[]>([]);
-  const [posts, setPosts] = useState<any[]>([]);
+  const [contents, setContents] = useState<BackendContentItem[]>([]);
+  const [posts, setPosts] = useState<BackendCommunityPost[]>([]);
+  const [context, setContext] = useState<BackendCommunityContext | null>(null);
   const [loading, setLoading] = useState(true);
-  const [userLikes, setUserLikes] = useState<Set<string>>(new Set());
-  const [commentPostId, setCommentPostId] = useState<string | null>(null);
-  const [commentPostTitle, setCommentPostTitle] = useState("");
+  const [refreshingPostId, setRefreshingPostId] = useState<string | null>(null);
 
-  useEffect(() => {
-    void fetchData(user);
-  }, [user?.id]);
-
-  const fetchData = async (currentUser?: any) => {
+  const loadData = async () => {
     setLoading(true);
+    try {
+      const [contentData, contexts] = await Promise.all([
+        listLibraryContent({ isSudanAwareness: true }),
+        listBackendCommunityContexts(),
+      ]);
 
-    // Fetch Sudan awareness content
-    const { data: contentData } = await supabase
-      .from("contents")
-      .select("*")
-      .eq("is_sudan_awareness", true)
-      .order("created_at", { ascending: false })
-      .limit(5);
+      const sudanContext = contexts.find(isSudanContext) || null;
+      setContents(contentData.slice(0, 5));
+      setContext(sudanContext);
 
-    // Fetch Sudan awareness posts
-    const { data: postData } = await supabase
-      .from("posts")
-      .select(`
-        *,
-        reactions:reactions (count),
-        comments:comments (count)
-      `)
-      .eq("category", "sudan_awareness")
-      .order("created_at", { ascending: false })
-      .limit(5);
-
-    if (contentData) setContents(contentData);
-    
-    if (postData) {
-      const authorIds = [...new Set(postData.map((p) => p.author_id))];
-      const { data: profiles } = await supabase
-        .from("profiles_public")
-        .select("id, full_name")
-        .in("id", authorIds);
-      const profileMap = new Map(profiles?.map((p) => [p.id, p.full_name]) || []);
-      setPosts(postData.map((p) => ({ ...p, author_name: profileMap.get(p.author_id) || "عضو" })));
-    }
-
-    // Fetch user likes
-    const u = currentUser || user;
-    if (u) {
-      const postIds = postData?.map((p) => p.id) || [];
-      if (postIds.length > 0) {
-        const { data: likes } = await supabase
-          .from("reactions")
-          .select("post_id")
-          .eq("user_id", u.id)
-          .in("post_id", postIds);
-        if (likes) setUserLikes(new Set(likes.map((l) => l.post_id)));
+      if (!sudanContext) {
+        setPosts([]);
+        return;
       }
-    }
 
-    setLoading(false);
+      const feed = await listBackendCommunityFeed({
+        contextId: sudanContext.id,
+        limit: 5,
+      });
+      setPosts([...(feed.pinned_items || []), ...(feed.items || [])].slice(0, 5));
+    } catch (error) {
+      toast({
+        title: "تعذر تحميل صفحة السودان",
+        description: error instanceof Error ? error.message : "حدث خطأ غير متوقع",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleLike = async (postId: string) => {
+  useEffect(() => {
+    void loadData();
+  }, []);
+
+  const handleLike = async (post: BackendCommunityPost) => {
     if (!user) {
-      toast({ title: "يجب تسجيل الدخول", description: "قم بتسجيل الدخول للتفاعل", variant: "destructive" });
+      toast({
+        title: "تسجيل الدخول مطلوب",
+        description: "سجل الدخول أولاً للتفاعل مع منشورات المجتمع.",
+        variant: "destructive",
+      });
       return;
     }
-    const isLiked = userLikes.has(postId);
-    setUserLikes((prev) => {
-      const next = new Set(prev);
-      if (isLiked) next.delete(postId); else next.add(postId);
-      return next;
-    });
-    setPosts((prev) => prev.map((p) => p.id === postId ? { ...p, reactions: [{ count: (p.reactions?.[0]?.count || 0) + (isLiked ? -1 : 1) }] } : p));
 
-    if (isLiked) {
-      const { data: existing } = await supabase.from("reactions").select("id").eq("post_id", postId).eq("user_id", user.id).maybeSingle();
-      if (existing) await supabase.from("reactions").delete().eq("id", existing.id);
-    } else {
-      await supabase.from("reactions").insert({ post_id: postId, user_id: user.id, type: "like" });
+    try {
+      setRefreshingPostId(post.id);
+      await reactToBackendCommunityPost(post.id, !post.viewer_state?.liked);
+      if (context) {
+        const feed = await listBackendCommunityFeed({ contextId: context.id, limit: 5 });
+        setPosts([...(feed.pinned_items || []), ...(feed.items || [])].slice(0, 5));
+      }
+    } catch (error) {
+      toast({
+        title: "تعذر تحديث التفاعل",
+        description: error instanceof Error ? error.message : "حدث خطأ غير متوقع",
+        variant: "destructive",
+      });
+    } finally {
+      setRefreshingPostId(null);
     }
   };
 
   return (
     <AppLayout>
-      <div className="px-4 py-6 space-y-8">
-        {/* Hero Section */}
-        <section className="text-center py-6 space-y-4">
-          <div className="w-16 h-16 mx-auto bg-sudan-red/10 rounded-full flex items-center justify-center">
-            <Heart className="h-8 w-8 text-sudan-red" />
+      <div className="mx-auto w-full max-w-5xl space-y-8 px-4 py-6 sm:px-6 sm:py-10">
+        <section className="max-w-2xl space-y-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sudan-red/10">
+            <Heart className="h-6 w-6 text-sudan-red" />
           </div>
-          <h1 className="text-2xl font-display font-bold text-foreground">
-            مبادرة الوعي السوداني
-          </h1>
-          <p className="text-muted-foreground text-sm max-w-sm mx-auto leading-relaxed">
-            نقف مع السودان في أزمته الإنسانية. نعمل على نشر الوعي وتقديم الدعم المعنوي 
-            والتعليمي للمتضررين.
+          <div>
+            <p className="text-sm font-semibold text-spiritual-green">مساحة معرفة ومجتمع</p>
+            <h1 className="mt-1 text-2xl font-bold text-foreground sm:text-3xl">
+              مبادرة الوعي السوداني
+            </h1>
+          </div>
+          <p className="text-sm leading-7 text-muted-foreground sm:text-base">
+            محتوى ونقاشات تساعد على فهم الواقع السوداني بوعي، وربط المعرفة بالمسؤولية والمجتمع.
           </p>
         </section>
 
-        {/* Sudan Flag Colors Banner */}
-        <div className="h-2 rounded-full overflow-hidden flex">
+        <div className="flex h-2 overflow-hidden rounded-full" aria-hidden="true">
           <div className="flex-1 bg-sudan-black" />
           <div className="flex-1 bg-sudan-red" />
           <div className="flex-1 bg-sudan-green" />
         </div>
 
-        {/* Stats */}
-        <section className="grid grid-cols-2 gap-4">
-          <div className="content-card text-center">
-            <Users className="h-6 w-6 text-primary mx-auto mb-2" />
-            <div className="text-2xl font-bold text-foreground">{contents.length}</div>
-            <div className="text-xs text-muted-foreground">محتوى توعوي</div>
-          </div>
-          <div className="content-card text-center">
-            <BookOpen className="h-6 w-6 text-sudan-red mx-auto mb-2" />
-            <div className="text-2xl font-bold text-foreground">{posts.length}</div>
-            <div className="text-xs text-muted-foreground">منشور مجتمعي</div>
-          </div>
+        <section className="grid grid-cols-2 gap-4" aria-label="ملخص الصفحة">
+          <Card className="shadow-none">
+            <CardContent className="p-4 text-center">
+              <BookOpen className="mx-auto mb-2 h-6 w-6 text-primary" />
+              <div className="text-2xl font-bold text-foreground">{contents.length}</div>
+              <div className="text-xs text-muted-foreground">مواد مختارة</div>
+            </CardContent>
+          </Card>
+          <Card className="shadow-none">
+            <CardContent className="p-4 text-center">
+              <Users className="mx-auto mb-2 h-6 w-6 text-sudan-red" />
+              <div className="text-2xl font-bold text-foreground">{posts.length}</div>
+              <div className="text-xs text-muted-foreground">منشورات المجتمع</div>
+            </CardContent>
+          </Card>
         </section>
 
-        {/* Latest Content */}
         <section className="space-y-4">
-          <h2 className="font-display font-semibold text-lg text-foreground">
-            أحدث المحتوى التوعوي
-          </h2>
+          <div>
+            <p className="text-sm font-semibold text-spiritual-green">للقراءة والمشاهدة</p>
+            <h2 className="mt-1 text-lg font-bold text-foreground">أحدث المحتوى التوعوي</h2>
+          </div>
+
           {loading ? (
-            <div className="space-y-4">
-              {[1, 2].map((i) => (
-                <div key={i} className="content-card animate-pulse">
-                  <div className="flex gap-3">
-                    <div className="w-12 h-12 bg-muted rounded-lg" />
-                    <div className="flex-1 space-y-2">
-                      <div className="h-4 bg-muted rounded w-3/4" />
-                      <div className="h-3 bg-muted rounded w-1/2" />
-                    </div>
-                  </div>
-                </div>
-              ))}
+            <div className="flex justify-center py-10">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>
           ) : contents.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground text-sm">
-              لا يوجد محتوى متاح حالياً
+            <div className="rounded-2xl border border-dashed py-10 text-center text-sm text-muted-foreground">
+              لا يوجد محتوى متاح حالياً.
             </div>
           ) : (
-            contents.map((content) => (
-              <ContentCard
-                key={content.id}
-                id={content.id}
-                title={content.title}
-                description={content.description}
-                type={content.type}
-                category={content.category}
-                depthLevel={content.depth_level}
-                isSudanAwareness={true}
-              />
-            ))
+            <div className="space-y-3">
+              {contents.map((content) => (
+                <ContentCard
+                  key={content.id}
+                  id={content.id}
+                  title={content.title}
+                  description={content.description}
+                  type={content.type}
+                  category={content.category}
+                  depthLevel={content.depth_level}
+                  isSudanAwareness
+                />
+              ))}
+            </div>
           )}
         </section>
 
-        {/* Latest Posts */}
         <section className="space-y-4">
-          <h2 className="font-display font-semibold text-lg text-foreground">
-            أحدث منشورات المجتمع
-          </h2>
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-spiritual-green">من مجتمع المدرسة</p>
+              <h2 className="mt-1 text-lg font-bold text-foreground">أحدث النقاشات</h2>
+            </div>
+            {context && (
+              <Button variant="outline" size="sm" onClick={() => navigate("/community")}>
+                عرض المجتمع
+              </Button>
+            )}
+          </div>
+
           {loading ? (
-            <div className="space-y-4">
-              {[1, 2].map((i) => (
-                <div key={i} className="post-card animate-pulse">
-                  <div className="flex gap-3 mb-3">
-                    <div className="w-10 h-10 bg-muted rounded-full" />
-                    <div className="flex-1 space-y-2">
-                      <div className="h-4 bg-muted rounded w-1/3" />
-                      <div className="h-3 bg-muted rounded w-1/4" />
-                    </div>
-                  </div>
-                  <div className="h-4 bg-muted rounded w-3/4" />
-                </div>
-              ))}
+            <div className="flex justify-center py-10">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          ) : !context ? (
+            <div className="rounded-2xl border border-dashed py-10 text-center text-sm text-muted-foreground">
+              مساحة السودان في المجتمع لم تُهيأ بعد.
             </div>
           ) : posts.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground text-sm">
-              لا توجد منشورات حالياً
+            <div className="rounded-2xl border border-dashed py-10 text-center text-sm text-muted-foreground">
+              لا توجد منشورات حالياً في مساحة السودان.
             </div>
           ) : (
-            posts.map((post) => (
-              <PostCard
-                key={post.id}
-                id={post.id}
-                title={post.title}
-                body={post.body}
-                category={post.category}
-                authorName={post.author_name}
-                createdAt={post.created_at}
-                likesCount={post.reactions?.[0]?.count || 0}
-                commentsCount={post.comments?.[0]?.count || 0}
-                isLiked={userLikes.has(post.id)}
-                onLike={() => handleLike(post.id)}
-                onComment={() => {
-                  setCommentPostId(post.id);
-                  setCommentPostTitle(post.title);
-                }}
-              />
-            ))
+            <div className="space-y-3">
+              {posts.map((post) => (
+                <article key={post.id} className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-foreground">
+                        {post.author?.name || "عضو"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDistanceToNow(new Date(post.created_at), {
+                          addSuffix: true,
+                          locale: ar,
+                        })}
+                      </p>
+                    </div>
+                    <span className="rounded-full bg-secondary px-2.5 py-1 text-xs text-secondary-foreground">
+                      {post.primary_context?.title || "السودان"}
+                    </span>
+                  </div>
+
+                  {post.title && (
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/community/${post.id}`)}
+                      className="mb-2 block w-full text-right font-semibold text-foreground hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      {post.title}
+                    </button>
+                  )}
+
+                  <p className="line-clamp-4 whitespace-pre-wrap text-sm leading-7 text-muted-foreground">
+                    {post.body}
+                  </p>
+
+                  <div className="mt-4 flex items-center gap-2 border-t border-border pt-3">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-2"
+                      disabled={refreshingPostId === post.id}
+                      onClick={() => void handleLike(post)}
+                    >
+                      {refreshingPostId === post.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <ThumbsUp className={`h-4 w-4 ${post.viewer_state?.liked ? "fill-primary text-primary" : ""}`} />
+                      )}
+                      <span>{post.counts?.reactions || 0}</span>
+                    </Button>
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-2"
+                      onClick={() => navigate(`/community/${post.id}`)}
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                      <span>{post.counts?.comments || 0}</span>
+                    </Button>
+                  </div>
+                </article>
+              ))}
+            </div>
           )}
         </section>
       </div>
-
-      {commentPostId && (
-        <PostCommentsDialog
-          open={!!commentPostId}
-          onOpenChange={(open) => {
-            if (!open) {
-              setCommentPostId(null);
-              fetchData();
-            }
-          }}
-          postId={commentPostId}
-          postTitle={commentPostTitle}
-        />
-      )}
     </AppLayout>
   );
 };
