@@ -118,8 +118,8 @@ const Profile = () => {
 
   return (
     <AppLayout>
-      <div className="mx-auto w-full max-w-4xl space-y-6 px-4 py-6 sm:px-6 sm:py-10">
-        <header className="flex flex-col items-center gap-3 text-center sm:flex-row sm:text-right">
+      <div className="page-shell max-w-6xl space-y-7">
+        <header className="flex flex-col gap-4 border-b border-border pb-6 sm:flex-row sm:items-center sm:text-right">
           <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-primary/10">
             <span className="text-2xl font-bold text-primary">
               {formData.full_name?.charAt(0) || user.email?.charAt(0) || "م"}
@@ -132,7 +132,7 @@ const Profile = () => {
           </div>
         </header>
 
-        <nav aria-label="أقسام الحساب" className="grid grid-cols-3 gap-1 rounded-2xl border border-border bg-card p-1.5 shadow-sm">
+        <nav aria-label="أقسام الحساب" className="grid grid-cols-3 gap-1 rounded-xl border border-border bg-card p-1.5 shadow-sm">
           {[
             { id: "journey" as const, label: "رحلتي", icon: BookOpen },
             { id: "profile" as const, label: "ملفي", icon: User },
@@ -158,7 +158,7 @@ const Profile = () => {
               <h2 className="mt-1 text-xl font-bold">رحلتي التعليمية</h2>
             </div>
             <LearningStats userId={user.id} />
-            <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+            <div className="rounded-xl border border-border bg-card p-5">
               <div className="mb-4 flex items-center gap-2">
                 <Award className="h-5 w-5 text-accent" />
                 <h3 className="font-bold">الشهادات</h3>
@@ -172,7 +172,7 @@ const Profile = () => {
         )}
 
         {activeSection === "profile" && (
-          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6" aria-labelledby="profile-edit-title">
+          <section className="rounded-xl border border-border bg-card p-5 sm:p-6" aria-labelledby="profile-edit-title">
             <div className="mb-5 flex items-center gap-2">
               <User className="h-5 w-5 text-primary" />
               <div>
@@ -198,7 +198,7 @@ const Profile = () => {
 
         {activeSection === "account" && (
           <section className="space-y-4" aria-label="إعدادات الحساب">
-            <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+            <div className="rounded-xl border border-border bg-card p-5">
               <div className="mb-4 flex items-center gap-2">
                 <CreditCard className="h-5 w-5 text-accent" />
                 <h2 className="font-bold">العضوية</h2>
