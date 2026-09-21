@@ -255,7 +255,7 @@ const Blog = () => {
                     event.preventDefault();
                     navigate(`/blog/${post.id}`);
                   }
-                }
+                }}
               >
                 <CardContent className="p-6 space-y-3">
                   <div className="flex items-center gap-2 flex-wrap">
