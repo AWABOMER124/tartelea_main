@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Award, Download, ExternalLink, Calendar } from "lucide-react";
 import { format, ar } from "@/lib/date-utils";
+import { listUserCertificates } from "@/lib/backendLearning";
 
 interface Certificate {
   id: string;
@@ -33,33 +33,11 @@ const UserCertificates = ({ userId }: UserCertificatesProps) => {
   }, [userId]);
 
   const fetchCertificates = async () => {
-    const { data: certsData } = await supabase
-      .from("certificates")
-      .select("*")
-      .eq("user_id", userId)
-      .order("issued_at", { ascending: false });
-
-    if (certsData && certsData.length > 0) {
-      // Get course titles
-      const courseIds = certsData.map((c) => c.course_id);
-      const { data: coursesData } = await supabase
-        .from("trainer_courses")
-        .select("id, title")
-        .in("id", courseIds);
-
-      const coursesMap = new Map(
-        coursesData?.map((c) => [c.id, c.title]) || []
-      );
-
-      setCertificates(
-        certsData.map((cert) => ({
-          ...cert,
-          course_title: coursesMap.get(cert.course_id) || "دورة",
-        }))
-      );
+    try {
+      setCertificates(userId ? await listUserCertificates(userId) : []);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   if (!userId) {
