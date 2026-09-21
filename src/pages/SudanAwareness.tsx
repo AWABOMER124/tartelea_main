@@ -6,6 +6,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import AppLayout from "@/components/layout/AppLayout";
 import ContentCard from "@/components/content/ContentCard";
 import PostCard from "@/components/community/PostCard";
@@ -14,22 +15,17 @@ import { Heart, Users, BookOpen } from "lucide-react";
 
 const SudanAwareness = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [contents, setContents] = useState<any[]>([]);
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
   const [userLikes, setUserLikes] = useState<Set<string>>(new Set());
   const [commentPostId, setCommentPostId] = useState<string | null>(null);
   const [commentPostTitle, setCommentPostTitle] = useState("");
 
   useEffect(() => {
-    const init = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-      await fetchData(user);
-    };
-    init();
-  }, []);
+    void fetchData(user);
+  }, [user?.id]);
 
   const fetchData = async (currentUser?: any) => {
     setLoading(true);

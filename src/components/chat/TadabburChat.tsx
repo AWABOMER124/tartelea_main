@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
+import { getBackendAccessToken } from "@/lib/backendSession";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
 import RootDecoder from "@/components/tadabbur/RootDecoder";
@@ -61,9 +61,9 @@ const TadabburChat = ({ isOpen, onClose }: TadabburChatProps) => {
   }, [messages]);
 
   const streamChat = async (userMessages: Message[]) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session) {
+    const accessToken = getBackendAccessToken();
+
+    if (!accessToken) {
       throw new Error("يجب تسجيل الدخول لاستخدام المساعد");
     }
 
@@ -71,7 +71,7 @@ const TadabburChat = ({ isOpen, onClose }: TadabburChatProps) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
+        Authorization: `Bearer ${accessToken}`,
       },
       body: JSON.stringify({ messages: userMessages }),
     });
