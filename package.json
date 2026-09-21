@@ -13,7 +13,8 @@
     "check:backend-first": "node scripts/check_backend_first_guard.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check:no-direct-supabase": "node scripts/check_no_direct_supabase.mjs"
+    "check:no-direct-supabase": "node scripts/check_no_direct_supabase.mjs",
+    "check:deploy-env": "node scripts/check_web_deploy_env.mjs"
   },
   "dependencies": {
     "@anuradev/capacitor-background-mode": "^7.2.1",
