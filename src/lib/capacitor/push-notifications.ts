@@ -1,6 +1,6 @@
 import { PushNotifications } from '@capacitor/push-notifications';
 import { isNativePlatform } from './platform';
-import { supabase } from '@/integrations/supabase/client';
+import { backendRequest } from '@/lib/backendApi';
 
 /**
  * Push Notifications service for Capacitor
@@ -27,7 +27,7 @@ export async function initPushNotifications(
 
   // Handle registration success - save token
   PushNotifications.addListener('registration', async (token) => {
-    console.log('Push registration success, token:', token.value);
+    console.log('Push registration succeeded');
     await saveDeviceToken(token.value);
   });
 
@@ -57,23 +57,13 @@ export async function initPushNotifications(
  * Save device token to database
  */
 async function saveDeviceToken(token: string): Promise<void> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return;
-
-  // Upsert the token
-  const { error } = await supabase
-    .from('device_tokens')
-    .upsert(
-      {
-        user_id: user.id,
-        token,
-        platform: 'android',
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'user_id,token' }
-    );
-
-  if (error) {
+  try {
+    await backendRequest('/device-tokens', {
+      method: 'POST',
+      requireAuth: true,
+      body: { token, platform: 'android' },
+    });
+  } catch (error) {
     console.error('Failed to save device token:', error);
   }
 }
@@ -85,13 +75,10 @@ export async function removePushToken(): Promise<void> {
   if (!isNativePlatform()) return;
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      await supabase
-        .from('device_tokens')
-        .delete()
-        .eq('user_id', user.id);
-    }
+    await backendRequest('/device-tokens', {
+      method: 'DELETE',
+      requireAuth: true,
+    });
   } catch (error) {
     console.error('Failed to remove device token:', error);
   }
