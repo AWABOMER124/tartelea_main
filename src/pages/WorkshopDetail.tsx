@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -23,6 +22,7 @@ import {
 } from "lucide-react";
 import { format, ar } from "@/lib/date-utils";
 import PriceDisplay from "@/components/subscription/PriceDisplay";
+import { getWorkshop, joinWorkshop, leaveWorkshop, listWorkshopRecordings } from "@/lib/backendWorkshops";
 
 interface Workshop {
   id: string;
@@ -88,67 +88,50 @@ const WorkshopDetail = () => {
   const fetchWorkshopDetails = async () => {
     if (!id) return;
 
-    const { data: workshopData, error } = await supabase
-      .from("workshops")
-      .select("*")
-      .eq("id", id)
-      .single();
-
-    if (error) {
+    try {
+      const data = await getWorkshop(id);
+      if (!data) {
+        toast({
+          title: "خطأ",
+          description: "فشل تحميل تفاصيل الورشة",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+      setWorkshop(data);
+    } catch {
       toast({
         title: "خطأ",
         description: "فشل تحميل تفاصيل الورشة",
         variant: "destructive",
       });
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("full_name")
-      .eq("id", workshopData.host_id)
-      .single();
-
-    const { count } = await supabase
-      .from("workshop_participants")
-      .select("*", { count: "exact", head: true })
-      .eq("workshop_id", id);
-
-    setWorkshop({
-      ...workshopData,
-      host_name: profileData?.full_name || "مدرب",
-      participant_count: count || 0,
-    });
-    setLoading(false);
   };
 
   const fetchRecordings = async () => {
     if (!id) return;
-
-    const { data } = await supabase
-      .from("workshop_recordings")
-      .select("id, recording_url, duration_seconds, recorded_at, cloudflare_uid")
-      .eq("workshop_id", id)
-      .eq("is_available", true)
-      .order("recorded_at", { ascending: false });
-
-    if (data) {
-      setRecordings(data);
+    try {
+      setRecordings(await listWorkshopRecordings(id));
+    } catch {
+      setRecordings([]);
     }
   };
 
   const checkParticipation = async () => {
     if (!userId || !id) return;
-
-    const { data } = await supabase
-      .from("workshop_participants")
-      .select("id")
-      .eq("workshop_id", id)
-      .eq("user_id", userId)
-      .single();
-
-    setIsJoined(!!data);
+    try {
+      const data = await getWorkshop(id);
+      setIsJoined(Boolean(data && (data as any).participant_count >= 0));
+      const ids = await import("@/lib/backendWorkshops").then((module) =>
+        module.listUserWorkshopParticipations(userId),
+      );
+      setIsJoined(ids.includes(id));
+    } catch {
+      setIsJoined(false);
+    }
   };
 
   const handleJoin = async () => {
@@ -176,27 +159,15 @@ const WorkshopDetail = () => {
     setJoiningLoading(true);
 
     if (isJoined) {
-      const { error } = await supabase
-        .from("workshop_participants")
-        .delete()
-        .eq("workshop_id", id)
-        .eq("user_id", userId);
-
-      if (!error) {
-        setIsJoined(false);
-        toast({ title: "تم", description: "تم إلغاء مشاركتك" });
-        fetchWorkshopDetails();
-      }
+      await leaveWorkshop(id!, userId);
+      setIsJoined(false);
+      toast({ title: "تم", description: "تم إلغاء مشاركتك" });
+      void fetchWorkshopDetails();
     } else {
-      const { error } = await supabase
-        .from("workshop_participants")
-        .insert({ workshop_id: id, user_id: userId });
-
-      if (!error) {
-        setIsJoined(true);
-        toast({ title: "تم بنجاح", description: "تم تسجيلك في الورشة" });
-        fetchWorkshopDetails();
-      }
+      await joinWorkshop(id!, userId);
+      setIsJoined(true);
+      toast({ title: "تم بنجاح", description: "تم تسجيلك في الورشة" });
+      void fetchWorkshopDetails();
     }
 
     setJoiningLoading(false);
