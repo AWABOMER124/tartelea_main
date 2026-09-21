@@ -174,7 +174,7 @@ const WorkshopRecordings = () => {
 
   return (
     <AppLayout>
-      <div className="p-4 pb-24 space-y-6" dir="rtl">
+      <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-6 sm:px-6 sm:py-10" dir="rtl">
         {/* Header */}
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
@@ -195,12 +195,13 @@ const WorkshopRecordings = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="ابحث بالعنوان أو اسم المدرب..."
-            className="pr-10 pl-10"
+            className="min-h-11 pr-10 pl-10"
           />
           {searchQuery && (
             <button
               onClick={clearSearch}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              aria-label="مسح البحث"
+              className="absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <X className="h-4 w-4" />
             </button>
@@ -280,8 +281,17 @@ const WorkshopRecordings = () => {
             {filteredRecordings.map((recording) => (
               <Card
                 key={recording.id}
-                className="cursor-pointer overflow-hidden border-border shadow-sm transition-colors hover:border-primary/25"
+                role="button"
+                tabIndex={0}
+                aria-label={`تشغيل تسجيل: ${recording.workshop.title}`}
+                className="cursor-pointer overflow-hidden border-border shadow-sm transition-colors hover:border-primary/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 onClick={() => handlePlayRecording(recording)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    handlePlayRecording(recording);
+                  }
+                }
               >
                 <div className="relative aspect-video bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
                   <div className="absolute inset-0 flex items-center justify-center">
