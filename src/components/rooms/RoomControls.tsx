@@ -60,7 +60,7 @@ const RoomControls = ({
   isMutedAll,
 }: RoomControlsProps) => {
   return (
-    <div className="bg-card/95 backdrop-blur-sm border-t border-border px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+    <div className="border-t border-border bg-card/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur-sm">
       {/* Status indicators */}
       <div className="flex items-center justify-center gap-2 mb-2 min-h-[24px]">
         {isRecording && (
@@ -82,12 +82,12 @@ const RoomControls = ({
         )}
       </div>
 
-      <div className="flex items-center justify-center gap-2.5 max-w-md mx-auto">
+      <div className="mx-auto flex max-w-md flex-wrap items-center justify-center gap-2 sm:flex-nowrap sm:gap-2.5">
         {/* Chat Toggle */}
         <Button
           variant={showChat ? "secondary" : "ghost"}
           size="icon"
-          className="h-11 w-11 rounded-full"
+          className="h-10 w-10 rounded-[9px] sm:h-11 sm:w-11 sm:rounded-[10px]"
           onClick={onToggleChat}
         >
           <MessageSquare className="h-5 w-5" />
@@ -98,7 +98,7 @@ const RoomControls = ({
           <Button
             variant={hasRaisedHand ? "default" : "outline"}
             size="icon"
-            className={`h-11 w-11 rounded-full transition-all ${
+            className={`h-11 w-11 rounded-[10px] transition-all ${
               hasRaisedHand ? "bg-amber-500 hover:bg-amber-600 border-amber-500" : ""
             }`}
             onClick={onRaiseHand}
@@ -112,7 +112,7 @@ const RoomControls = ({
           <Button
             variant={isAudioEnabled ? "secondary" : "destructive"}
             size="icon"
-            className="h-14 w-14 rounded-full shadow-md"
+            className="h-12 w-12 rounded-[10px] shadow-sm sm:h-14 sm:w-14"
             onClick={onToggleAudio}
           >
             {isAudioEnabled ? <Mic className="h-6 w-6" /> : <MicOff className="h-6 w-6" />}
@@ -124,7 +124,7 @@ const RoomControls = ({
           <Button
             variant="ghost"
             size="icon"
-            className="h-11 w-11 rounded-full"
+            className="h-10 w-10 rounded-[9px] sm:h-11 sm:w-11 sm:rounded-[10px]"
             onClick={onMuteAll}
             title={isMutedAll ? "إلغاء كتم الكل" : "كتم الكل"}
           >
@@ -137,7 +137,7 @@ const RoomControls = ({
           <Button
             variant={isRecording ? "destructive" : "outline"}
             size="icon"
-            className={`h-11 w-11 rounded-full ${isRecording ? "ring-2 ring-destructive ring-offset-1 ring-offset-card" : ""}`}
+            className={`h-10 w-10 rounded-[9px] sm:h-11 sm:w-11 sm:rounded-[10px] ${isRecording ? "ring-2 ring-destructive ring-offset-1 ring-offset-card" : ""}`}
             onClick={isRecording ? onStopRecording : onStartRecording}
             disabled={isUploading}
           >
@@ -154,7 +154,7 @@ const RoomControls = ({
           <Button
             variant={isLive ? "destructive" : "default"}
             size="icon"
-            className="h-11 w-11 rounded-full"
+            className="h-10 w-10 rounded-[9px] sm:h-11 sm:w-11 sm:rounded-[10px]"
             onClick={isLive ? onEndLive : onStartLive}
           >
             {isLive ? <Square className="h-5 w-5" /> : <Radio className="h-5 w-5" />}
@@ -164,7 +164,7 @@ const RoomControls = ({
         {/* Leave */}
         <Button
           variant="ghost"
-          className="h-11 px-4 rounded-full bg-destructive/10 hover:bg-destructive/20 text-destructive"
+          className="h-10 rounded-[9px] bg-destructive/10 px-3 text-destructive hover:bg-destructive/20 sm:h-11 sm:rounded-[10px] sm:px-4"
           onClick={onLeave}
         >
           <PhoneOff className="h-4 w-4 ml-1.5" />

@@ -1,0 +1,29 @@
+<svg width="1200" height="720" viewBox="0 0 1200 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="720" gradientUnits="userSpaceOnUse">
+    <stop stop-color="#2C1A12"/>
+    <stop offset="0.55" stop-color="#4A2C1D"/>
+    <stop offset="1" stop-color="#6A4937"/>
+  </linearGradient>
+  <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(598 302) rotate(90) scale(300 470)">
+    <stop stop-color="#E6C16B" stop-opacity=".38"/>
+    <stop offset="1" stop-color="#E6C16B" stop-opacity="0"/>
+  </radialGradient>
+</defs>
+<rect width="1200" height="720" rx="36" fill="url(#bg)"/>
+<rect width="1200" height="720" rx="36" fill="url(#glow)"/>
+<path d="M180 0V720M1020 0V720" stroke="#E7D6B8" stroke-opacity=".12" stroke-width="3"/>
+<path d="M295 0V720M905 0V720" stroke="#E7D6B8" stroke-opacity=".08" stroke-width="2"/>
+<path d="M405 0V720M795 0V720" stroke="#E7D6B8" stroke-opacity=".06" stroke-width="2"/>
+<path d="M600 84C546 143 512 202 512 267V409H688V267C688 202 654 143 600 84Z" fill="#F7E8CA" fill-opacity=".08" stroke="#E9D1A6" stroke-opacity=".2" stroke-width="3"/>
+<path d="M431 506C490 464 548 454 600 484C652 454 710 464 769 506V610C713 578 657 574 600 600C543 574 487 578 431 610V506Z" fill="#F3E6CF" fill-opacity=".94"/>
+<path d="M600 484V600" stroke="#B78D49" stroke-width="5"/>
+<path d="M459 520C510 490 556 486 600 507M741 520C690 490 644 486 600 507" stroke="#B78D49" stroke-opacity=".55" stroke-width="3"/>
+<circle cx="600" cy="245" r="10" fill="#C89B3C"/>
+<path d="M570 245H630" stroke="#C89B3C" stroke-width="4" stroke-linecap="round"/>
+<path d="M600 215V275" stroke="#C89B3C" stroke-width="4" stroke-linecap="round"/>
+<circle cx="220" cy="145" r="4" fill="#E6C16B" fill-opacity=".55"/>
+<circle cx="960" cy="176" r="3" fill="#E6C16B" fill-opacity=".45"/>
+<circle cx="270" cy="320" r="3" fill="#E6C16B" fill-opacity=".35"/>
+<circle cx="930" cy="362" r="4" fill="#E6C16B" fill-opacity=".4"/>
+</svg>

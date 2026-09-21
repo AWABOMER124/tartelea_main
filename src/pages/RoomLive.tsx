@@ -420,9 +420,9 @@ const RoomLive = () => {
 
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         <div className={`flex-1 overflow-y-auto ${showChat || showManagement ? "lg:w-2/3" : "w-full"}`}>
-          <div className="max-w-xl mx-auto px-4 py-6 space-y-6">
+          <div className="mx-auto w-full max-w-6xl space-y-5 px-4 py-5 sm:px-6">
             {sessionDetails.session.description && (
-              <p className="text-sm text-muted-foreground text-center leading-relaxed bg-muted/30 rounded-xl px-4 py-3">
+              <p className="reference-card px-4 py-3 text-center text-sm leading-relaxed text-muted-foreground">
                 {sessionDetails.session.description}
               </p>
             )}
@@ -451,7 +451,7 @@ const RoomLive = () => {
         </div>
 
         {showManagement && canManage && (
-          <div className="w-full lg:w-80 border-r border-border h-[calc(100vh-8rem)] overflow-y-auto">
+          <div className="w-full lg:w-80 border-r border-border bg-card h-[calc(100vh-8rem)] overflow-y-auto">
             <RoomManagementPanel
               speakers={speakers}
               audience={audience}
@@ -476,13 +476,13 @@ const RoomLive = () => {
         )}
 
         {showChat && userId && !showManagement && (
-          <div className="w-full lg:w-80 border-r border-border h-[calc(100vh-8rem)]">
+          <div className="w-full lg:w-80 border-r border-border bg-card h-[calc(100vh-8rem)]">
             <LiveChat eventId={id!} eventType="room" userId={userId} overlay />
           </div>
         )}
       </div>
 
-      <div className="bg-card/80 backdrop-blur-sm border-t border-border px-2 py-1">
+      <div className="border-t border-border bg-card px-2 py-1">
         <RoomReactions room={liveKit.room} />
       </div>
 

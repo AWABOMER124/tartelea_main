@@ -41,7 +41,7 @@ const RoomHeader = ({
   onToggleManagement,
 }: RoomHeaderProps) => {
   return (
-    <div className="bg-card/95 backdrop-blur-sm border-b border-border px-4 py-2.5">
+    <div className="border-b border-border bg-card/95 px-4 py-3 backdrop-blur-sm">
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onLeave}>
           <ArrowRight className="h-5 w-5" />

@@ -27,7 +27,7 @@ const RoomAudience = ({ audience, currentUserId, isHost, onInviteToStage }: Room
   });
 
   return (
-    <div className="space-y-4">
+    <section className="reference-card space-y-4 p-5">
       <div className="flex items-center gap-2 px-1">
         <Users className="h-4 w-4 text-muted-foreground" />
         <h3 className="text-sm font-semibold text-muted-foreground">المستمعون</h3>
@@ -68,7 +68,7 @@ const RoomAudience = ({ audience, currentUserId, isHost, onInviteToStage }: Room
           );
         })}
       </div>
-    </div>
+    </section>
   );
 };
 

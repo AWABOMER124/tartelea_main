@@ -19,6 +19,12 @@ const typeIcons = {
   video: Video,
 };
 
+const typeLabels = {
+  article: "مقال",
+  audio: "صوتي",
+  video: "مرئي",
+};
+
 const categoryLabels: Record<string, string> = {
   quran: "القرآن",
   values: "القيم",
@@ -51,7 +57,7 @@ const ContentCard = ({
       role="link"
       tabIndex={0}
       aria-label={`فتح: ${title}`}
-      className="content-card cursor-pointer transition-colors hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="group reference-card reference-card-hover cursor-pointer overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       onClick={() => navigate(`/content/${id}`)}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
@@ -60,34 +66,42 @@ const ContentCard = ({
         }
       }}
     >
-      <div className="flex gap-3">
+      <div
+        className={cn(
+          "relative flex aspect-[16/8.5] items-center justify-center overflow-hidden",
+          type === "audio"
+            ? "bg-[linear-gradient(135deg,#1f2725,#456b57)]"
+            : type === "video"
+              ? "bg-[linear-gradient(135deg,#6a4937,#4a2c1d)]"
+              : "bg-[linear-gradient(135deg,#efe7da,#d9c8ad)]",
+        )}
+      >
+        <div className="absolute inset-0 opacity-35 [background-image:radial-gradient(circle_at_20%_20%,white_0,transparent_28%),radial-gradient(circle_at_80%_70%,#c89b3c_0,transparent_24%)]" />
         <div className={cn(
-          "flex-shrink-0 w-12 h-12 rounded-lg flex items-center justify-center",
-          isSudanAwareness ? "bg-sudan-red/10" : "bg-primary/10"
+          "relative flex h-14 w-14 items-center justify-center rounded-full border border-white/25 bg-white/10 backdrop-blur-sm",
+          type === "article" ? "text-primary" : "text-white",
         )}>
-          <Icon className={cn(
-            "h-6 w-6",
-            isSudanAwareness ? "text-sudan-red" : "text-primary"
-          )} />
+          <Icon className="h-7 w-7" />
         </div>
-        <div className="flex-1 min-w-0">
-          <h3 className="font-display font-semibold text-foreground leading-tight mb-1 line-clamp-2">
-            {title}
-          </h3>
-          {description && (
-            <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
-              {description}
-            </p>
-          )}
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="secondary" className="text-xs">
-              {categoryLabels[category] || category}
-            </Badge>
-            <Badge variant="outline" className="text-xs">
-              {depthLabels[depthLevel] || depthLevel}
-            </Badge>
-          </div>
+        <span className="absolute bottom-3 right-3 rounded-full border border-white/15 bg-black/20 px-2.5 py-1 text-[10px] font-semibold text-white backdrop-blur-sm">
+          {typeLabels[type]}
+        </span>
+      </div>
+
+      <div className="p-4">
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          <Badge variant="secondary">{categoryLabels[category] || category}</Badge>
+          <Badge variant="outline">{depthLabels[depthLevel] || depthLevel}</Badge>
+          {isSudanAwareness && <Badge variant="outline">وعي سوداني</Badge>}
         </div>
+        <h3 className="line-clamp-2 font-bold leading-6 text-foreground transition-colors group-hover:text-primary">
+          {title}
+        </h3>
+        {description && (
+          <p className="mt-1.5 line-clamp-2 text-xs leading-6 text-muted-foreground">
+            {description}
+          </p>
+        )}
       </div>
     </article>
   );
