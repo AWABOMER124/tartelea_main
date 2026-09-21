@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,16 +27,14 @@ interface DirectMessagesProps {
 
 const DirectMessages = ({ recipientId, recipientName, onBack }: DirectMessagesProps) => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
+  const userId = user?.id ?? null;
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    checkUser();
-  }, []);
 
   useEffect(() => {
     if (userId && recipientId) {
@@ -72,10 +71,6 @@ const DirectMessages = ({ recipientId, recipientName, onBack }: DirectMessagesPr
     scrollToBottom();
   }, [messages]);
 
-  const checkUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    setUserId(user?.id || null);
-  };
 
   const fetchMessages = async () => {
     if (!userId) return;
