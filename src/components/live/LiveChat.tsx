@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Send, Loader2 } from "lucide-react";
 import { format } from "@/lib/date-utils";
+import { listLiveChatMessages, listLiveChatProfiles, sendLiveChatMessage } from "@/lib/backendLiveChat";
 
 interface Message {
   id: string;
@@ -52,14 +52,30 @@ const LiveChat = ({ eventId, eventType, userId, overlay = false }: LiveChatProps
   const scrollRef = useRef<HTMLDivElement>(null);
   const isAutoScrollRef = useRef(true);
 
-  const tableName = eventType === "workshop" ? "workshop_messages" : "room_messages";
-  const foreignKey = eventType === "workshop" ? "workshop_id" : "room_id";
-
   useEffect(() => {
-    fetchMessages();
-    const cleanup = setupRealtimeSubscription();
-    return cleanup;
-  }, [eventId]);
+    let active = true;
+
+    const refresh = async () => {
+      const data = await listLiveChatMessages(eventType, eventId);
+      if (!active) return;
+
+      const nextProfiles = await listLiveChatProfiles(data.map((message) => message.user_id));
+      if (!active) return;
+
+      setProfilesMap(nextProfiles);
+      setMessages(data);
+    };
+
+    void refresh();
+    const interval = window.setInterval(() => {
+      void refresh();
+    }, 3000);
+
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, [eventId, eventType]);
 
   useEffect(() => {
     if (isAutoScrollRef.current) {
@@ -79,126 +95,28 @@ const LiveChat = ({ eventId, eventType, userId, overlay = false }: LiveChatProps
     isAutoScrollRef.current = scrollHeight - scrollTop - clientHeight < 60;
   };
 
-  const fetchMessages = async () => {
-    let query;
-    if (eventType === "workshop") {
-      query = supabase
-        .from("workshop_messages")
-        .select("*")
-        .eq("workshop_id", eventId)
-        .order("created_at", { ascending: true })
-        .limit(100);
-    } else {
-      query = supabase
-        .from("room_messages")
-        .select("*")
-        .eq("room_id", eventId)
-        .order("created_at", { ascending: true })
-        .limit(100);
-    }
-
-    const { data, error } = await query;
-    if (error) {
-      console.error("Error fetching messages:", error);
-      return;
-    }
-
-    if (data && data.length > 0) {
-      const userIds = [...new Set(data.map((m) => m.user_id))] as string[];
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, full_name, avatar_url")
-        .in("id", userIds);
-
-      const map = new Map(
-        profiles?.map((p) => [p.id, { name: p.full_name || "مستخدم", avatar: p.avatar_url || undefined }]) || []
-      );
-      setProfilesMap(map);
-      setMessages(data as Message[]);
-    }
-  };
-
-  const setupRealtimeSubscription = () => {
-    const channel = supabase
-      .channel(`${eventType}-chat-${eventId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: tableName,
-          filter: `${foreignKey}=eq.${eventId}`,
-        },
-        async (payload) => {
-          const newMsg = payload.new as Message;
-
-          if (!profilesMap.has(newMsg.user_id)) {
-            const { data: profile } = await supabase
-              .from("profiles")
-              .select("full_name, avatar_url")
-              .eq("id", newMsg.user_id)
-              .single();
-
-            if (profile) {
-              setProfilesMap((prev) =>
-                new Map(prev).set(newMsg.user_id, {
-                  name: profile.full_name || "مستخدم",
-                  avatar: profile.avatar_url || undefined,
-                })
-              );
-            }
-          }
-
-          setMessages((prev) => {
-            const updated = [...prev, newMsg];
-            // Keep last 200 messages to prevent memory bloat
-            if (updated.length > 200) return updated.slice(-200);
-            return updated;
-          });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  };
-
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim()) return;
 
     setSending(true);
-    let error;
-
-    if (eventType === "workshop") {
-      const result = await supabase.from("workshop_messages").insert({
-        workshop_id: eventId,
-        user_id: userId,
-        message: newMessage.trim(),
-      });
-      error = result.error;
-    } else {
-      const result = await supabase.from("room_messages").insert({
-        room_id: eventId,
-        user_id: userId,
-        message: newMessage.trim(),
-      });
-      error = result.error;
-    }
-
-    if (error) {
+    try {
+      await sendLiveChatMessage(eventType, eventId, userId, newMessage.trim());
+      setNewMessage("");
+      isAutoScrollRef.current = true;
+      const data = await listLiveChatMessages(eventType, eventId);
+      const nextProfiles = await listLiveChatProfiles(data.map((message) => message.user_id));
+      setProfilesMap(nextProfiles);
+      setMessages(data);
+    } catch {
       toast({
         title: "خطأ",
         description: "فشل إرسال الرسالة",
         variant: "destructive",
       });
-    } else {
-      setNewMessage("");
-      isAutoScrollRef.current = true;
+    } finally {
+      setSending(false);
     }
-
-    setSending(false);
   };
 
   // ─── Overlay / Social Style (TikTok/Facebook Live) ───
