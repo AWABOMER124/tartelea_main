@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   listCourses,
   listUserCourseSubscriptionIds,
+  listUserCourseProgress,
   subscribeToCourse,
   unsubscribeFromCourse,
   type Course,
@@ -45,6 +46,36 @@ export const useUserCourseSubscriptions = (userId: string | null) => {
     enabled: Boolean(userId),
     staleTime: 1000 * 60 * 2,
   });
+};
+
+export const useContinueLearning = (userId: string | null) => {
+  const { data: courses = [], isLoading: coursesLoading } = useCourses();
+  const { data: subscriptionIds = [], isLoading: subscriptionsLoading } = useUserCourseSubscriptions(userId);
+
+  const progressQuery = useQuery({
+    queryKey: ["continueLearning", userId, subscriptionIds],
+    queryFn: async () => {
+      const progressRows = await listUserCourseProgress(userId!);
+      const subscriptionSet = new Set(subscriptionIds);
+      const progress = progressRows.find((row) =>
+        subscriptionSet.has(row.course_id) && row.progress_percent > 0 && row.progress_percent < 100,
+      ) ?? null;
+
+      return progress ? { courseId: progress.course_id, progress } : null;
+    },
+    enabled: Boolean(userId && subscriptionIds.length > 0),
+    staleTime: 1000 * 60 * 2,
+  });
+
+  const activeCourse = progressQuery.data
+    ? courses.find((course) => course.id === progressQuery.data?.courseId) ?? null
+    : null;
+
+  return {
+    course: activeCourse,
+    progress: progressQuery.data?.progress?.progress_percent ?? null,
+    isLoading: coursesLoading || subscriptionsLoading || progressQuery.isLoading,
+  };
 };
 
 export const useSubscribeToCourse = () => {
