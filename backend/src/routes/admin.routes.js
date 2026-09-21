@@ -40,6 +40,7 @@ router.post('/subscriptions/revoke', requireAdmin, validate(revokeSubscriptionSc
 router.get('/community/reports', AdminController.listReports);
 router.post('/community/reports/:id/resolve', AdminController.resolveReport);
 router.get('/posts', AdminController.listPosts);
+router.put('/posts/:id', requireAdmin, AdminController.updatePost);
 router.delete('/posts/:id', requireAdmin, AdminController.deletePost);
 router.post('/community/posts/:id/hide', AdminController.hidePost);
 router.post('/community/posts/:id/unhide', AdminController.unhidePost);
@@ -59,10 +60,13 @@ router.post('/sessions/:id/end', AdminController.endSession);
 
 // --- Approvals (Workshops, Courses, Rooms) ---
 router.get('/courses', AdminController.listCourses);
+router.put('/courses/:id', requireAdmin, AdminController.updateCourse);
 router.patch('/courses/:id/approval', requireAdmin, AdminController.updateCourseApproval);
 router.get('/workshops', AdminController.listWorkshops);
+router.put('/workshops/:id', requireAdmin, AdminController.updateWorkshop);
 router.patch('/workshops/:id/approval', requireAdmin, AdminController.updateWorkshopApproval);
 router.get('/rooms', AdminController.listRooms);
+router.put('/rooms/:id', requireAdmin, AdminController.updateRoom);
 router.patch('/rooms/:id/approval', requireAdmin, AdminController.updateRoomApproval);
 
 // --- Pinned Content ---
