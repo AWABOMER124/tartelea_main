@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -8,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Send, Loader2, ArrowRight } from "lucide-react";
 import { formatDistanceToNow, ar } from "@/lib/date-utils";
+import { listConversationMessages, markConversationRead, sendDirectMessage } from "@/lib/backendMessaging";
 
 interface Message {
   id: string;
@@ -37,67 +37,36 @@ const DirectMessages = ({ recipientId, recipientName, onBack }: DirectMessagesPr
 
 
   useEffect(() => {
-    if (userId && recipientId) {
-      fetchMessages();
-      markAsRead();
-      
-      // Subscribe to new messages
-      const channel = supabase
-        .channel('direct-messages')
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'direct_messages',
-            filter: `receiver_id=eq.${userId}`,
-          },
-          (payload) => {
-            if (payload.new.sender_id === recipientId) {
-              setMessages(prev => [...prev, payload.new as Message]);
-              markAsRead();
-            }
-          }
-        )
-        .subscribe();
+    if (!userId || !recipientId) return;
 
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }
+    let active = true;
+    const refresh = async () => {
+      try {
+        const data = await listConversationMessages(userId, recipientId);
+        if (active) setMessages(data);
+        await markConversationRead(recipientId, userId);
+      } catch {
+        // Keep the current view stable; send actions surface explicit errors.
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    void refresh();
+    const interval = window.setInterval(() => {
+      void refresh();
+    }, 5000);
+
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
   }, [userId, recipientId]);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-
-  const fetchMessages = async () => {
-    if (!userId) return;
-    
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("direct_messages")
-      .select("*")
-      .or(`and(sender_id.eq.${userId},receiver_id.eq.${recipientId}),and(sender_id.eq.${recipientId},receiver_id.eq.${userId})`)
-      .order("created_at", { ascending: true });
-
-    if (!error && data) {
-      setMessages(data);
-    }
-    setLoading(false);
-  };
-
-  const markAsRead = async () => {
-    if (!userId) return;
-    
-    await supabase
-      .from("direct_messages")
-      .update({ is_read: true })
-      .eq("sender_id", recipientId)
-      .eq("receiver_id", userId)
-      .eq("is_read", false);
-  };
 
   const scrollToBottom = () => {
     if (scrollRef.current) {
@@ -109,27 +78,23 @@ const DirectMessages = ({ recipientId, recipientName, onBack }: DirectMessagesPr
     if (!userId || !newMessage.trim()) return;
 
     setSending(true);
-    const { data, error } = await supabase
-      .from("direct_messages")
-      .insert({
-        sender_id: userId,
-        receiver_id: recipientId,
-        message: newMessage.trim(),
-      })
-      .select()
-      .single();
-
-    if (error) {
+    try {
+      const data = await sendDirectMessage(userId, recipientId, newMessage.trim());
+      if (data) {
+        setMessages((prev) =>
+          prev.some((message) => message.id === data.id) ? prev : [...prev, data],
+        );
+        setNewMessage("");
+      }
+    } catch {
       toast({
         title: "خطأ",
         description: "فشل إرسال الرسالة",
         variant: "destructive",
       });
-    } else if (data) {
-      setMessages(prev => [...prev, data]);
-      setNewMessage("");
+    } finally {
+      setSending(false);
     }
-    setSending(false);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -207,7 +172,7 @@ const DirectMessages = ({ recipientId, recipientName, onBack }: DirectMessagesPr
         <Input
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
-          onKeyPress={handleKeyPress}
+          onKeyDown={handleKeyPress}
           placeholder="اكتب رسالتك..."
           disabled={sending}
           className="flex-1"
