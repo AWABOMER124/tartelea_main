@@ -9,6 +9,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import AppLayout from "@/components/layout/AppLayout";
 import PostCard from "@/components/community/PostCard";
 import { Button } from "@/components/ui/button";
@@ -30,10 +31,11 @@ const PostDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [post, setPost] = useState<any>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userId, setUserId] = useState<string | null>(null);
+  const userId = user?.id ?? null;
   const [isLiked, setIsLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(0);
   const [newComment, setNewComment] = useState("");
@@ -48,9 +50,6 @@ const PostDetail = () => {
 
   const fetchAll = async () => {
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    setUserId(user?.id || null);
-
     // Fetch post
     const { data: postData } = await supabase
       .from("posts")
