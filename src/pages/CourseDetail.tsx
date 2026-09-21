@@ -120,7 +120,7 @@ const CourseDetail = () => {
     } catch (error) {
       toast({
         title: "تعذر تحميل المسار",
-        description: error instanceof Error ? error.message : "ط­ط¯ط« خطأ ط؛ظٹط± ظ…طھظˆظ‚ط¹",
+        description: error instanceof Error ? error.message : "حدث خطأ غير متوقع",
         variant: "destructive",
       });
     } finally {
@@ -165,7 +165,7 @@ const CourseDetail = () => {
     } catch (error) {
       toast({
         title: "خطأ",
-        description: error instanceof Error ? error.message : "ط­ط¯ط« خطأ ط؛ظٹط± ظ…طھظˆظ‚ط¹",
+        description: error instanceof Error ? error.message : "حدث خطأ غير متوقع",
         variant: "destructive",
       });
     } finally {
@@ -197,7 +197,7 @@ const CourseDetail = () => {
     } catch (error) {
       toast({
         title: "خطأ",
-        description: error instanceof Error ? error.message : "ط­ط¯ط« خطأ ط؛ظٹط± ظ…طھظˆظ‚ط¹",
+        description: error instanceof Error ? error.message : "حدث خطأ غير متوقع",
         variant: "destructive",
       });
     } finally {

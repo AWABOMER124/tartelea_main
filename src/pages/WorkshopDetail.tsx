@@ -216,7 +216,7 @@ const WorkshopDetail = () => {
   if (loading) {
     return (
       <AppLayout>
-        <div className="p-4 space-y-4" dir="rtl">
+        <div className="mx-auto w-full max-w-5xl space-y-4 px-4 py-6 sm:px-6 sm:py-10" dir="rtl">
           <Skeleton className="h-10 w-32" />
           <Skeleton className="h-56 w-full rounded-xl" />
           <Skeleton className="h-32 w-full" />
@@ -228,7 +228,7 @@ const WorkshopDetail = () => {
   if (!workshop) {
     return (
       <AppLayout>
-        <div className="p-4 text-center" dir="rtl">
+        <div className="mx-auto w-full max-w-xl px-4 py-20 text-center" dir="rtl">
           <p className="text-muted-foreground">الورشة غير موجودة</p>
           <Button onClick={() => navigate("/workshops")} className="mt-4">
             العودة للورش
@@ -246,7 +246,7 @@ const WorkshopDetail = () => {
 
   return (
     <AppLayout>
-      <div className="pb-24" dir="rtl">
+      <div className="mx-auto w-full max-w-5xl pb-24" dir="rtl">
         {/* Back Button */}
         <div className="p-4">
           <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-2">
@@ -301,7 +301,7 @@ const WorkshopDetail = () => {
         {/* Workshop Info */}
         <div className="p-4 space-y-5">
           <div className="space-y-3">
-            <h1 className="text-2xl font-display font-bold text-foreground">
+            <h1 className="text-2xl font-bold text-foreground sm:text-3xl">
               {workshop.title}
             </h1>
             <div className="flex flex-wrap gap-2">
@@ -386,7 +386,7 @@ const WorkshopDetail = () => {
             {workshop.is_live && isJoined ? (
               <Button
                 onClick={() => navigate(`/workshops/${id}/live`)}
-                className="flex-1 gap-2 h-12 text-base"
+                className="min-h-12 flex-1 gap-2 text-base"
                 variant="destructive"
               >
                 <Radio className="h-5 w-5" />
@@ -397,7 +397,7 @@ const WorkshopDetail = () => {
                 onClick={handleJoin}
                 disabled={joiningLoading}
                 variant={isJoined ? "outline" : "default"}
-                className="flex-1 gap-2 h-12 text-base"
+                className="min-h-12 flex-1 gap-2 text-base"
               >
                 {joiningLoading ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
@@ -412,7 +412,7 @@ const WorkshopDetail = () => {
                 )}
               </Button>
             ) : (
-              <Button variant="outline" disabled className="flex-1 h-12">
+              <Button variant="outline" disabled className="min-h-12 flex-1">
                 انتهت الورشة
               </Button>
             )}
@@ -442,7 +442,17 @@ const WorkshopDetail = () => {
                           state: { recording: { ...recording, workshop } },
                         })
                       }
-                      className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted cursor-pointer transition-colors"
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          navigate(`/workshop-recording/${recording.id}`, {
+                            state: { recording: { ...recording, workshop } },
+                          });
+                        }
+                      }}
+                      className="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-card p-3 transition-colors hover:border-primary/25 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
                         <Play className="h-5 w-5 text-primary" />
