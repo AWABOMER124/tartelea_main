@@ -141,19 +141,12 @@ const Workshops = () => {
 
   return (
     <AppLayout>
-      <div className="px-4 py-6 space-y-6">
-        {/* Header */}
-        <div className="text-center space-y-2">
-          <div className="w-14 h-14 mx-auto bg-primary/10 rounded-2xl flex items-center justify-center">
-            <Video className="h-7 w-7 text-primary" />
-          </div>
-          <h1 className="text-2xl font-display font-bold text-foreground">
-            الورش التفاعلية
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            ورش عمل مباشرة مع فيديو وصوت تفاعلي
-          </p>
-        </div>
+      <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-6 sm:px-6 sm:py-10">
+        <header className="max-w-2xl space-y-2">
+          <p className="text-sm font-semibold text-spiritual-green">لقاءات تطبيقية</p>
+          <h1 className="text-2xl font-bold text-foreground sm:text-3xl">الورش</h1>
+          <p className="leading-7 text-muted-foreground">تابع الورش القادمة، سجّل حضورك، وادخل اللقاء عندما يبدأ.</p>
+        </header>
 
         {/* Actions */}
         <div className="flex gap-2">
@@ -196,10 +189,11 @@ const Workshops = () => {
             ))}
           </div>
         ) : filteredWorkshops.length === 0 ? (
-          <Card>
-            <CardContent className="py-8 text-center">
-              <Video className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-              <p className="text-muted-foreground">لا توجد ورش متاحة</p>
+          <Card className="border-dashed shadow-none">
+            <CardContent className="py-10 text-center">
+              <Video className="mx-auto mb-3 h-9 w-9 text-muted-foreground/50" />
+              <p className="font-semibold text-foreground">لا توجد ورش في هذا القسم</p>
+              <p className="mt-1 text-sm text-muted-foreground">راجع الجلسات القادمة لاحقاً أو استكشف التسجيلات السابقة.</p>
             </CardContent>
           </Card>
         ) : (
@@ -211,7 +205,7 @@ const Workshops = () => {
               return (
                 <Card 
                   key={workshop.id} 
-                  className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+                  className="overflow-hidden cursor-pointer border-border shadow-sm transition-colors hover:border-primary/25"
                   onClick={() => navigate(`/workshops/${workshop.id}`)}
                 >
                   <CardContent className="p-4">
