@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { createTrainerAvailability, createTrainerBlockedDate, deleteTrainerAvailability, deleteTrainerBlockedDate, listTrainerAvailability, listTrainerBlockedDates, updateTrainerAvailability } from "@/lib/backendTrainerOperations";
 
 interface Availability {
   id: string;
@@ -66,25 +66,16 @@ const TrainerAvailabilityManager = ({ trainerId }: TrainerAvailabilityManagerPro
 
   const fetchData = async () => {
     setLoading(true);
-
-    const [availRes, blockedRes] = await Promise.all([
-      supabase
-        .from("trainer_availability")
-        .select("*")
-        .eq("trainer_id", trainerId)
-        .order("day_of_week"),
-      supabase
-        .from("trainer_blocked_dates")
-        .select("*")
-        .eq("trainer_id", trainerId)
-        .gte("blocked_date", new Date().toISOString().split("T")[0])
-        .order("blocked_date"),
-    ]);
-
-    if (availRes.data) setAvailability(availRes.data);
-    if (blockedRes.data) setBlockedDates(blockedRes.data);
-
-    setLoading(false);
+    try {
+      const [availabilityRows, blockedRows] = await Promise.all([
+        listTrainerAvailability(trainerId),
+        listTrainerBlockedDates(trainerId),
+      ]);
+      setAvailability(availabilityRows);
+      setBlockedDates(blockedRows);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const addAvailability = async () => {
@@ -108,21 +99,13 @@ const TrainerAvailabilityManager = ({ trainerId }: TrainerAvailabilityManagerPro
 
     setSaving(true);
 
-    const { error } = await supabase.from("trainer_availability").insert({
-      trainer_id: trainerId,
-      day_of_week: parseInt(newDay),
-      start_time: newStartTime,
-      end_time: newEndTime,
-      is_active: true,
-    });
-
-    if (error) {
-      toast({
-        title: "خطأ",
-        description: "فشل في إضافة الموعد",
-        variant: "destructive",
+    try {
+      await createTrainerAvailability(trainerId, {
+        day_of_week: parseInt(newDay),
+        start_time: newStartTime,
+        end_time: newEndTime,
+        is_active: true,
       });
-    } else {
       toast({
         title: "تم بنجاح",
         description: "تم إضافة موعد التوفر",
@@ -130,34 +113,44 @@ const TrainerAvailabilityManager = ({ trainerId }: TrainerAvailabilityManagerPro
       setNewDay("");
       setNewStartTime("09:00");
       setNewEndTime("17:00");
-      fetchData();
+      void fetchData();
+    } catch (error) {
+      toast({
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "فشل في إضافة الموعد",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
     }
-
-    setSaving(false);
   };
 
   const toggleAvailability = async (id: string, isActive: boolean) => {
-    const { error } = await supabase
-      .from("trainer_availability")
-      .update({ is_active: !isActive })
-      .eq("id", id);
-
-    if (!error) {
+    try {
+      await updateTrainerAvailability(id, { is_active: !isActive });
       setAvailability((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, is_active: !isActive } : a))
+        prev.map((slot) => (slot.id === id ? { ...slot, is_active: !isActive } : slot)),
       );
+    } catch (error) {
+      toast({
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "فشل تحديث الموعد",
+        variant: "destructive",
+      });
     }
   };
 
   const deleteAvailability = async (id: string) => {
-    const { error } = await supabase
-      .from("trainer_availability")
-      .delete()
-      .eq("id", id);
-
-    if (!error) {
-      setAvailability((prev) => prev.filter((a) => a.id !== id));
+    try {
+      await deleteTrainerAvailability(id);
+      setAvailability((prev) => prev.filter((slot) => slot.id !== id));
       toast({ title: "تم الحذف", description: "تم حذف موعد التوفر" });
+    } catch (error) {
+      toast({
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "فشل حذف الموعد",
+        variant: "destructive",
+      });
     }
   };
 
@@ -173,48 +166,37 @@ const TrainerAvailabilityManager = ({ trainerId }: TrainerAvailabilityManagerPro
 
     setSaving(true);
 
-    const { error } = await supabase.from("trainer_blocked_dates").insert({
-      trainer_id: trainerId,
-      blocked_date: newBlockedDate,
-      reason: newBlockedReason || null,
-    });
-
-    if (error) {
-      if (error.code === "23505") {
-        toast({
-          title: "خطأ",
-          description: "هذا التاريخ محجوب بالفعل",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "خطأ",
-          description: "فشل في حجب التاريخ",
-          variant: "destructive",
-        });
-      }
-    } else {
+    try {
+      await createTrainerBlockedDate(trainerId, newBlockedDate, newBlockedReason || null);
       toast({
         title: "تم بنجاح",
         description: "تم حجب التاريخ",
       });
       setNewBlockedDate("");
       setNewBlockedReason("");
-      fetchData();
+      void fetchData();
+    } catch (error) {
+      toast({
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "فشل في حجب التاريخ",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
     }
-
-    setSaving(false);
   };
 
   const deleteBlockedDate = async (id: string) => {
-    const { error } = await supabase
-      .from("trainer_blocked_dates")
-      .delete()
-      .eq("id", id);
-
-    if (!error) {
-      setBlockedDates((prev) => prev.filter((b) => b.id !== id));
+    try {
+      await deleteTrainerBlockedDate(id);
+      setBlockedDates((prev) => prev.filter((blocked) => blocked.id !== id));
       toast({ title: "تم الحذف", description: "تم إلغاء حجب التاريخ" });
+    } catch (error) {
+      toast({
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "فشل إلغاء حجب التاريخ",
+        variant: "destructive",
+      });
     }
   };
 
