@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useUserRole } from "@/hooks/useUserRole";
-import { useWorkshops, useUserWorkshopParticipations, useJoinWorkshop, useLeaveWorkshop } from "@/hooks/useWorkshops";
+import { useWorkshops, useUserWorkshopParticipations, useJoinWorkshop, useLeaveWorkshop, type Workshop } from "@/hooks/useWorkshops";
 import AppLayout from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +25,8 @@ import {
 } from "lucide-react";
 import { format, ar } from "@/lib/date-utils";
 import { useQueryClient } from "@tanstack/react-query";
+import PageMeta from "@/components/seo/PageMeta";
+import { DiscoveryHeader, DiscoveryPage, EmptyState, FilterGroup, FilterPanel, ResultsHeading } from "@/components/layout/DiscoveryPage";
 
 const categoryLabels: Record<string, string> = {
   quran: "القرآن",
@@ -42,7 +44,7 @@ const statusFilters = [
 ];
 
 const WorkshopCardSkeleton = () => (
-  <Card className="overflow-hidden rounded-xl border-border shadow-none">
+  <Card className="overflow-hidden">
     <CardContent className="p-4">
       <div className="flex gap-4">
         <Skeleton className="w-16 h-16 rounded-xl flex-shrink-0" />
@@ -84,7 +86,7 @@ const Workshops = () => {
 
   const canCreate = role === "trainer" || role === "moderator" || role === "admin";
 
-  const handleJoin = async (workshop: any) => {
+  const handleJoin = async (workshop: Workshop) => {
     if (!userId) {
       toast({
         title: "تنبيه",
@@ -141,63 +143,24 @@ const Workshops = () => {
 
   return (
     <AppLayout>
-      <div className="page-shell max-w-6xl space-y-7">
-        <header className="max-w-2xl space-y-2">
-          <p className="text-sm font-semibold text-spiritual-green">لقاءات تطبيقية</p>
-          <h1 className="text-2xl font-bold text-foreground sm:text-3xl">الورش</h1>
-          <p className="leading-7 text-muted-foreground">تابع الورش القادمة، سجّل حضورك، وادخل اللقاء عندما يبدأ.</p>
-        </header>
+      <PageMeta title="الورش" description="ورش المدرسة الترتيلية المباشرة والقادمة." path="/workshops" />
+      <DiscoveryPage>
+        <DiscoveryHeader eyebrow="تعلّم بالمشاركة" title="الورش التفاعلية" description="لقاءات تطبيقية مباشرة مع مدرّبي المدرسة، مرتّبة لتعرف ما يحدث الآن وما يأتي لاحقاً." icon={Video} actions={<>{canCreate && <Button onClick={() => setShowCreateDialog(true)} className="gap-2"><Plus className="h-4 w-4" />إنشاء ورشة</Button>}<Button variant="outline" onClick={() => navigate("/workshop-recordings")} className="gap-2"><Film className="h-4 w-4" />التسجيلات</Button></>} />
 
-        {/* Actions */}
-        <div className="flex gap-2">
-          {canCreate && (
-            <Button
-              onClick={() => setShowCreateDialog(true)}
-              className="flex-1 gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              إنشاء ورشة جديدة
-            </Button>
-          )}
-          <Button
-            variant="outline"
-            onClick={() => navigate("/workshop-recordings")}
-            className="gap-2"
-          >
-            <Film className="h-4 w-4" />
-            التسجيلات
-          </Button>
-        </div>
+        <FilterPanel><FilterGroup label="الحالة">{statusFilters.map((filter) => <FilterChip key={filter.value} label={filter.label} isActive={selectedStatus === filter.value} onClick={() => setSelectedStatus(filter.value)} />)}</FilterGroup></FilterPanel>
 
-        {/* Filters */}
-        <div className="flex gap-2 overflow-x-auto pb-2">
-          {statusFilters.map((filter) => (
-            <FilterChip
-              key={filter.value}
-              label={filter.label}
-              isActive={selectedStatus === filter.value}
-              onClick={() => setSelectedStatus(filter.value)}
-            />
-          ))}
-        </div>
+        <ResultsHeading count={filteredWorkshops.length} label="الورش المتاحة" />
 
-        {/* Workshops List */}
         {workshopsLoading ? (
-          <div className="grid gap-4 lg:grid-cols-2">
-            {[1, 2, 3].map((i) => (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {[1, 2, 3, 4].map((i) => (
               <WorkshopCardSkeleton key={i} />
             ))}
           </div>
         ) : filteredWorkshops.length === 0 ? (
-          <Card className="border-dashed shadow-none">
-            <CardContent className="py-10 text-center">
-              <Video className="mx-auto mb-3 h-9 w-9 text-muted-foreground/50" />
-              <p className="font-semibold text-foreground">لا توجد ورش في هذا القسم</p>
-              <p className="mt-1 text-sm text-muted-foreground">راجع الجلسات القادمة لاحقاً أو استكشف التسجيلات السابقة.</p>
-            </CardContent>
-          </Card>
+          <EmptyState icon={Video} title="لا توجد ورش بهذه الحالة" description="اختر حالة أخرى أو عد لاحقاً لمتابعة اللقاءات الجديدة." />
         ) : (
-          <div className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
             {filteredWorkshops.map((workshop) => {
               const isJoined = participations.includes(workshop.id);
               const scheduledDate = new Date(workshop.scheduled_at);
@@ -205,25 +168,16 @@ const Workshops = () => {
               return (
                 <Card 
                   key={workshop.id} 
-                  role="link"
-                  tabIndex={0}
-                  aria-label={`فتح الورشة: ${workshop.title}`}
-                  className="cursor-pointer overflow-hidden rounded-xl border-border shadow-none transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl border-border shadow-sm transition-colors hover:border-primary/25"
                   onClick={() => navigate(`/workshops/${workshop.id}`)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      navigate(`/workshops/${workshop.id}`);
-                    }
-                  }}
                 >
-                  <CardContent className="p-4">
+                  <CardContent className="flex h-full flex-col p-5">
                     <div className="flex gap-4">
-                      <div className="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0 relative">
-                        <Video className="h-8 w-8 text-primary" />
+                      <div className="relative flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                        <Video className="h-6 w-6 text-primary" />
                         {workshop.is_live && (
                           <div className="absolute -top-1 -right-1 bg-destructive rounded-full p-1">
-                            <Radio className="h-3 w-3 text-destructive-foreground" />
+                            <Radio className="h-3 w-3 text-destructive-foreground animate-pulse" />
                           </div>
                         )}
                       </div>
@@ -249,7 +203,7 @@ const Workshops = () => {
                           </Badge>
                           <PriceDisplay price={workshop.price} size="sm" />
                         </div>
-                        <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
+                        <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                           <span className="flex items-center gap-1">
                             <Calendar className="h-4 w-4" />
                             {format(scheduledDate, "dd MMM", { locale: ar })}
@@ -268,7 +222,7 @@ const Workshops = () => {
                         </p>
                       </div>
                     </div>
-                    <div className="flex gap-2 mt-4" onClick={(e) => e.stopPropagation()}>
+                    <div className="mt-auto flex gap-2 pt-4" onClick={(e) => e.stopPropagation()}>
                       {workshop.is_live && isJoined ? (
                         <Button
                           onClick={() => handleEnterLive(workshop.id)}
@@ -301,7 +255,7 @@ const Workshops = () => {
             })}
           </div>
         )}
-      </div>
+      </DiscoveryPage>
 
       <CreateWorkshopDialog
         open={showCreateDialog}
