@@ -37,9 +37,9 @@ const categoryLabels: Record<string, string> = {
 };
 
 const depthLabels: Record<string, string> = {
-  beginner: "مبتدئ",
-  intermediate: "متوسط",
-  advanced: "متقدم",
+  beginner: "تخلية",
+  intermediate: "تحلية",
+  advanced: "تجلّي",
 };
 
 const ContentDetail = () => {
@@ -137,7 +137,7 @@ const ContentDetail = () => {
   if (loading) {
     return (
       <AppLayout>
-        <div className="px-4 py-6 space-y-6">
+        <div className="mx-auto w-full max-w-4xl space-y-6 px-4 py-6 sm:px-6 sm:py-10">
           <Skeleton className="h-8 w-32" />
           <Skeleton className="h-64 w-full rounded-xl" />
           <Skeleton className="h-6 w-3/4" />
@@ -151,7 +151,7 @@ const ContentDetail = () => {
   if (!content) {
     return (
       <AppLayout>
-        <div className="px-4 py-20 text-center">
+        <div className="mx-auto w-full max-w-xl px-4 py-20 text-center">
           <BookOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
           <h2 className="text-xl font-display font-bold text-foreground mb-2">
             المحتوى غير موجود
@@ -173,7 +173,7 @@ const ContentDetail = () => {
 
   return (
     <AppLayout>
-      <div className="px-4 py-6 space-y-6">
+      <div className="mx-auto w-full max-w-4xl space-y-6 px-4 py-6 sm:px-6 sm:py-10">
         {/* Back Button */}
         <Button
           variant="ghost"
@@ -314,18 +314,12 @@ const ContentDetail = () => {
                 <div
                   className={cn(
                     "w-32 h-32 rounded-full flex items-center justify-center",
-                    "bg-primary/20 border-4 border-primary/30",
-                    isPlaying && "animate-pulse"
+                    "bg-primary/15 border-4 border-primary/25"
                   )}
                 >
                   <Headphones className="h-12 w-12 text-primary" />
                 </div>
-                {isPlaying && (
-                  <>
-                    <div className="absolute inset-0 rounded-full border-4 border-primary/20 animate-ping" />
-                    <div className="absolute inset-[-8px] rounded-full border-2 border-primary/10 animate-ping delay-75" />
-                  </>
-                )}
+
               </div>
             </div>
             {/* Progress Bar */}
@@ -353,7 +347,7 @@ const ContentDetail = () => {
               <Button
                 variant="default"
                 size="lg"
-                className="h-16 w-16 rounded-full shadow-lg"
+                className="h-16 w-16 rounded-full"
                 onClick={handlePlayPause}
               >
                 {isPlaying ? (
