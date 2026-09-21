@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +9,7 @@ import { Loader2, Play, Headphones, Calendar, Clock, Trash2, Users, BarChart3, A
 import { format, ar } from "@/lib/date-utils";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useToast } from "@/hooks/use-toast";
+import { deleteRoomRecording, listArchivedRoomsWithRecordingCounts, listRoomRecordings } from "@/lib/backendRoomRecordings";
 
 interface ArchivedRoom {
   id: string;
@@ -57,67 +57,28 @@ const RoomRecordings = () => {
   }, []);
 
   const fetchArchivedRooms = async () => {
-    const { data, error } = await supabase
-      .from("rooms")
-      .select("*")
-      .not("ended_at", "is", null)
-      .eq("is_approved", true)
-      .order("ended_at", { ascending: false })
-      .limit(50);
-
-    if (error || !data) return;
-
-    const hostIds = [...new Set(data.map((r) => r.host_id))];
-    const { data: profiles } = await supabase.from("profiles").select("id, full_name").in("id", hostIds);
-    const profileMap = new Map(profiles?.map((p) => [p.id, p.full_name]) || []);
-
-    // Count recordings per room
-    const roomIds = data.map((r) => r.id);
-    const { data: recData } = await supabase.from("room_recordings").select("room_id").in("room_id", roomIds).eq("is_available", true);
-    const recCounts: Record<string, number> = {};
-    recData?.forEach((r) => { recCounts[r.room_id] = (recCounts[r.room_id] || 0) + 1; });
-
-    setArchivedRooms(data.map((r) => ({
-      ...r,
-      host_name: profileMap.get(r.host_id) || "مدرب",
-      recording_count: recCounts[r.id] || 0,
-    })));
+    try {
+      setArchivedRooms(await listArchivedRoomsWithRecordingCounts());
+    } catch {
+      setArchivedRooms([]);
+    }
   };
 
   const fetchRecordings = async () => {
-    const { data, error } = await supabase
-      .from("room_recordings")
-      .select("*")
-      .eq("is_available", true)
-      .order("recorded_at", { ascending: false });
-
-    if (error || !data || data.length === 0) { setRecordings([]); return; }
-
-    const roomIds = [...new Set(data.map((r) => r.room_id))];
-    const { data: rooms } = await supabase.from("rooms").select("id, title, host_id").in("id", roomIds);
-    const hostIds = [...new Set(rooms?.map((r) => r.host_id) || [])];
-    const { data: profiles } = await supabase.from("profiles").select("id, full_name").in("id", hostIds);
-
-    const roomMap = new Map(rooms?.map((r) => [r.id, r]) || []);
-    const profileMap = new Map(profiles?.map((p) => [p.id, p.full_name]) || []);
-
-    setRecordings(data.map((rec) => {
-      const room = roomMap.get(rec.room_id);
-      return {
-        ...rec,
-        room_title: room?.title || "غرفة محذوفة",
-        host_name: room ? profileMap.get(room.host_id) || "مدرب" : "غير معروف",
-      };
-    }));
+    try {
+      setRecordings(await listRoomRecordings());
+    } catch {
+      setRecordings([]);
+    }
   };
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from("room_recordings").delete().eq("id", id);
-    if (error) {
-      toast({ title: "خطأ", description: "فشل حذف التسجيل", variant: "destructive" });
-    } else {
-      setRecordings((prev) => prev.filter((r) => r.id !== id));
+    try {
+      await deleteRoomRecording(id);
+      setRecordings((prev) => prev.filter((recording) => recording.id !== id));
       toast({ title: "تم", description: "تم حذف التسجيل" });
+    } catch {
+      toast({ title: "خطأ", description: "فشل حذف التسجيل", variant: "destructive" });
     }
   };
 
