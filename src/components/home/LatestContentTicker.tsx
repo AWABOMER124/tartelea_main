@@ -1,8 +1,8 @@
 import { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { GraduationCap, Video, Sparkles } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow, ar } from "@/lib/date-utils";
+import { listLatestLearningItems } from "@/lib/backendDiscovery";
 
 interface ContentItem {
   id: string;
@@ -23,61 +23,9 @@ const LatestContentTicker = () => {
 
   useEffect(() => {
     const fetchContent = async () => {
-      // Fetch pinned content
-      const { data: pinned } = await supabase
-        .from("pinned_content")
-        .select("content_id, content_type, display_order")
-        .eq("ticker_position", "latest")
-        .eq("is_active", true)
-        .order("display_order", { ascending: true });
-
-      const pinnedIds = new Set(pinned?.map((p) => p.content_id) || []);
-
-      const [coursesRes, workshopsRes] = await Promise.all([
-        supabase
-          .from("trainer_courses")
-          .select("id, title, created_at, category")
-          .eq("is_approved", true)
-          .order("created_at", { ascending: false })
-          .limit(5),
-        supabase
-          .from("workshops")
-          .select("id, title, created_at, category")
-          .eq("is_approved", true)
-          .order("created_at", { ascending: false })
-          .limit(5),
-      ]);
-
-      const courses: ContentItem[] = (coursesRes.data || []).map((c) => ({
-        id: c.id,
-        title: c.title,
-        type: "course",
-        created_at: c.created_at || new Date().toISOString(),
-        category: c.category,
-        is_pinned: pinnedIds.has(c.id),
-      }));
-
-      const workshops: ContentItem[] = (workshopsRes.data || []).map((w) => ({
-        id: w.id,
-        title: w.title,
-        type: "workshop",
-        created_at: w.created_at || new Date().toISOString(),
-        category: w.category,
-        is_pinned: pinnedIds.has(w.id),
-      }));
-
-      const merged = [...courses, ...workshops].sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
-
-      // Pinned first
-      const sorted = [
-        ...merged.filter((i) => i.is_pinned),
-        ...merged.filter((i) => !i.is_pinned),
-      ];
-      setItems(sorted.slice(0, 10));
+      setItems(await listLatestLearningItems());
     };
-    fetchContent();
+    void fetchContent();
   }, []);
 
   useEffect(() => {

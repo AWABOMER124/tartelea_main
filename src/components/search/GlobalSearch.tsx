@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { searchLearningCatalog } from "@/lib/backendDiscovery";
 
 interface SearchResult {
   id: string;
@@ -87,55 +87,19 @@ const GlobalSearch = () => {
 
   const performSearch = async () => {
     setLoading(true);
-
-    // Search courses
-    let coursesQuery = supabase
-      .from("trainer_courses")
-      .select("id, title, type, category, depth_level")
-      .eq("is_approved", true)
-      .ilike("title", `%${query}%`)
-      .limit(5);
-
-    if (filterCategory !== "all") coursesQuery = coursesQuery.eq("category", filterCategory as any);
-    if (filterType !== "all") coursesQuery = coursesQuery.eq("type", filterType as any);
-    if (filterLevel !== "all") coursesQuery = coursesQuery.eq("depth_level", filterLevel as any);
-
-    const { data: coursesData } = await coursesQuery;
-
-    // Search contents
-    let contentsQuery = supabase
-      .from("contents")
-      .select("id, title, type, category, depth_level")
-      .ilike("title", `%${query}%`)
-      .limit(5);
-
-    if (filterCategory !== "all") contentsQuery = contentsQuery.eq("category", filterCategory as any);
-    if (filterType !== "all") contentsQuery = contentsQuery.eq("type", filterType as any);
-    if (filterLevel !== "all") contentsQuery = contentsQuery.eq("depth_level", filterLevel as any);
-
-    const { data: contentsData } = await contentsQuery;
-
-    const courseResults: SearchResult[] = (coursesData || []).map((c) => ({
-      id: c.id,
-      title: c.title,
-      type: "course" as const,
-      contentType: c.type,
-      category: c.category,
-      depthLevel: c.depth_level,
-    }));
-
-    const contentResults: SearchResult[] = (contentsData || []).map((c) => ({
-      id: c.id,
-      title: c.title,
-      type: "content" as const,
-      contentType: c.type,
-      category: c.category,
-      depthLevel: c.depth_level,
-    }));
-
-    setResults([...courseResults, ...contentResults]);
-    setShowResults(true);
-    setLoading(false);
+    try {
+      setResults(
+        await searchLearningCatalog({
+          query: query.trim(),
+          category: filterCategory,
+          type: filterType,
+          level: filterLevel,
+        }),
+      );
+      setShowResults(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleResultClick = (result: SearchResult) => {

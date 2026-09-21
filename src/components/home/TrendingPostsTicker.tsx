@@ -1,13 +1,8 @@
-/**
- * STEP 2 transitional marker:
- * This ticker still reads legacy pinned/community data from Supabase for the home surface.
- * It is no longer part of the primary community flow and should be migrated in a follow-up step.
- */
 import { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { TrendingUp } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow, ar } from "@/lib/date-utils";
+import { listTrendingCommunityPosts } from "@/lib/backendDiscovery";
 
 interface TrendingPost {
   id: string;
@@ -37,50 +32,19 @@ const TrendingPostsTicker = () => {
 
   useEffect(() => {
     const fetchPosts = async () => {
-      // Fetch pinned posts first
-      const { data: pinned } = await supabase
-        .from("pinned_content")
-        .select("content_id, display_order")
-        .eq("ticker_position", "trending")
-        .eq("is_active", true)
-        .eq("content_type", "post")
-        .order("display_order", { ascending: true });
-
-      const pinnedIds = new Set(pinned?.map((p) => p.content_id) || []);
-
-      const { data } = await supabase
-        .from("posts")
-        .select("id, title, category, created_at, author_id")
-        .order("created_at", { ascending: false })
-        .limit(10);
-
-      if (data && data.length > 0) {
-        const authorIds = [...new Set(data.map((p) => p.author_id))];
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("id, full_name")
-          .in("id", authorIds);
-
-        const profileMap = new Map(profiles?.map((p) => [p.id, p.full_name]) || []);
-
-        const allPosts = data.map((p) => ({
-          id: p.id,
-          title: p.title,
-          category: p.category,
-          created_at: p.created_at || new Date().toISOString(),
-          author_name: profileMap.get(p.author_id) || "عضو",
-          is_pinned: pinnedIds.has(p.id),
-        }));
-
-        // Pinned posts first, then rest
-        const sorted = [
-          ...allPosts.filter((p) => p.is_pinned),
-          ...allPosts.filter((p) => !p.is_pinned),
-        ];
-        setPosts(sorted);
-      }
+      const data = await listTrendingCommunityPosts();
+      setPosts(
+        data.map((post) => ({
+          id: post.id,
+          title: post.title || post.body,
+          category: post.primary_context?.slug || post.primary_context?.type || "general",
+          created_at: post.created_at,
+          author_name: post.author?.name || "عضو",
+          is_pinned: Boolean(post.pin?.id),
+        })),
+      );
     };
-    fetchPosts();
+    void fetchPosts();
   }, []);
 
   useEffect(() => {
@@ -122,7 +86,7 @@ const TrendingPostsTicker = () => {
         <span className="text-xs font-semibold text-primary">آخر المواضيع</span>
       </div>
 
-      <Link to="/community" className="block group">
+      <Link to={`/community/${post.id}`} className="block group">
         <div className="relative overflow-hidden rounded-lg bg-card/60 border border-border/50 p-3 transition-all hover:border-primary/30 hover:shadow-sm min-h-[90px]">
           <div
             key={post.id}
