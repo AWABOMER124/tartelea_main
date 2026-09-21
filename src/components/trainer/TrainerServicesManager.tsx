@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +34,7 @@ import {
   FileCheck,
   Sparkles,
 } from "lucide-react";
+import { createTrainerService, deleteTrainerService, listTrainerServices, updateTrainerService } from "@/lib/backendTrainerOperations";
 
 interface TrainerService {
   id: string;
@@ -83,16 +83,11 @@ const TrainerServicesManager = ({ trainerId }: TrainerServicesManagerProps) => {
 
   const fetchServices = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("trainer_services")
-      .select("*")
-      .eq("trainer_id", trainerId)
-      .order("created_at", { ascending: false });
-
-    if (!error && data) {
-      setServices(data);
+    try {
+      setServices(await listTrainerServices(trainerId));
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const resetForm = () => {
@@ -132,33 +127,9 @@ const TrainerServicesManager = ({ trainerId }: TrainerServicesManagerProps) => {
 
     setSubmitting(true);
 
-    if (editingService) {
-      const { error } = await supabase
-        .from("trainer_services")
-        .update({
-          title: formData.title,
-          description: formData.description || null,
-          service_type: formData.service_type,
-          duration_minutes: formData.duration_minutes,
-          price: formData.price,
-          is_active: formData.is_active,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", editingService.id);
-
-      if (error) {
-        toast({ title: "خطأ", description: "فشل تحديث الخدمة", variant: "destructive" });
-      } else {
-        toast({ title: "تم بنجاح", description: "تم تحديث الخدمة" });
-        fetchServices();
-        setIsDialogOpen(false);
-        resetForm();
-      }
-    } else {
-      const { error } = await supabase
-        .from("trainer_services")
-        .insert({
-          trainer_id: trainerId,
+    try {
+      if (editingService) {
+        await updateTrainerService(editingService.id, {
           title: formData.title,
           description: formData.description || null,
           service_type: formData.service_type,
@@ -166,42 +137,57 @@ const TrainerServicesManager = ({ trainerId }: TrainerServicesManagerProps) => {
           price: formData.price,
           is_active: formData.is_active,
         });
-
-      if (error) {
-        toast({ title: "خطأ", description: "فشل إضافة الخدمة", variant: "destructive" });
+        toast({ title: "تم بنجاح", description: "تم تحديث الخدمة" });
       } else {
+        await createTrainerService(trainerId, {
+          title: formData.title,
+          description: formData.description || null,
+          service_type: formData.service_type,
+          duration_minutes: formData.duration_minutes,
+          price: formData.price,
+          is_active: formData.is_active,
+        });
         toast({ title: "تم بنجاح", description: "تمت إضافة الخدمة" });
-        fetchServices();
-        setIsDialogOpen(false);
-        resetForm();
       }
-    }
 
-    setSubmitting(false);
+      void fetchServices();
+      setIsDialogOpen(false);
+      resetForm();
+    } catch (error) {
+      toast({
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "فشل حفظ الخدمة",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleDelete = async (serviceId: string) => {
-    const { error } = await supabase
-      .from("trainer_services")
-      .delete()
-      .eq("id", serviceId);
-
-    if (error) {
-      toast({ title: "خطأ", description: "فشل حذف الخدمة", variant: "destructive" });
-    } else {
+    try {
+      await deleteTrainerService(serviceId);
       toast({ title: "تم بنجاح", description: "تم حذف الخدمة" });
-      fetchServices();
+      void fetchServices();
+    } catch (error) {
+      toast({
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "فشل حذف الخدمة",
+        variant: "destructive",
+      });
     }
   };
 
   const toggleActive = async (service: TrainerService) => {
-    const { error } = await supabase
-      .from("trainer_services")
-      .update({ is_active: !service.is_active })
-      .eq("id", service.id);
-
-    if (!error) {
-      fetchServices();
+    try {
+      await updateTrainerService(service.id, { is_active: !service.is_active });
+      void fetchServices();
+    } catch (error) {
+      toast({
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "فشل تحديث حالة الخدمة",
+        variant: "destructive",
+      });
     }
   };
 
