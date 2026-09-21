@@ -143,6 +143,11 @@
     background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23d4af37' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
   }
 
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 3px;
+  }
+
   h1, h2, h3, h4, h5, h6 {
     @apply font-display;
   }
@@ -150,7 +155,7 @@
 
 @layer components {
   .content-card {
-    @apply bg-card rounded-2xl p-4 border border-border shadow-sm transition-all duration-300 hover:shadow-lg hover:shadow-accent/5;
+    @apply rounded-2xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/20;
   }
 
   .post-card {
@@ -179,18 +184,29 @@
 
   /* Elevated card style */
   .sanctuary-card {
-    @apply bg-card rounded-2xl p-6 border border-accent/20 shadow-lg relative overflow-hidden;
+    @apply relative overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-sm;
   }
 
   .sanctuary-card::before {
     content: '';
-    @apply absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent pointer-events-none;
+    @apply pointer-events-none absolute inset-y-0 right-0 w-1 bg-accent/60;
   }
 
   /* Glowing gold border */
   .gold-border {
     @apply border border-accent/30 shadow-sm;
     box-shadow: 0 0 15px -5px hsl(var(--accent) / 0.15);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
 

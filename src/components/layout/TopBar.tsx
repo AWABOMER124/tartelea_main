@@ -1,14 +1,15 @@
-import { Moon, Sun, Sparkles, User } from "lucide-react";
+import { Moon, Sun, User } from "lucide-react";
 import { Link } from "react-router-dom";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import { useTheme } from "@/hooks/useTheme";
+import logoImage from "@/assets/logo.jpeg";
 
 const TopBar = () => {
   const { theme, toggleTheme } = useTheme();
 
   return (
-    <header className="sticky top-0 z-50 bg-card/95 backdrop-blur-sm border-b border-border/50 px-4 py-3">
-      <div className="flex items-center justify-between">
+    <header className="sticky top-0 z-50 border-b border-border/60 bg-card/95 px-4 py-2.5 backdrop-blur-md">
+      <div className="mx-auto flex max-w-6xl items-center justify-between">
         <button
           onClick={toggleTheme}
           className="w-10 h-10 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
@@ -16,9 +17,9 @@ const TopBar = () => {
         >
           {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
         </button>
-        <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-          <Sparkles className="h-6 w-6 text-accent" />
-          <h1 className="text-lg font-display font-bold text-foreground">
+        <Link to="/" className="flex items-center gap-2 rounded-lg outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring">
+          <img src={logoImage} alt="" className="h-8 w-8 rounded-lg object-cover" />
+          <h1 className="font-body text-base font-bold text-foreground sm:text-lg">
             المدرسة الترتيلية
           </h1>
         </Link>

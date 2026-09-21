@@ -23,6 +23,8 @@ const ContentDetail = lazyWithRetry(() => import("./pages/ContentDetail"));
 const TrainerDashboard = lazyWithRetry(() => import("./pages/TrainerDashboard"));
 const TrainerProfile = lazyWithRetry(() => import("./pages/TrainerProfile"));
 const Courses = lazyWithRetry(() => import("./pages/Courses"));
+const Learn = lazyWithRetry(() => import("./pages/Learn"));
+const Live = lazyWithRetry(() => import("./pages/Live"));
 const CourseDetail = lazyWithRetry(() => import("./pages/CourseDetail"));
 const CertificateView = lazyWithRetry(() => import("./pages/CertificateView"));
 const Subscription = lazyWithRetry(() => import("./pages/Subscription"));
@@ -85,6 +87,8 @@ const AppInner = () => {
         <Route path="/community" element={<Community />} />
         <Route path="/community/:id" element={<PostDetail />} />
         <Route path="/courses" element={<Courses />} />
+        <Route path="/learn" element={<Learn />} />
+        <Route path="/live" element={<Live />} />
         <Route path="/courses/:id" element={<CourseDetail />} />
         <Route path="/certificate/:id" element={<CertificateView />} />
         <Route path="/subscription" element={<Subscription />} />

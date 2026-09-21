@@ -75,10 +75,12 @@ interface CourseRatingRow {
   rating: number;
 }
 
-interface CourseProgressRow {
+export interface CourseProgressRow {
   id: string;
+  course_id: string;
   progress_percent: number;
   completed_at: string | null;
+  last_accessed_at?: string | null;
 }
 
 const toArray = <T>(value: T[] | T | null | undefined): T[] => {
@@ -293,6 +295,15 @@ export const getCourseProgress = async (courseId: string, userId: string) => {
   });
 
   return response.data;
+};
+
+export const listUserCourseProgress = async (userId: string) => {
+  const response = await compatSelect<CourseProgressRow[]>("course_progress", {
+    filters: [{ column: "user_id", operator: "eq", value: userId }],
+    order: [{ column: "last_accessed_at", ascending: false }],
+  });
+
+  return toArray(response.data);
 };
 
 export const saveCourseProgress = async (courseId: string, userId: string, progressPercent: number) => {

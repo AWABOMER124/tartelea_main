@@ -237,22 +237,19 @@ const BackendCommunityPage = () => {
     <AppLayout>
       <PageMeta
         title="المجتمع"
-        description="واجهة المجتمع الرسمية المرتبطة بموديول Community Lite في الباك إند."
+        description="مساحة المدرسة للنقاش والأسئلة ومشاركة الفهم حول المسارات واللقاءات."
         path="/community"
       />
-      <div className="px-4 py-6 space-y-6">
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-2">
+      <div className="mx-auto w-full max-w-4xl space-y-6 px-4 py-6 sm:px-6 sm:py-10">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="max-w-2xl space-y-2">
+            <p className="text-sm font-semibold text-spiritual-green">نتعلّم معاً</p>
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-xl font-display font-bold text-foreground">المجتمع</h1>
-              <Badge variant="secondary">Backend-Owned</Badge>
-              {!isAuthenticated && (
-                <Badge variant="outline">تصفح فقط</Badge>
-              )}
+              <h1 className="text-2xl font-bold text-foreground sm:text-3xl">مجتمع المدرسة</h1>
+              {!isAuthenticated && <Badge variant="outline">للقراءة</Badge>}
             </div>
-            <p className="text-sm text-muted-foreground max-w-2xl">
-              هذه هي طبقة المجتمع الرسمية للمنصة. جميع مسارات المجتمع الأساسية في الويب
-              تعمل الآن عبر الباك إند مباشرة.
+            <p className="text-sm leading-7 text-muted-foreground sm:text-base">
+              مساحة هادئة للأسئلة والنقاش ومشاركة الفهم حول المسارات واللقاءات.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -421,7 +418,7 @@ const BackendPostCard = ({
   const [reportOpen, setReportOpen] = useState(false);
 
   return (
-    <div className="post-card animate-fade-in">
+    <article className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
       <div className="flex items-start gap-3 mb-3">
         <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
           <span className="text-sm font-medium text-primary">
@@ -497,7 +494,7 @@ const BackendPostCard = ({
         targetLabel="المنشور"
         targetPreview={post.title || post.body}
       />
-    </div>
+    </article>
   );
 };
 
