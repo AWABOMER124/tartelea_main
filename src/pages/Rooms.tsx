@@ -241,7 +241,7 @@ const Rooms = () => {
 
   return (
     <AppLayout>
-      <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-6 sm:px-6 sm:py-10">
+      <div className="page-shell max-w-6xl space-y-7">
         <header className="max-w-2xl space-y-2">
           <p className="text-sm font-semibold text-spiritual-green">مجالس صوتية</p>
           <h1 className="text-2xl font-bold text-foreground sm:text-3xl">الغرف الصوتية</h1>
@@ -266,7 +266,7 @@ const Rooms = () => {
         </div>
 
         {liveRooms.length > 0 && (
-          <div className="space-y-3">
+          <div className="grid gap-4 lg:grid-cols-2">
             <div className="flex items-center gap-2">
               <span className="h-2.5 w-2.5 rounded-full bg-spiritual-green" />
               <h2 className="text-sm font-bold text-foreground">يحدث الآن</h2>
@@ -386,7 +386,7 @@ const Rooms = () => {
               const scheduledDate = new Date(room.scheduledAt);
 
               return (
-                <Card key={room.id} className="overflow-hidden">
+                <Card key={room.id} className="overflow-hidden rounded-xl border-border shadow-none">
                   <CardContent className="p-4">
                     <div className="flex gap-3">
                       <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0 relative overflow-hidden">
