@@ -12,10 +12,7 @@ const criticalFiles = [
   "src/pages/Community.tsx",
   "src/pages/PostDetail.tsx",
 ];
-const legacyFiles = [
-  "src/components/community/LegacyCommunityPage.tsx",
-  "src/components/community/LegacyPostDetailPage.tsx",
-];
+const legacyFiles = [];
 const expectedMarkers = [
   {
     file: "src/integrations/supabase/client.ts",
