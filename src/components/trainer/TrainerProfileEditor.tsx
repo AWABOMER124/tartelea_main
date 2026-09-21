@@ -1,5 +1,4 @@
 import { useState, useRef } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +8,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Camera, Loader2, Save, X, Plus } from "lucide-react";
+import { uploadCompatFile } from "@/lib/backendCompat";
+import { updateBackendProfile } from "@/lib/backendProfile";
 
 interface TrainerProfileEditorProps {
   userId: string;
@@ -66,33 +67,11 @@ const TrainerProfileEditor = ({ userId, profile, onUpdate }: TrainerProfileEdito
     setUploading(true);
 
     try {
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${userId}/avatar.${fileExt}`;
+      const publicUrl = await uploadCompatFile(file);
+      if (!publicUrl) throw new Error("Upload failed");
 
-      // Delete old avatar if exists
-      await supabase.storage.from("avatars").remove([fileName]);
-
-      // Upload new avatar
-      const { error: uploadError } = await supabase.storage
-        .from("avatars")
-        .upload(fileName, file, { upsert: true });
-
-      if (uploadError) throw uploadError;
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from("avatars")
-        .getPublicUrl(fileName);
-
-      // Update profile with new avatar URL
-      const { error: updateError } = await supabase
-        .from("profiles")
-        .update({ avatar_url: publicUrl })
-        .eq("id", userId);
-
-      if (updateError) throw updateError;
-
-      setFormData(prev => ({ ...prev, avatar_url: publicUrl }));
+      await updateBackendProfile(userId, { avatar_url: publicUrl });
+      setFormData((prev) => ({ ...prev, avatar_url: publicUrl }));
       toast({ title: "تم بنجاح", description: "تم تحديث الصورة الشخصية" });
       onUpdate();
     } catch (error) {
@@ -127,29 +106,25 @@ const TrainerProfileEditor = ({ userId, profile, onUpdate }: TrainerProfileEdito
   const handleSave = async () => {
     setSaving(true);
 
-    const { error } = await supabase
-      .from("profiles")
-      .update({
+    try {
+      await updateBackendProfile(userId, {
         full_name: formData.full_name,
-        bio: formData.bio || null,
+        bio: formData.bio || "",
         experience_years: formData.experience_years,
         specializations: formData.specializations,
-        country: formData.country || null,
-      })
-      .eq("id", userId);
-
-    if (error) {
+        country: formData.country || "",
+      });
+      toast({ title: "تم بنجاح", description: "تم حفظ البيانات" });
+      onUpdate();
+    } catch {
       toast({
         title: "خطأ",
         description: "فشل حفظ البيانات",
         variant: "destructive",
       });
-    } else {
-      toast({ title: "تم بنجاح", description: "تم حفظ البيانات" });
-      onUpdate();
+    } finally {
+      setSaving(false);
     }
-
-    setSaving(false);
   };
 
   return (
@@ -242,7 +217,7 @@ const TrainerProfileEditor = ({ userId, profile, onUpdate }: TrainerProfileEdito
                 value={newSpecialization}
                 onChange={(e) => setNewSpecialization(e.target.value)}
                 placeholder="أضف تخصصاً"
-                onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), addSpecialization())}
+                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addSpecialization())}
               />
               <Button type="button" onClick={addSpecialization} size="icon" variant="outline">
                 <Plus className="h-4 w-4" />
