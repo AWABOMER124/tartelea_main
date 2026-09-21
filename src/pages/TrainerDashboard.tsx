@@ -19,46 +19,12 @@ import TrainerCoursesTab from "@/components/trainer/TrainerCoursesTab";
 import TrainerWorkshopsTab from "@/components/trainer/TrainerWorkshopsTab";
 import TrainerRoomsTab from "@/components/trainer/TrainerRoomsTab";
 import type { TrainerCourse } from "@/components/trainer/CourseFormDialog";
-import type { Database } from "@/integrations/supabase/types";
-
-type ContentCategory = Database["public"]["Enums"]["content_category"];
-
-interface Workshop {
-  id: string;
-  title: string;
-  description: string | null;
-  category: ContentCategory;
-  scheduled_at: string;
-  duration_minutes: number | null;
-  is_approved: boolean | null;
-  is_live: boolean | null;
-  price: number | null;
-  max_participants: number | null;
-  image_url: string | null;
-}
-
-interface Room {
-  id: string;
-  title: string;
-  description: string | null;
-  category: ContentCategory;
-  scheduled_at: string;
-  duration_minutes: number | null;
-  is_approved: boolean | null;
-  is_live: boolean | null;
-  price: number | null;
-  max_participants: number | null;
-  access_type: string;
-}
-
-interface TrainerProfile {
-  full_name: string | null;
-  bio: string | null;
-  experience_years: number | null;
-  specializations: string[] | null;
-  avatar_url: string | null;
-  country: string | null;
-}
+import {
+  getTrainerDashboardData,
+  type TrainerRoomRecord as Room,
+  type TrainerWorkshopRecord as Workshop,
+} from "@/lib/backendTrainerDashboard";
+import type { BackendProfile as TrainerProfile } from "@/lib/backendProfile";
 
 const TrainerDashboard = () => {
   const navigate = useNavigate();
