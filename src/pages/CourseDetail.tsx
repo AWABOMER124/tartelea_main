@@ -43,18 +43,18 @@ const typeIcons = {
 };
 
 const categoryLabels: Record<string, string> = {
-  quran: "ط§ظ„ظ‚ط±ط¢ظ†",
-  values: "ط§ظ„ظ‚ظٹظ…",
-  community: "ط§ظ„ظ…ط¬طھظ…ط¹",
-  sudan_awareness: "ط§ظ„ظˆط¹ظٹ ط§ظ„ط³ظˆط¯ط§ظ†ظٹ",
-  arab_awareness: "ط§ظ„ظˆط¹ظٹ ط§ظ„ط¹ط±ط¨ظٹ",
-  islamic_awareness: "ط§ظ„ظˆط¹ظٹ ط§ظ„ط¥ط³ظ„ط§ظ…ظٹ",
+  quran: "القرآن",
+  values: "القيم",
+  community: "المجتمع",
+  sudan_awareness: "الوعي السوداني",
+  arab_awareness: "الوعي العربي",
+  islamic_awareness: "الوعي الإسلامي",
 };
 
 const depthLabels: Record<string, string> = {
-  beginner: "ظ…ط¨طھط¯ط¦",
-  intermediate: "ظ…طھظˆط³ط·",
-  advanced: "ظ…طھظ‚ط¯ظ…",
+  beginner: "تخلية",
+  intermediate: "تحلية",
+  advanced: "تجلّي",
 };
 
 const CourseDetail = () => {
@@ -105,8 +105,8 @@ const CourseDetail = () => {
 
       if (!payload) {
         toast({
-          title: "ط®ط·ط£",
-          description: "ط§ظ„ط¯ظˆط±ط© ط؛ظٹط± ظ…ظˆط¬ظˆط¯ط©",
+          title: "خطأ",
+          description: "المسار غير موجود",
           variant: "destructive",
         });
         navigate("/courses");
@@ -119,8 +119,8 @@ const CourseDetail = () => {
       setUserRating(payload.userRating);
     } catch (error) {
       toast({
-        title: "طªط¹ط°ط± طھط­ظ…ظٹظ„ ط§ظ„ط¯ظˆط±ط©",
-        description: error instanceof Error ? error.message : "ط­ط¯ط« ط®ط·ط£ ط؛ظٹط± ظ…طھظˆظ‚ط¹",
+        title: "تعذر تحميل المسار",
+        description: error instanceof Error ? error.message : "ط­ط¯ط« خطأ ط؛ظٹط± ظ…طھظˆظ‚ط¹",
         variant: "destructive",
       });
     } finally {
@@ -135,8 +135,8 @@ const CourseDetail = () => {
 
     if (!userId) {
       toast({
-        title: "طھظ†ط¨ظٹظ‡",
-        description: "ظٹط¬ط¨ طھط³ط¬ظٹظ„ ط§ظ„ط¯ط®ظˆظ„ ظ„ظ„ط§ط´طھط±ط§ظƒ",
+        title: "تنبيه",
+        description: "سجّل الدخول للاشتراك",
         variant: "destructive",
       });
       return;
@@ -144,8 +144,8 @@ const CourseDetail = () => {
 
     if (hasContractAccess && !isSubscribed) {
       toast({
-        title: "ظ…طھط§ط­ ط¶ظ…ظ† ط§ط´طھط±ط§ظƒظƒ",
-        description: "ظ„ط§ طھط­طھط§ط¬ ط¥ظ„ظ‰ ط§ط´طھط±ط§ظƒ ط¯ظˆط±ط© ظ…ط³طھظ‚ظ„ ظ„ظ„ظˆطµظˆظ„.",
+        title: "متاح ضمن عضويتك",
+        description: "لا تحتاج إلى اشتراك مستقل للوصول إلى هذا المسار.",
       });
       return;
     }
@@ -155,17 +155,17 @@ const CourseDetail = () => {
     try {
       if (isSubscribed) {
         await unsubscribeFromCourse(id, userId);
-        toast({ title: "طھظ… ط¥ظ„ط؛ط§ط، ط§ظ„ط§ط´طھط±ط§ظƒ" });
+        toast({ title: "تم إلغاء الاشتراك" });
       } else {
         await subscribeToCourse(id, userId);
-        toast({ title: "طھظ… ط§ظ„ط§ط´طھط±ط§ظƒ ط¨ظ†ط¬ط§ط­" });
+        toast({ title: "تم الاشتراك بنجاح" });
       }
 
       await loadCourse();
     } catch (error) {
       toast({
-        title: "ط®ط·ط£",
-        description: error instanceof Error ? error.message : "ط­ط¯ط« ط®ط·ط£ ط؛ظٹط± ظ…طھظˆظ‚ط¹",
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "ط­ط¯ط« خطأ ط؛ظٹط± ظ…طھظˆظ‚ط¹",
         variant: "destructive",
       });
     } finally {
@@ -180,8 +180,8 @@ const CourseDetail = () => {
 
     if (!userId) {
       toast({
-        title: "طھظ†ط¨ظٹظ‡",
-        description: "ظٹط¬ط¨ طھط³ط¬ظٹظ„ ط§ظ„ط¯ط®ظˆظ„ ظ„ظ„طھظ‚ظٹظٹظ…",
+        title: "تنبيه",
+        description: "سجّل الدخول للتقييم",
         variant: "destructive",
       });
       return;
@@ -193,11 +193,11 @@ const CourseDetail = () => {
       await submitCourseRating(id, userId, rating, userRating > 0);
       setUserRating(rating);
       await loadCourse();
-      toast({ title: "طھظ… ط­ظپط¸ طھظ‚ظٹظٹظ…ظƒ" });
+      toast({ title: "تم حفظ تقييمك" });
     } catch (error) {
       toast({
-        title: "ط®ط·ط£",
-        description: error instanceof Error ? error.message : "ط­ط¯ط« ط®ط·ط£ ط؛ظٹط± ظ…طھظˆظ‚ط¹",
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "ط­ط¯ط« خطأ ط؛ظٹط± ظ…طھظˆظ‚ط¹",
         variant: "destructive",
       });
     } finally {
@@ -212,8 +212,8 @@ const CourseDetail = () => {
 
     if (!userId) {
       toast({
-        title: "طھظ†ط¨ظٹظ‡",
-        description: "ظٹط¬ط¨ طھط³ط¬ظٹظ„ ط§ظ„ط¯ط®ظˆظ„ ظ„ظ„طھط¹ظ„ظٹظ‚",
+        title: "تنبيه",
+        description: "سجّل الدخول للتعليق",
         variant: "destructive",
       });
       return;
@@ -227,11 +227,11 @@ const CourseDetail = () => {
       await submitCourseComment(id, userId, newComment.trim());
       setNewComment("");
       await loadCourse();
-      toast({ title: "طھظ…طھ ط¥ط¶ط§ظپط© ط§ظ„طھط¹ظ„ظٹظ‚" });
+      toast({ title: "تمت إضافة التعليق" });
     } catch (error) {
       toast({
-        title: "ط®ط·ط£",
-        description: error instanceof Error ? error.message : "ظپط´ظ„ ط¥ط¶ط§ظپط© ط§ظ„طھط¹ظ„ظٹظ‚",
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "فشلت إضافة التعليق",
         variant: "destructive",
       });
     } finally {
@@ -255,7 +255,7 @@ const CourseDetail = () => {
 
   return (
     <AppLayout>
-      <div className="px-4 py-6 space-y-6">
+      <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-6 sm:px-6 sm:py-10">
         <Button
           variant="ghost"
           size="sm"
@@ -323,7 +323,7 @@ const CourseDetail = () => {
                 ظ…ط´طھط±ظƒ
               </>
             ) : (
-              "ط§ط´طھط±ظƒ ط§ظ„ط¢ظ†"
+              "اشترك الآن"
             )}
           </Button>
           {course.url && (
@@ -391,7 +391,7 @@ const CourseDetail = () => {
 
           <div className="flex gap-2">
             <Textarea
-              placeholder="ط£ط¶ظپ طھط¹ظ„ظٹظ‚ط§ظ‹..."
+              placeholder="أضف تعليقاً..."
               value={newComment}
               onChange={(event) => setNewComment(event.target.value)}
               className="min-h-[80px]"
