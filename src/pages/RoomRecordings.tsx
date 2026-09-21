@@ -145,14 +145,12 @@ const RoomRecordings = () => {
 
   return (
     <AppLayout>
-      <div className="px-4 py-6 space-y-6">
-        <div className="text-center space-y-2">
-          <div className="w-14 h-14 mx-auto bg-primary/10 rounded-2xl flex items-center justify-center">
-            <Archive className="h-7 w-7 text-primary" />
-          </div>
-          <h1 className="text-2xl font-display font-bold text-foreground">أرشيف الغرف الصوتية</h1>
-          <p className="text-sm text-muted-foreground">الغرف المنتهية وتسجيلاتها</p>
-        </div>
+      <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-6 sm:px-6 sm:py-10">
+        <header className="max-w-2xl space-y-2">
+          <p className="text-sm font-semibold text-spiritual-green">ارجع إلى المجالس السابقة</p>
+          <h1 className="text-2xl font-bold text-foreground sm:text-3xl">أرشيف المجالس</h1>
+          <p className="leading-7 text-muted-foreground">استمع إلى تسجيلات الغرف السابقة وراجع تفاصيل المجالس المنتهية.</p>
+        </header>
 
         {loading ? (
           <div className="flex items-center justify-center py-12">
