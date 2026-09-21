@@ -160,7 +160,7 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="flex min-h-screen flex-col bg-background">
       <header className="px-4 py-4">
         <Link to="/" className="flex items-center gap-2 text-muted-foreground">
           <ArrowRight className="h-5 w-5" />
@@ -168,16 +168,19 @@ const Auth = () => {
         </Link>
       </header>
 
-      <div className="flex-1 flex flex-col items-center justify-center px-4 py-8">
-        <div className="w-full max-w-sm space-y-6">
-          <div className="text-center space-y-3">
-            <div className="w-16 h-16 mx-auto bg-primary/10 rounded-full flex items-center justify-center">
-              <Book className="h-8 w-8 text-primary" />
+      <main className="flex flex-1 items-center justify-center px-4 py-8 sm:py-12">
+        <div className="w-full max-w-md space-y-6">
+          <div className="space-y-3 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
+              <Book className="h-6 w-6 text-primary" />
             </div>
-            <h1 className="text-xl font-display font-bold text-foreground">المدرسة الترتيلية</h1>
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">المدرسة الترتيلية</h1>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">ادخل إلى رحلتك التعليمية، أو أنشئ حساباً لتبدأ.</p>
+            </div>
           </div>
 
-          <div className="content-card p-6">
+          <div className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
             {signupSuccess ? (
               <div className="space-y-6 text-center py-4">
                 <div className="w-20 h-20 mx-auto bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
@@ -214,7 +217,7 @@ const Auth = () => {
                           رمز التطوير الحالي: {verificationState.devOtp}
                         </div>
                       ) : null}
-                      <Button type="submit" className="w-full" disabled={loading}>
+                      <Button type="submit" className="min-h-11 w-full" disabled={loading}>
                         {loading ? "جار التحقق..." : "تأكيد الرمز"}
                       </Button>
                     </form>
@@ -255,7 +258,7 @@ const Auth = () => {
                       required
                     />
                   </div>
-                  <Button type="submit" className="w-full" disabled={loading}>
+                  <Button type="submit" className="min-h-11 w-full" disabled={loading}>
                     {loading ? "جار الإرسال..." : "إرسال الرمز"}
                   </Button>
                 </form>
@@ -303,7 +306,7 @@ const Auth = () => {
                         required
                       />
                     </div>
-                    <Button type="submit" className="w-full" disabled={loading}>
+                    <Button type="submit" className="min-h-11 w-full" disabled={loading}>
                       {loading ? "جار تسجيل الدخول..." : "تسجيل الدخول"}
                     </Button>
                   </form>
@@ -344,7 +347,7 @@ const Auth = () => {
                         minLength={6}
                       />
                     </div>
-                    <Button type="submit" className="w-full" disabled={loading}>
+                    <Button type="submit" className="min-h-11 w-full" disabled={loading}>
                       {loading ? "جار إنشاء الحساب..." : "إنشاء الحساب"}
                     </Button>
                   </form>
@@ -354,7 +357,8 @@ const Auth = () => {
           </div>
         </div>
       </div>
-    </div>
+    </main>
+  </div>
   );
 };
 
