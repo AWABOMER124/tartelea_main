@@ -2,6 +2,7 @@ const errors = [];
 
 const apiBase = process.env.VITE_BACKEND_API_BASE_URL?.trim() || "";
 const livekitUrl = process.env.VITE_LIVEKIT_URL?.trim() || "";
+const googleClientId = process.env.VITE_GOOGLE_CLIENT_ID?.trim() || "";
 const backendCommunity = process.env.VITE_USE_BACKEND_COMMUNITY?.trim() || "true";
 
 if (!apiBase) {
@@ -18,6 +19,12 @@ if (!apiBase) {
   } catch {
     errors.push("VITE_BACKEND_API_BASE_URL must be a valid absolute URL.");
   }
+}
+
+if (!googleClientId) {
+  errors.push("VITE_GOOGLE_CLIENT_ID is required for Google sign-in.");
+} else if (!googleClientId.endsWith(".apps.googleusercontent.com")) {
+  errors.push("VITE_GOOGLE_CLIENT_ID must be a Google OAuth web client ID.");
 }
 
 if (!livekitUrl) {
@@ -48,3 +55,4 @@ if (errors.length) {
 console.log("[WEB PREFLIGHT] production build configuration is valid.");
 console.log(`[WEB PREFLIGHT] API: ${apiBase}`);
 console.log(`[WEB PREFLIGHT] LiveKit: ${livekitUrl}`);
+console.log(`[WEB PREFLIGHT] Google OAuth client configured: ${Boolean(googleClientId)}`);

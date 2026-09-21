@@ -52,6 +52,23 @@ const applyBackendAuthPayload = (
   return session;
 };
 
+export const loginWithGoogleBackend = async (
+  idToken: string,
+): Promise<BackendAuthResult> => {
+  const payload = await backendRequest<BackendAuthResponsePayload>("/auth/google", {
+    method: "POST",
+    body: { idToken },
+    attachAuthToken: false,
+  });
+
+  const session = applyBackendAuthPayload(payload);
+
+  return {
+    session,
+    payload,
+  };
+};
+
 export const loginWithBackend = async (
   email: string,
   password: string,
