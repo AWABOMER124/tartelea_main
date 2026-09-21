@@ -8,14 +8,10 @@ const legacySupabaseAuthFiles = new Set([
   'src/lib/capacitor/push-notifications.ts',
   'src/pages/SudanAwareness.tsx',
   'src/components/notifications/NotificationBell.tsx',
-  'src/components/community/PostReportDialog.tsx',
   'src/components/bookings/ServiceReviewDialog.tsx',
   'src/components/messages/DirectMessages.tsx',
   'src/components/chat/TadabburChat.tsx',
   'src/components/bookings/ServiceBookingDialog.tsx',
-  'src/components/community/PostCommentsDialog.tsx',
-  'src/components/admin/PinnedContentManagement.tsx',
-  'src/components/community/LegacyPostDetailPage.tsx',
   'src/components/workshops/CreateWorkshopDialog.tsx',
 ]);
 
