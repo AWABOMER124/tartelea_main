@@ -32,8 +32,9 @@ jobs:
         env:
           VITE_BACKEND_API_BASE_URL: https://api.tartelea.com/api/v1
           VITE_LIVEKIT_URL: wss://rtc.tartelea.com
+          VITE_GOOGLE_CLIENT_ID: 1234567890-ci.apps.googleusercontent.com
           VITE_USE_BACKEND_COMMUNITY: "true"
-      - run: docker build --build-arg VITE_BACKEND_API_BASE_URL=https://api.tartelea.com/api/v1 --build-arg VITE_LIVEKIT_URL=wss://rtc.tartelea.com --build-arg VITE_USE_BACKEND_COMMUNITY=true -t tartelea-web-ci .
+      - run: docker build --build-arg VITE_BACKEND_API_BASE_URL=https://api.tartelea.com/api/v1 --build-arg VITE_LIVEKIT_URL=wss://rtc.tartelea.com --build-arg VITE_GOOGLE_CLIENT_ID=1234567890-ci.apps.googleusercontent.com --build-arg VITE_USE_BACKEND_COMMUNITY=true -t tartelea-web-ci .
 
   backend-quality:
     runs-on: ubuntu-latest
