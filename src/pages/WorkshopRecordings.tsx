@@ -280,7 +280,7 @@ const WorkshopRecordings = () => {
             {filteredRecordings.map((recording) => (
               <Card
                 key={recording.id}
-                className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
+                className="cursor-pointer overflow-hidden border-border shadow-sm transition-colors hover:border-primary/25"
                 onClick={() => handlePlayRecording(recording)}
               >
                 <div className="relative aspect-video bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
