@@ -28,6 +28,12 @@ jobs:
       - run: npm run check:transition
       - run: npm run check:no-direct-supabase
       - run: npm run build
+      - run: npm run check:deploy-env
+        env:
+          VITE_BACKEND_API_BASE_URL: https://api.tartelea.com/api/v1
+          VITE_LIVEKIT_URL: wss://rtc.tartelea.com
+          VITE_USE_BACKEND_COMMUNITY: "true"
+      - run: docker build --build-arg VITE_BACKEND_API_BASE_URL=https://api.tartelea.com/api/v1 --build-arg VITE_LIVEKIT_URL=wss://rtc.tartelea.com --build-arg VITE_USE_BACKEND_COMMUNITY=true -t tartelea-web-ci .
 
   backend-quality:
     runs-on: ubuntu-latest
