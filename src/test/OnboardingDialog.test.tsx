@@ -10,20 +10,20 @@ describe("OnboardingDialog", () => {
   it("shows onboarding for first-time users", () => {
     render(<OnboardingDialog />);
     // Use getAllByText since DialogTitle renders both sr-only and visible h2
-    const elements = screen.getAllByText("المكتبة الشاملة");
+    const elements = screen.getAllByText("ابدأ من مسار واضح");
     expect(elements.length).toBeGreaterThanOrEqual(1);
   });
 
   it("does not show if already completed", () => {
     localStorage.setItem("onboarding_completed", "true");
     render(<OnboardingDialog />);
-    expect(screen.queryByText("المكتبة الشاملة")).not.toBeInTheDocument();
+    expect(screen.queryByText("ابدأ من مسار واضح")).not.toBeInTheDocument();
   });
 
   it("navigates through steps", () => {
     render(<OnboardingDialog />);
     fireEvent.click(screen.getByText("التالي"));
-    const elements = screen.getAllByText("الدورات التدريبية");
+    const elements = screen.getAllByText("تعلّم بالطريقة المناسبة لك");
     expect(elements.length).toBeGreaterThanOrEqual(1);
   });
 
@@ -32,7 +32,7 @@ describe("OnboardingDialog", () => {
     fireEvent.click(screen.getByText("التالي"));
     fireEvent.click(screen.getByText("التالي"));
     fireEvent.click(screen.getByText("التالي"));
-    fireEvent.click(screen.getByText("ابدأ الآن!"));
+    fireEvent.click(screen.getByText("ابدأ رحلتي"));
     expect(localStorage.getItem("onboarding_completed")).toBe("true");
   });
 });

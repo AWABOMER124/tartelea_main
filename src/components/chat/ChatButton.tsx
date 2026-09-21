@@ -38,9 +38,10 @@ const ChatButton = () => {
             <Button
               onClick={handleClick}
               size="icon"
-              className="fixed bottom-24 left-4 z-40 h-14 w-14 rounded-full shadow-lg bg-primary hover:bg-primary/90"
+              aria-label="فتح مساعد التدبر"
+              className="fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] left-4 z-40 h-12 w-12 rounded-2xl bg-primary shadow-md hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
-              <MessageCircle className="h-6 w-6" />
+              <MessageCircle className="h-5 w-5" />
             </Button>
           </TooltipTrigger>
           <TooltipContent side="right">

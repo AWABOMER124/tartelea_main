@@ -28,12 +28,12 @@ const AppLayout = ({ children, showFooter = true }: AppLayoutProps) => {
         isRefreshing={isRefreshing}
         threshold={threshold}
       />
-      <main className="flex-1 pb-24">
+      <main className="flex-1 pb-[calc(5.5rem+env(safe-area-inset-bottom))]">
         <ErrorBoundary>{children}</ErrorBoundary>
       </main>
 
       {showFooter && (
-        <footer className="border-t border-border bg-card py-4 px-4 mb-20">
+        <footer className="mb-[calc(4.5rem+env(safe-area-inset-bottom))] border-t border-border bg-card px-4 py-4">
           <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-sm text-muted-foreground">
             <p>© 2026 المدرسة الترتيلية. جميع الحقوق محفوظة.</p>
             <div className="flex gap-4">
