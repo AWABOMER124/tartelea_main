@@ -14,7 +14,7 @@ const BottomNav = () => {
   const location = useLocation();
 
   return (
-    <nav aria-label="التنقّل الرئيسي" className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/80 bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md">
+    <nav aria-label="التنقّل الرئيسي" className="fixed bottom-0 left-0 right-0 z-50 border-t lg:hidden border-border/80 bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md">
       <div className="mx-auto flex max-w-3xl items-center justify-around px-2 py-1.5">
         {navItems.map((item) => {
           const isActive = item.path === "/"

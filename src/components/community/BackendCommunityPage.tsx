@@ -240,7 +240,7 @@ const BackendCommunityPage = () => {
         description="مساحة المدرسة للنقاش والأسئلة ومشاركة الفهم حول المسارات واللقاءات."
         path="/community"
       />
-      <div className="mx-auto w-full max-w-4xl space-y-6 px-4 py-6 sm:px-6 sm:py-10">
+      <div className="page-shell max-w-6xl space-y-7">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="max-w-2xl space-y-2">
             <p className="text-sm font-semibold text-spiritual-green">نتعلّم معاً</p>
@@ -314,7 +314,7 @@ const BackendCommunityPage = () => {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 rounded-xl border border-border bg-card p-2">
           <Button
             variant={selectedContextId === "all" ? "default" : "outline"}
             size="sm"
@@ -418,7 +418,7 @@ const BackendPostCard = ({
   const [reportOpen, setReportOpen] = useState(false);
 
   return (
-    <article className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
+    <article className="rounded-xl border border-border bg-card p-4 sm:p-5">
       <div className="flex items-start gap-3 mb-3">
         <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
           <span className="text-sm font-medium text-primary">

@@ -91,7 +91,7 @@ const LearningStats = ({ userId }: LearningStatsProps) => {
       <div className="space-y-3">
         <Skeleton className="h-6 w-32" />
         <Skeleton className="h-32 w-full rounded-xl" />
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <Skeleton className="h-20 rounded-xl" />
           <Skeleton className="h-20 rounded-xl" />
         </div>
@@ -108,10 +108,10 @@ const LearningStats = ({ userId }: LearningStatsProps) => {
   return (
     <div className="space-y-4">
       {/* Level Card */}
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden rounded-xl border-border shadow-none">
         <CardContent className="p-4">
           <div className="flex items-center gap-4 mb-4">
-            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+            <div className="w-14 h-14 rounded-full bg-primary flex items-center justify-center">
               <span className="text-2xl font-bold text-primary-foreground">
                 {stats.currentLevel}
               </span>
@@ -146,7 +146,7 @@ const LearningStats = ({ userId }: LearningStatsProps) => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 gap-3">
-        <Card>
+        <Card className="rounded-xl border-border shadow-none">
           <CardContent className="pt-4 flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
               <BookOpen className="h-5 w-5 text-primary" />
@@ -158,7 +158,7 @@ const LearningStats = ({ userId }: LearningStatsProps) => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-xl border-border shadow-none">
           <CardContent className="pt-4 flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
               <Target className="h-5 w-5 text-primary" />
@@ -170,7 +170,7 @@ const LearningStats = ({ userId }: LearningStatsProps) => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-xl border-border shadow-none">
           <CardContent className="pt-4 flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
               <Award className="h-5 w-5 text-accent" />
@@ -182,7 +182,7 @@ const LearningStats = ({ userId }: LearningStatsProps) => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-xl border-border shadow-none">
           <CardContent className="pt-4 flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
               <TrendingUp className="h-5 w-5 text-accent" />

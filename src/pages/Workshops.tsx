@@ -42,7 +42,7 @@ const statusFilters = [
 ];
 
 const WorkshopCardSkeleton = () => (
-  <Card className="overflow-hidden">
+  <Card className="overflow-hidden rounded-xl border-border shadow-none">
     <CardContent className="p-4">
       <div className="flex gap-4">
         <Skeleton className="w-16 h-16 rounded-xl flex-shrink-0" />
@@ -141,7 +141,7 @@ const Workshops = () => {
 
   return (
     <AppLayout>
-      <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-6 sm:px-6 sm:py-10">
+      <div className="page-shell max-w-6xl space-y-7">
         <header className="max-w-2xl space-y-2">
           <p className="text-sm font-semibold text-spiritual-green">لقاءات تطبيقية</p>
           <h1 className="text-2xl font-bold text-foreground sm:text-3xl">الورش</h1>
@@ -183,7 +183,7 @@ const Workshops = () => {
 
         {/* Workshops List */}
         {workshopsLoading ? (
-          <div className="space-y-4">
+          <div className="grid gap-4 lg:grid-cols-2">
             {[1, 2, 3].map((i) => (
               <WorkshopCardSkeleton key={i} />
             ))}
@@ -208,7 +208,7 @@ const Workshops = () => {
                   role="link"
                   tabIndex={0}
                   aria-label={`فتح الورشة: ${workshop.title}`}
-                  className="cursor-pointer overflow-hidden border-border shadow-sm transition-colors hover:border-primary/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="cursor-pointer overflow-hidden rounded-xl border-border shadow-none transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   onClick={() => navigate(`/workshops/${workshop.id}`)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" || event.key === " ") {

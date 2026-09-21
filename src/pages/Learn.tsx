@@ -37,16 +37,16 @@ const learnDestinations = [
 const Learn = () => (
   <AppLayout>
     <PageMeta title="تعلّم" description="مسارات ومكتبة وورش المدرسة الترتيلية في مكان واحد." path="/learn" />
-    <div className="mx-auto max-w-5xl space-y-8 px-4 py-6 sm:px-6 sm:py-10">
+    <div className="page-shell max-w-6xl space-y-8">
       <header className="max-w-2xl space-y-2">
         <span className="text-sm font-semibold text-spiritual-green">رحلتك التعليمية</span>
         <h1 className="text-2xl font-bold text-foreground sm:text-3xl">تعلّم بوضوح، خطوة بعد خطوة</h1>
         <p className="leading-7 text-muted-foreground">كل أدوات التعلّم في وجهة واحدة، من المسار المنهجي إلى المادة التي تحتاجها الآن.</p>
       </header>
 
-      <section aria-label="أقسام التعلّم" className="grid gap-3 sm:grid-cols-2">
+      <section aria-label="أقسام التعلّم" className="grid gap-4 md:grid-cols-2">
         {learnDestinations.map(({ to, icon: Icon, title, description, tone }) => (
-          <Link key={to} to={to} className="group rounded-2xl border border-border bg-card p-5 shadow-sm outline-none transition-colors hover:border-primary/25 focus-visible:ring-2 focus-visible:ring-ring">
+          <Link key={to} to={to} className="group rounded-xl border border-border bg-card p-5 outline-none transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring">
             <div className="flex items-start gap-4">
               <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${tone}`}><Icon className="h-5 w-5" /></span>
               <div className="min-w-0 flex-1">
@@ -61,7 +61,7 @@ const Learn = () => (
         ))}
       </section>
 
-      <section className="rounded-2xl border border-border bg-secondary/55 p-5 sm:p-6">
+      <section className="rounded-xl border border-border bg-secondary/45 p-5 sm:p-6">
         <div className="flex items-start gap-3">
           <BookOpen className="mt-1 h-5 w-5 shrink-0 text-spiritual-green" />
           <div>

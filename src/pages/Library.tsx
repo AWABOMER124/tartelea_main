@@ -58,13 +58,14 @@ const Library = () => {
 
   return (
     <AppLayout>
-      <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-6 sm:px-6 sm:py-10">
+      <div className="page-shell max-w-6xl space-y-7">
         <header className="max-w-2xl space-y-2">
           <p className="text-sm font-semibold text-spiritual-green">ارجع إلى ما تحتاجه</p>
           <h1 className="text-2xl font-bold text-foreground sm:text-3xl">المكتبة</h1>
           <p className="leading-7 text-muted-foreground">مقالات وصوتيات ومرئيات مرتبة لتصل إلى المادة المناسبة بأقل خطوات.</p>
         </header>
 
+        <div className="grid gap-5 rounded-xl border border-border bg-card p-5 lg:grid-cols-3">
         {/* Type Filter */}
         <div className="space-y-2">
           <h3 className="text-sm font-medium text-muted-foreground">النوع</h3>
@@ -110,10 +111,12 @@ const Library = () => {
           </div>
         </div>
 
+        </div>
+
         {/* Content List */}
-        <div className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {loading ? (
-            <div className="space-y-4">
+            <div className="col-span-full grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {[1, 2, 3].map((i) => (
                 <div key={i} className="content-card animate-pulse">
                   <div className="flex gap-3">
@@ -127,7 +130,7 @@ const Library = () => {
               ))}
             </div>
           ) : contents.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-border bg-card/60 py-12 text-center">
+            <div className="col-span-full rounded-xl border border-dashed border-border bg-card/60 py-14 text-center">
               <LibraryIcon className="mx-auto mb-3 h-9 w-9 text-muted-foreground/50" />
               <p className="font-semibold text-foreground">لا توجد مواد بهذه الفلاتر</p>
               <p className="mt-1 text-sm text-muted-foreground">غيّر النوع أو التصنيف أو المرحلة لعرض مواد أخرى.</p>
