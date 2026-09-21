@@ -8,7 +8,6 @@ services:
     env_file:
       - ./.env
     ports:
-      # Bind to localhost by default so the API isn't exposed publicly.
       - "127.0.0.1:3000:3000"
     environment:
       - NODE_ENV=${NODE_ENV:-production}
@@ -19,17 +18,19 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-*}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:5173}
       - EMAIL_ENABLED=${EMAIL_ENABLED:-false}
       - REQUIRE_EMAIL_VERIFICATION=${REQUIRE_EMAIL_VERIFICATION:-false}
       - AUTO_VERIFY_EMAIL=${AUTO_VERIFY_EMAIL:-true}
-      - OTP_DEV_FALLBACK=${OTP_DEV_FALLBACK:-true}
+      - OTP_DEV_FALLBACK=${OTP_DEV_FALLBACK:-false}
       - SUBSCRIPTIONS_PAUSED=${SUBSCRIPTIONS_PAUSED:-true}
       - TRAINER_EMAILS=${TRAINER_EMAILS}
       - EMAIL_HOST=${EMAIL_HOST}
       - EMAIL_PORT=${EMAIL_PORT}
       - EMAIL_USER=${EMAIL_USER}
       - EMAIL_PASS=${EMAIL_PASS}
+    volumes:
+      - uploads_data:/app/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -42,12 +43,10 @@ services:
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
     ports:
-      # Bind to localhost by default so PostgreSQL isn't exposed publicly.
       - "127.0.0.1:5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      # Optional: Auto-initialize schema
-      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
+      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
@@ -57,3 +56,4 @@ services:
 
 volumes:
   postgres_data:
+  uploads_data:

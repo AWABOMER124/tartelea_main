@@ -4,7 +4,7 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 
 COPY . .
 
@@ -16,18 +16,20 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 COPY --from=builder /app/package*.json ./
-RUN npm install --omit=dev
+RUN npm ci --omit=dev
 
 COPY --from=builder /app/src ./src
-# Create uploads directory if it doesn't exist
-RUN mkdir -p uploads
+COPY --from=builder /app/scripts ./scripts
+COPY --from=builder /app/migrations ./migrations
+COPY --from=builder /app/schema.sql ./schema.sql
 
-# Run as non-root user
+RUN mkdir -p uploads && chown -R node:node /app/uploads
+
 USER node
 
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-  CMD node -e "fetch('http://localhost:3000/api/v1/ready').then(r => r.ok ? process.exit(0) : process.exit(1))"
+  CMD node -e "fetch('http://localhost:3000/api/v1/ready').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
 
 CMD ["node", "src/server.js"]
