@@ -137,7 +137,7 @@ const Blog = () => {
         keywords="مدونة, مقالات عربية, علوم القرآن, اللسان العربي, تدبر القرآن, مقالات إسلامية"
       />
 
-      <div className="px-4 py-6 max-w-4xl mx-auto space-y-6">
+      <div className="mx-auto max-w-4xl space-y-6 px-4 py-6 sm:px-6 sm:py-10">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -206,11 +206,11 @@ const Blog = () => {
               placeholder="ابحث في المقالات..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pr-10"
+              className="min-h-11 pr-10"
             />
           </div>
           <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-            <SelectTrigger className="w-full sm:w-[180px]">
+            <SelectTrigger className="min-h-11 w-full sm:w-[180px]">
               <SelectValue placeholder="التصنيف" />
             </SelectTrigger>
             <SelectContent>
@@ -245,8 +245,17 @@ const Blog = () => {
             {filteredPosts.map((post) => (
               <Card
                 key={post.id}
-                className="hover:shadow-md transition-shadow cursor-pointer"
+                role="link"
+                tabIndex={0}
+                aria-label={`فتح المقال: ${post.title}`}
+                className="cursor-pointer border-border shadow-sm transition-colors hover:border-primary/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 onClick={() => navigate(`/blog/${post.id}`)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    navigate(`/blog/${post.id}`);
+                  }
+                }
               >
                 <CardContent className="p-6 space-y-3">
                   <div className="flex items-center gap-2 flex-wrap">
