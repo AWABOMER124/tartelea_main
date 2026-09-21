@@ -3,12 +3,7 @@ import { Moon, Filter } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import ContentCard from "@/components/content/ContentCard";
 import FilterChip from "@/components/ui/FilterChip";
-import { supabase } from "@/integrations/supabase/client";
-import type { Database } from "@/integrations/supabase/types";
-
-type Content = Database["public"]["Tables"]["contents"]["Row"];
-type DepthLevel = Database["public"]["Enums"]["depth_level"];
-type ContentType = Database["public"]["Enums"]["content_type"];
+import { listLibraryContent, type BackendContentItem as Content } from "@/lib/backendContent";
 
 const depthFilters = [
   { value: "all", label: "الكل" },
@@ -31,32 +26,27 @@ const IslamicAwareness = () => {
   const [selectedType, setSelectedType] = useState("all");
 
   useEffect(() => {
-    fetchContents();
+    let active = true;
+
+    const fetchContents = async () => {
+      setLoading(true);
+      try {
+        const data = await listLibraryContent({
+          category: "islamic_awareness",
+          depthLevel: selectedDepth,
+          type: selectedType,
+        });
+        if (active) setContents(data);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    void fetchContents();
+    return () => {
+      active = false;
+    };
   }, [selectedDepth, selectedType]);
-
-  const fetchContents = async () => {
-    setLoading(true);
-    
-    let query = supabase
-      .from("contents")
-      .select("*")
-      .eq("category", "islamic_awareness")
-      .order("created_at", { ascending: false });
-
-    if (selectedDepth !== "all") {
-      query = query.eq("depth_level", selectedDepth as DepthLevel);
-    }
-    if (selectedType !== "all") {
-      query = query.eq("type", selectedType as ContentType);
-    }
-
-    const { data, error } = await query;
-    
-    if (!error && data) {
-      setContents(data);
-    }
-    setLoading(false);
-  };
 
   return (
     <AppLayout>
