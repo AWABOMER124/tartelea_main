@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, Star, MessageSquare, TrendingUp, Eye, Award } from "lucide-react";
+import { Users, Star, MessageSquare, TrendingUp, Award } from "lucide-react";
+import { getTrainerStats } from "@/lib/backendTrainerDashboard";
 
 interface TrainerStatsProps {
   trainerId: string | null;
@@ -28,67 +28,16 @@ const TrainerStats = ({ trainerId }: TrainerStatsProps) => {
   }, [trainerId]);
 
   const fetchStats = async () => {
-    // Get trainer's course IDs
-    const { data: courses } = await supabase
-      .from("trainer_courses")
-      .select("id, views_count")
-      .eq("trainer_id", trainerId)
-      .eq("is_approved", true);
-
-    if (!courses || courses.length === 0) {
-      setStats({
-        totalSubscribers: 0,
-        totalComments: 0,
-        totalViews: 0,
-        avgRating: 0,
-        ratingCount: 0,
-        completedCourses: 0,
-      });
+    if (!trainerId) {
       setLoading(false);
       return;
     }
 
-    const courseIds = courses.map((c) => c.id);
-    const totalViews = courses.reduce((sum, c) => sum + (c.views_count || 0), 0);
-
-    // Get subscribers
-    const { data: subs } = await supabase
-      .from("course_subscriptions")
-      .select("id")
-      .in("course_id", courseIds);
-
-    // Get comments
-    const { data: comments } = await supabase
-      .from("course_comments")
-      .select("id")
-      .in("course_id", courseIds);
-
-    // Get ratings
-    const { data: ratings } = await supabase
-      .from("course_ratings")
-      .select("rating")
-      .in("course_id", courseIds);
-
-    // Get completed courses
-    const { data: completed } = await supabase
-      .from("course_progress")
-      .select("id")
-      .in("course_id", courseIds)
-      .eq("progress_percent", 100);
-
-    const totalRating = ratings?.reduce((sum, r) => sum + r.rating, 0) || 0;
-    const ratingCount = ratings?.length || 0;
-
-    setStats({
-      totalSubscribers: subs?.length || 0,
-      totalComments: comments?.length || 0,
-      totalViews,
-      avgRating: ratingCount > 0 ? Math.round((totalRating / ratingCount) * 10) / 10 : 0,
-      ratingCount,
-      completedCourses: completed?.length || 0,
-    });
-
-    setLoading(false);
+    try {
+      setStats(await getTrainerStats(trainerId));
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (loading) {
