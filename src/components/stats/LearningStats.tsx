@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BookOpen, Award, TrendingUp, Target, Star, Flame } from "lucide-react";
+import { getLearningStatsSnapshot } from "@/lib/backendLearning";
 
 interface LearningStatsProps {
   userId: string | null;
@@ -61,81 +61,25 @@ const LearningStats = ({ userId }: LearningStatsProps) => {
   }, [userId]);
 
   const fetchStats = async () => {
-    // Get enrolled courses (subscriptions)
-    const { data: subs } = await supabase
-      .from("course_subscriptions")
-      .select("course_id")
-      .eq("user_id", userId);
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
 
-    // Get progress data
-    const { data: progress } = await supabase
-      .from("course_progress")
-      .select("progress_percent, completed_at")
-      .eq("user_id", userId);
+    try {
+      const snapshot = await getLearningStatsSnapshot(userId);
+      const levelInfo = calculateLevel(snapshot.totalPoints);
 
-    // Get certificates
-    const { data: certs } = await supabase
-      .from("certificates")
-      .select("id")
-      .eq("user_id", userId);
-
-    // Get ratings given
-    const { data: ratings } = await supabase
-      .from("course_ratings")
-      .select("id")
-      .eq("user_id", userId);
-
-    // Get comments made
-    const { data: comments } = await supabase
-      .from("course_comments")
-      .select("id")
-      .eq("author_id", userId);
-
-    // Get posts made
-    const { data: posts } = await supabase
-      .from("posts")
-      .select("id")
-      .eq("author_id", userId);
-
-    const enrolledCourses = subs?.length || 0;
-    const completedCourses = progress?.filter((p) => p.completed_at)?.length || 0;
-    const certificatesEarned = certs?.length || 0;
-    
-    const totalProgress = progress?.reduce((sum, p) => sum + p.progress_percent, 0) || 0;
-    const avgProgress = progress?.length ? Math.round(totalProgress / progress.length) : 0;
-
-    // Calculate points
-    // - Each subscription: 10 points
-    // - Each 10% progress: 5 points
-    // - Each completion: 50 points
-    // - Each certificate: 100 points
-    // - Each rating: 5 points
-    // - Each comment: 10 points
-    // - Each post: 15 points
-    const totalPoints = 
-      (enrolledCourses * 10) +
-      (progress?.reduce((sum, p) => sum + Math.floor(p.progress_percent / 10) * 5, 0) || 0) +
-      (completedCourses * 50) +
-      (certificatesEarned * 100) +
-      ((ratings?.length || 0) * 5) +
-      ((comments?.length || 0) * 10) +
-      ((posts?.length || 0) * 15);
-
-    const levelInfo = calculateLevel(totalPoints);
-
-    setStats({
-      enrolledCourses,
-      completedCourses,
-      certificatesEarned,
-      avgProgress,
-      totalPoints,
-      currentLevel: levelInfo.level,
-      levelName: levelInfo.name,
-      pointsToNextLevel: levelInfo.pointsToNextLevel,
-      currentLevelPoints: levelInfo.currentLevelPoints,
-    });
-
-    setLoading(false);
+      setStats({
+        ...snapshot,
+        currentLevel: levelInfo.level,
+        levelName: levelInfo.name,
+        pointsToNextLevel: levelInfo.pointsToNextLevel,
+        currentLevelPoints: levelInfo.currentLevelPoints,
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!userId) {
