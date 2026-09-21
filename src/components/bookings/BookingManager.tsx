@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,6 +17,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import ServiceReviewDialog from "./ServiceReviewDialog";
+import { listServiceBookings, updateServiceBookingStatus } from "@/lib/backendBookings";
 
 interface Booking {
   id: string;
@@ -28,6 +28,7 @@ interface Booking {
   status: string;
   notes: string | null;
   created_at: string;
+  review_id?: string | null;
   service?: {
     title: string;
     price: number;
@@ -75,79 +76,38 @@ const BookingManager = ({ userId, role }: BookingManagerProps) => {
 
   const fetchBookings = async () => {
     setLoading(true);
-    
-    const column = role === "trainer" ? "trainer_id" : "student_id";
-    
-    // First get bookings with service info
-    const { data: bookingsData, error } = await supabase
-      .from("service_bookings")
-      .select(`
-        *,
-        service:trainer_services(title, price, duration_minutes, service_type)
-      `)
-      .eq(column, userId)
-      .order("scheduled_at", { ascending: false });
-
-    if (error) {
-      console.error("Error fetching bookings:", error);
+    try {
+      setBookings(await listServiceBookings(role));
+    } catch (error) {
       toast({
         title: "خطأ",
-        description: "فشل في جلب الحجوزات",
+        description: error instanceof Error ? error.message : "فشل في جلب الحجوزات",
         variant: "destructive",
       });
+    } finally {
       setLoading(false);
-      return;
     }
-
-    // Get all unique user IDs to fetch profiles
-    const userIds = new Set<string>();
-    bookingsData?.forEach(b => {
-      userIds.add(b.student_id);
-      userIds.add(b.trainer_id);
-    });
-
-    // Fetch profiles
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("id, full_name, avatar_url")
-      .in("id", Array.from(userIds));
-
-    const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
-
-    // Combine data
-    const enrichedBookings = bookingsData?.map(booking => ({
-      ...booking,
-      student: profileMap.get(booking.student_id) || { full_name: "غير معروف", avatar_url: null },
-      trainer: profileMap.get(booking.trainer_id) || { full_name: "غير معروف", avatar_url: null },
-    })) || [];
-
-    setBookings(enrichedBookings as Booking[]);
-    setLoading(false);
   };
 
-  const updateStatus = async (bookingId: string, newStatus: string) => {
+  const updateStatus = async (bookingId: string, newStatus: "confirmed" | "cancelled" | "completed") => {
     setUpdating(bookingId);
-    
-    const { error } = await supabase
-      .from("service_bookings")
-      .update({ status: newStatus })
-      .eq("id", bookingId);
 
-    if (error) {
-      toast({
-        title: "خطأ",
-        description: "فشل في تحديث الحالة",
-        variant: "destructive",
-      });
-    } else {
+    try {
+      await updateServiceBookingStatus(bookingId, newStatus);
       toast({
         title: "تم بنجاح",
         description: "تم تحديث حالة الحجز",
       });
-      fetchBookings();
+      void fetchBookings();
+    } catch (error) {
+      toast({
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "فشل في تحديث الحالة",
+        variant: "destructive",
+      });
+    } finally {
+      setUpdating(null);
     }
-    
-    setUpdating(null);
   };
 
   const filterBookings = (status: string) => {
@@ -303,7 +263,7 @@ const BookingManager = ({ userId, role }: BookingManagerProps) => {
               )}
 
               {/* Review button for completed bookings (students only) */}
-              {role === "student" && booking.status === "completed" && (
+              {role === "student" && booking.status === "completed" && !booking.review_id && (
                 <div className="flex gap-2 mt-3">
                   <ServiceReviewDialog
                     bookingId={booking.id}
