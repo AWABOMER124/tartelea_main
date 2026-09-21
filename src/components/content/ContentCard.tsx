@@ -29,9 +29,9 @@ const categoryLabels: Record<string, string> = {
 };
 
 const depthLabels: Record<string, string> = {
-  beginner: "مبتدئ",
-  intermediate: "متوسط",
-  advanced: "متقدم",
+  beginner: "تخلية",
+  intermediate: "تحلية",
+  advanced: "تجلّي",
 };
 
 const ContentCard = ({
@@ -47,9 +47,18 @@ const ContentCard = ({
   const Icon = typeIcons[type];
 
   return (
-    <div 
-      className="content-card animate-fade-in cursor-pointer hover:border-primary/50 transition-colors"
+    <article
+      role="link"
+      tabIndex={0}
+      aria-label={`فتح: ${title}`}
+      className="content-card cursor-pointer transition-colors hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       onClick={() => navigate(`/content/${id}`)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          navigate(`/content/${id}`);
+        }
+      }}
     >
       <div className="flex gap-3">
         <div className={cn(
@@ -80,7 +89,7 @@ const ContentCard = ({
           </div>
         </div>
       </div>
-    </div>
+    </article>
   );
 };
 
