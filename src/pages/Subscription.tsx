@@ -51,11 +51,11 @@ const Subscription = () => {
 
   return (
     <AppLayout>
-      <div className="px-4 py-6 space-y-8">
+      <div className="page-shell max-w-5xl space-y-8">
         {/* Hero Section */}
         <div className="text-center space-y-4">
           <div className="relative w-20 h-20 mx-auto">
-            <div className="w-20 h-20 bg-gradient-to-br from-amber-400 to-amber-600 rounded-2xl flex items-center justify-center shadow-lg shadow-amber-500/25">
+            <div className="w-20 h-20 bg-primary rounded-xl flex items-center justify-center">
               <Crown className="h-10 w-10 text-white" />
             </div>
             <div className="absolute -top-1 -right-1 w-6 h-6 bg-primary rounded-full flex items-center justify-center">
@@ -98,7 +98,7 @@ const Subscription = () => {
             {features.map((feature, index) => {
               const Icon = feature.icon;
               return (
-                <Card key={index} className="border-border/50 hover:border-primary/30 transition-colors">
+                <Card key={index} className="rounded-xl border-border shadow-none transition-colors hover:border-primary/30">
                   <CardContent className="p-4 flex gap-3">
                     <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
                       <Icon className="h-5 w-5 text-primary" />
@@ -127,7 +127,7 @@ const Subscription = () => {
           </h2>
           <div className="space-y-3">
             {testimonials.map((t, i) => (
-              <Card key={i} className="bg-muted/30">
+              <Card key={i} className="rounded-xl bg-muted/30 shadow-none">
                 <CardContent className="p-4">
                   <div className="flex gap-1 mb-2">
                     {[...Array(t.rating)].map((_, j) => (
@@ -143,7 +143,7 @@ const Subscription = () => {
         </div>
 
         {/* FAQ */}
-        <Card className="bg-muted/50">
+        <Card className="rounded-xl bg-muted/50 shadow-none">
           <CardContent className="p-4 space-y-3">
             <h3 className="font-semibold text-sm">أسئلة شائعة</h3>
             <div className="space-y-2 text-sm">
