@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import ContentCard from "@/components/content/ContentCard";
 import FilterChip from "@/components/ui/FilterChip";
+import { Library as LibraryIcon } from "lucide-react";
 import { listLibraryContent } from "@/lib/backendContent";
 
 type ContentType = "all" | "article" | "audio" | "video";
@@ -50,17 +51,19 @@ const Library = () => {
 
   const depthFilters = [
     { value: "all", label: "الكل" },
-    { value: "beginner", label: "مبتدئ" },
-    { value: "intermediate", label: "متوسط" },
-    { value: "advanced", label: "متقدم" },
+    { value: "beginner", label: "تخلية" },
+    { value: "intermediate", label: "تحلية" },
+    { value: "advanced", label: "تجلّي" },
   ];
 
   return (
     <AppLayout>
-      <div className="px-4 py-6 space-y-6">
-        <h1 className="text-xl font-display font-bold text-foreground">
-          المكتبة
-        </h1>
+      <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-6 sm:px-6 sm:py-10">
+        <header className="max-w-2xl space-y-2">
+          <p className="text-sm font-semibold text-spiritual-green">ارجع إلى ما تحتاجه</p>
+          <h1 className="text-2xl font-bold text-foreground sm:text-3xl">المكتبة</h1>
+          <p className="leading-7 text-muted-foreground">مقالات وصوتيات ومرئيات مرتبة لتصل إلى المادة المناسبة بأقل خطوات.</p>
+        </header>
 
         {/* Type Filter */}
         <div className="space-y-2">
@@ -124,8 +127,10 @@ const Library = () => {
               ))}
             </div>
           ) : contents.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <p>لا يوجد محتوى متاح حالياً</p>
+            <div className="rounded-2xl border border-dashed border-border bg-card/60 py-12 text-center">
+              <LibraryIcon className="mx-auto mb-3 h-9 w-9 text-muted-foreground/50" />
+              <p className="font-semibold text-foreground">لا توجد مواد بهذه الفلاتر</p>
+              <p className="mt-1 text-sm text-muted-foreground">غيّر النوع أو التصنيف أو المرحلة لعرض مواد أخرى.</p>
             </div>
           ) : (
             contents.map((content) => (

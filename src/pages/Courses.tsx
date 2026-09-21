@@ -123,19 +123,12 @@ const Courses = () => {
 
   return (
     <AppLayout>
-      <div className="px-4 py-6 space-y-6">
-        {/* Header */}
-        <div className="text-center space-y-2">
-          <div className="w-14 h-14 mx-auto bg-accent/10 rounded-2xl flex items-center justify-center">
-            <BookOpen className="h-7 w-7 text-accent" />
-          </div>
-          <h1 className="text-2xl font-display font-bold text-foreground">
-            المسارات
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            اختر مسارك من تخلية إلى تحلية ثم تجلّي
-          </p>
-        </div>
+      <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-6 sm:px-6 sm:py-10">
+        <header className="max-w-2xl space-y-2">
+          <p className="text-sm font-semibold text-spiritual-green">تعلّم بمنهج</p>
+          <h1 className="text-2xl font-bold text-foreground sm:text-3xl">المسارات</h1>
+          <p className="leading-7 text-muted-foreground">اختر مساراً واضحاً وتدرّج من التخلية إلى التحلية ثم التجلّي.</p>
+        </header>
 
         {/* Filters */}
         <div className="flex gap-2 overflow-x-auto pb-2">
@@ -157,10 +150,11 @@ const Courses = () => {
             ))}
           </div>
         ) : filteredCourses.length === 0 ? (
-          <Card>
-            <CardContent className="py-8 text-center">
-              <BookOpen className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-              <p className="text-muted-foreground">لا توجد دورات متاحة</p>
+          <Card className="border-dashed shadow-none">
+            <CardContent className="py-10 text-center">
+              <BookOpen className="mx-auto mb-3 h-9 w-9 text-muted-foreground/50" />
+              <p className="font-semibold text-foreground">لا توجد مسارات في هذا المستوى</p>
+              <p className="mt-1 text-sm text-muted-foreground">جرّب مستوى آخر أو عد لاحقاً عند إضافة مسارات جديدة.</p>
             </CardContent>
           </Card>
         ) : (
@@ -170,7 +164,7 @@ const Courses = () => {
               const isSubscribed = subscriptions.includes(course.id);
 
               return (
-                <Card key={course.id} className="overflow-hidden">
+                <Card key={course.id} className="overflow-hidden border-border shadow-sm">
                   <CardContent className="p-4">
                     <div className="flex gap-4">
                       <div className="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
@@ -206,7 +200,7 @@ const Courses = () => {
                       onClick={() => handleSubscribe(course.id)}
                       disabled={subscribingId === course.id}
                       variant={isSubscribed ? "outline" : "default"}
-                      className="w-full mt-4 gap-2"
+                      className="mt-4 min-h-11 w-full gap-2"
                     >
                       {subscribingId === course.id ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
