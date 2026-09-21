@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,11 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus, Loader2 } from "lucide-react";
-import type { Database } from "@/integrations/supabase/types";
-
-type ContentType = Database["public"]["Enums"]["content_type"];
-type ContentCategory = Database["public"]["Enums"]["content_category"];
-type DepthLevel = Database["public"]["Enums"]["depth_level"];
+import { createTrainerCourse, updateTrainerCourse, type ContentCategory, type ContentType, type DepthLevel } from "@/lib/backendTrainerDashboard";
 
 export interface TrainerCourse {
   id: string;
@@ -72,50 +67,40 @@ const CourseFormDialog = ({ open, onOpenChange, editingCourse, trainerId, onSucc
 
     setSubmitting(true);
 
-    if (editingCourse) {
-      const { error } = await supabase
-        .from("trainer_courses")
-        .update({
+    try {
+      if (editingCourse) {
+        await updateTrainerCourse(editingCourse.id, {
           title: formData.title,
           description: formData.description || null,
           type: formData.type,
           category: formData.category,
           depth_level: formData.depth_level,
           url: formData.url || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", editingCourse.id);
-
-      if (error) {
-        toast({ title: "خطأ", description: "فشل تحديث الدورة", variant: "destructive" });
-      } else {
+        });
         toast({ title: "تم بنجاح", description: "تم تحديث الدورة" });
-        onSuccess();
-        onOpenChange(false);
-        resetForm();
-      }
-    } else {
-      const { error } = await supabase.from("trainer_courses").insert({
-        trainer_id: trainerId,
-        title: formData.title,
-        description: formData.description || null,
-        type: formData.type,
-        category: formData.category,
-        depth_level: formData.depth_level,
-        url: formData.url || null,
-      });
-
-      if (error) {
-        toast({ title: "خطأ", description: "فشل إضافة الدورة", variant: "destructive" });
       } else {
+        await createTrainerCourse(trainerId, {
+          title: formData.title,
+          description: formData.description || null,
+          type: formData.type,
+          category: formData.category,
+          depth_level: formData.depth_level,
+          url: formData.url || null,
+        });
         toast({ title: "تم بنجاح", description: "تم إضافة الدورة وستتم مراجعتها قريباً" });
-        onSuccess();
-        onOpenChange(false);
-        resetForm();
       }
+      onSuccess();
+      onOpenChange(false);
+      resetForm();
+    } catch (error) {
+      toast({
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "فشل حفظ الدورة",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
     }
-
-    setSubmitting(false);
   };
 
   return (
@@ -150,9 +135,9 @@ const CourseFormDialog = ({ open, onOpenChange, editingCourse, trainerId, onSucc
               <Select value={formData.depth_level} onValueChange={(v: DepthLevel) => setFormData({ ...formData, depth_level: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="beginner">مبتدئ</SelectItem>
-                  <SelectItem value="intermediate">متوسط</SelectItem>
-                  <SelectItem value="advanced">متقدم</SelectItem>
+                  <SelectItem value="beginner">تخلية</SelectItem>
+                  <SelectItem value="intermediate">تحلية</SelectItem>
+                  <SelectItem value="advanced">تجلّي</SelectItem>
                 </SelectContent>
               </Select>
             </div>

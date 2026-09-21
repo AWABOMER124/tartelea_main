@@ -1,15 +1,12 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Plus, Trash2, Video, Clock, CheckCircle, Calendar } from "lucide-react";
 import CreateWorkshopDialog from "@/components/workshops/CreateWorkshopDialog";
-import type { Database } from "@/integrations/supabase/types";
-
-type ContentCategory = Database["public"]["Enums"]["content_category"];
+import { deleteTrainerWorkshop, type ContentCategory } from "@/lib/backendTrainerDashboard";
 
 interface Workshop {
   id: string;
@@ -40,12 +37,16 @@ const TrainerWorkshopsTab = ({ workshops, onRefresh }: Props) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from("workshops").delete().eq("id", id);
-    if (error) {
-      toast({ title: "خطأ", description: "فشل حذف الورشة", variant: "destructive" });
-    } else {
+    try {
+      await deleteTrainerWorkshop(id);
       toast({ title: "تم بنجاح", description: "تم حذف الورشة" });
       onRefresh();
+    } catch (error) {
+      toast({
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "فشل حذف الورشة",
+        variant: "destructive",
+      });
     }
   };
 

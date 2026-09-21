@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Plus, Edit, Trash2, FileText, Headphones, Video, Clock, CheckCircle, GraduationCap } from "lucide-react";
 import CourseFormDialog, { type TrainerCourse } from "./CourseFormDialog";
+import { deleteTrainerCourse } from "@/lib/backendTrainerDashboard";
 
 const typeIcons = { article: FileText, audio: Headphones, video: Video };
 const typeLabels = { article: "مقالة", audio: "صوتي", video: "فيديو" };
@@ -14,7 +14,7 @@ const categoryLabels: Record<string, string> = {
   quran: "القرآن", values: "القيم", community: "المجتمع",
   sudan_awareness: "الوعي السوداني", arab_awareness: "الوعي العربي", islamic_awareness: "الوعي الإسلامي",
 };
-const depthLabels = { beginner: "مبتدئ", intermediate: "متوسط", advanced: "متقدم" };
+const depthLabels = { beginner: "تخلية", intermediate: "تحلية", advanced: "تجلّي" };
 
 interface Props {
   courses: TrainerCourse[];
@@ -28,12 +28,16 @@ const TrainerCoursesTab = ({ courses, trainerId, onRefresh }: Props) => {
   const [editingCourse, setEditingCourse] = useState<TrainerCourse | null>(null);
 
   const handleDelete = async (courseId: string) => {
-    const { error } = await supabase.from("trainer_courses").delete().eq("id", courseId);
-    if (error) {
-      toast({ title: "خطأ", description: "فشل حذف الدورة", variant: "destructive" });
-    } else {
+    try {
+      await deleteTrainerCourse(courseId);
       toast({ title: "تم بنجاح", description: "تم حذف الدورة" });
       onRefresh();
+    } catch (error) {
+      toast({
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "فشل حذف الدورة",
+        variant: "destructive",
+      });
     }
   };
 

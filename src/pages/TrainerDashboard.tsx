@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useToast } from "@/hooks/use-toast";
 import AppLayout from "@/components/layout/AppLayout";
@@ -20,46 +19,12 @@ import TrainerCoursesTab from "@/components/trainer/TrainerCoursesTab";
 import TrainerWorkshopsTab from "@/components/trainer/TrainerWorkshopsTab";
 import TrainerRoomsTab from "@/components/trainer/TrainerRoomsTab";
 import type { TrainerCourse } from "@/components/trainer/CourseFormDialog";
-import type { Database } from "@/integrations/supabase/types";
-
-type ContentCategory = Database["public"]["Enums"]["content_category"];
-
-interface Workshop {
-  id: string;
-  title: string;
-  description: string | null;
-  category: ContentCategory;
-  scheduled_at: string;
-  duration_minutes: number | null;
-  is_approved: boolean | null;
-  is_live: boolean | null;
-  price: number | null;
-  max_participants: number | null;
-  image_url: string | null;
-}
-
-interface Room {
-  id: string;
-  title: string;
-  description: string | null;
-  category: ContentCategory;
-  scheduled_at: string;
-  duration_minutes: number | null;
-  is_approved: boolean | null;
-  is_live: boolean | null;
-  price: number | null;
-  max_participants: number | null;
-  access_type: string;
-}
-
-interface TrainerProfile {
-  full_name: string | null;
-  bio: string | null;
-  experience_years: number | null;
-  specializations: string[] | null;
-  avatar_url: string | null;
-  country: string | null;
-}
+import {
+  getTrainerDashboardData,
+  type TrainerRoomRecord as Room,
+  type TrainerWorkshopRecord as Workshop,
+} from "@/lib/backendTrainerDashboard";
+import type { BackendProfile as TrainerProfile } from "@/lib/backendProfile";
 
 const TrainerDashboard = () => {
   const navigate = useNavigate();
@@ -84,19 +49,23 @@ const TrainerDashboard = () => {
   }, [isTrainer, userId]);
 
   const fetchAllData = async () => {
+    if (!userId) return;
     setLoadingData(true);
-    const [coursesRes, workshopsRes, roomsRes, profileRes] = await Promise.all([
-      supabase.from("trainer_courses").select("*").eq("trainer_id", userId!).order("created_at", { ascending: false }),
-      supabase.from("workshops").select("*").eq("host_id", userId!).order("scheduled_at", { ascending: false }),
-      supabase.from("rooms").select("*").eq("host_id", userId!).order("scheduled_at", { ascending: false }),
-      supabase.from("profiles").select("*").eq("id", userId!).single(),
-    ]);
-
-    if (coursesRes.data) setCourses(coursesRes.data as TrainerCourse[]);
-    if (workshopsRes.data) setWorkshops(workshopsRes.data);
-    if (roomsRes.data) setRooms(roomsRes.data as Room[]);
-    if (profileRes.data) setProfile(profileRes.data);
-    setLoadingData(false);
+    try {
+      const data = await getTrainerDashboardData(userId);
+      setCourses(data.courses as TrainerCourse[]);
+      setWorkshops(data.workshops);
+      setRooms(data.rooms);
+      setProfile(data.profile);
+    } catch (error) {
+      toast({
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "فشل تحميل بيانات لوحة المدرب",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingData(false);
+    }
   };
 
   if (roleLoading || loadingData) {

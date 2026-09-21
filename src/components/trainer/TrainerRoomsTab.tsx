@@ -1,14 +1,11 @@
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Plus, Trash2, Headphones, Clock, CheckCircle, Calendar } from "lucide-react";
 import CreateRoomDialog from "@/components/rooms/CreateRoomDialog";
-import type { Database } from "@/integrations/supabase/types";
-
-type ContentCategory = Database["public"]["Enums"]["content_category"];
+import { deleteTrainerRoom, type ContentCategory } from "@/lib/backendTrainerDashboard";
 
 interface Room {
   id: string;
@@ -39,12 +36,16 @@ const TrainerRoomsTab = ({ rooms, onRefresh }: Props) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from("rooms").delete().eq("id", id);
-    if (error) {
-      toast({ title: "خطأ", description: "فشل حذف الغرفة", variant: "destructive" });
-    } else {
+    try {
+      await deleteTrainerRoom(id);
       toast({ title: "تم بنجاح", description: "تم حذف الغرفة" });
       onRefresh();
+    } catch (error) {
+      toast({
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "فشل حذف الغرفة",
+        variant: "destructive",
+      });
     }
   };
 

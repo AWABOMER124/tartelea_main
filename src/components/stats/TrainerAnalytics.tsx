@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -7,6 +6,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { TrendingUp, Users, Star, BarChart3, Download, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { getTrainerAnalytics } from "@/lib/backendTrainerDashboard";
 
 interface TrainerAnalyticsProps {
   trainerId: string;
@@ -72,104 +72,99 @@ const TrainerAnalytics = ({ trainerId }: TrainerAnalyticsProps) => {
   const fetchAnalytics = async () => {
     setLoading(true);
 
-    const { data: courses } = await supabase
-      .from("trainer_courses")
-      .select("id, title")
-      .eq("trainer_id", trainerId)
-      .eq("is_approved", true);
+    try {
+      const snapshot = await getTrainerAnalytics(trainerId);
+      const courses = snapshot.courses;
+      const subs = snapshot.subscriptions;
+      const ratings = snapshot.ratings;
 
-    if (!courses || courses.length === 0) {
-      setLoading(false);
-      return;
-    }
+      if (!courses.length) {
+        setSubscriptionData([]);
+        setRatingData([]);
+        setCourseStats([]);
+        setRatingDistribution([]);
+        setTotalSubscribers(0);
+        setTotalRatings(0);
+        setAvgRating(0);
+        return;
+      }
 
-    const courseIds = courses.map((c) => c.id);
+      setTotalSubscribers(subs.length);
+      setTotalRatings(ratings.length);
 
-    const [subsRes, ratingsRes] = await Promise.all([
-      supabase
-        .from("course_subscriptions")
-        .select("course_id, subscribed_at")
-        .in("course_id", courseIds)
-        .order("subscribed_at", { ascending: true }),
-      supabase
-        .from("course_ratings")
-        .select("course_id, rating, created_at")
-        .in("course_id", courseIds)
-        .order("created_at", { ascending: true }),
-    ]);
-
-    const subs = subsRes.data;
-    const ratings = ratingsRes.data;
-
-    setTotalSubscribers(subs?.length || 0);
-    setTotalRatings(ratings?.length || 0);
-
-    // Subscription growth
-    if (subs && subs.length > 0) {
-      const grouped: Record<string, number> = {};
-      subs.forEach((s) => {
-        const date = new Date(s.subscribed_at || "").toLocaleDateString("ar-SA", { month: "short", day: "numeric" });
-        grouped[date] = (grouped[date] || 0) + 1;
+      const subscriptionGroups: Record<string, number> = {};
+      subs.forEach((item) => {
+        const date = new Date(item.subscribed_at || "").toLocaleDateString("ar-SA", {
+          month: "short",
+          day: "numeric",
+        });
+        subscriptionGroups[date] = (subscriptionGroups[date] || 0) + 1;
       });
       let cumulative = 0;
       setSubscriptionData(
-        Object.entries(grouped).map(([date, count]) => {
+        Object.entries(subscriptionGroups).map(([date, count]) => {
           cumulative += count;
           return { date, count: cumulative };
-        })
+        }),
       );
-    }
 
-    // Ratings over time
-    if (ratings && ratings.length > 0) {
-      const grouped: Record<string, { total: number; count: number }> = {};
-      ratings.forEach((r) => {
-        const date = new Date(r.created_at || "").toLocaleDateString("ar-SA", { month: "short", day: "numeric" });
-        if (!grouped[date]) grouped[date] = { total: 0, count: 0 };
-        grouped[date].total += r.rating;
-        grouped[date].count += 1;
+      const ratingGroups: Record<string, { total: number; count: number }> = {};
+      ratings.forEach((item) => {
+        const date = new Date(item.created_at || "").toLocaleDateString("ar-SA", {
+          month: "short",
+          day: "numeric",
+        });
+        if (!ratingGroups[date]) ratingGroups[date] = { total: 0, count: 0 };
+        ratingGroups[date].total += item.rating;
+        ratingGroups[date].count += 1;
       });
       setRatingData(
-        Object.entries(grouped).map(([date, { total, count }]) => ({
+        Object.entries(ratingGroups).map(([date, { total, count }]) => ({
           date,
           avgRating: Math.round((total / count) * 10) / 10,
           count,
-        }))
+        })),
       );
 
-      // Rating distribution (1-5 stars)
-      const dist: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-      ratings.forEach((r) => {
-        dist[r.rating] = (dist[r.rating] || 0) + 1;
+      const distribution: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+      ratings.forEach((item) => {
+        distribution[item.rating] = (distribution[item.rating] || 0) + 1;
       });
       setRatingDistribution(
         [1, 2, 3, 4, 5].map((stars) => ({
           name: `${stars} ★`,
-          value: dist[stars],
+          value: distribution[stars],
           stars,
-        }))
+        })),
       );
 
-      const totalR = ratings.reduce((s, r) => s + r.rating, 0);
-      setAvgRating(Math.round((totalR / ratings.length) * 10) / 10);
-    }
+      const ratingTotal = ratings.reduce((sum, item) => sum + item.rating, 0);
+      setAvgRating(
+        ratings.length ? Math.round((ratingTotal / ratings.length) * 10) / 10 : 0,
+      );
 
-    // Per-course stats
-    const courseStatsArr: CourseStat[] = courses.map((course) => {
-      const subCount = subs?.filter((s) => s.course_id === course.id).length || 0;
-      const courseRatings = ratings?.filter((r) => r.course_id === course.id) || [];
-      const avg =
-        courseRatings.length > 0
-          ? Math.round((courseRatings.reduce((s, r) => s + r.rating, 0) / courseRatings.length) * 10) / 10
-          : 0;
-      return {
-        name: course.title.length > 20 ? course.title.substring(0, 20) + "..." : course.title,
-        subscribers: subCount,
-        rating: avg,
-      };
-    });
-    setCourseStats(courseStatsArr);
-    setLoading(false);
+      setCourseStats(
+        courses.map((course) => {
+          const subscriberCount = subs.filter((item) => item.course_id === course.id).length;
+          const courseRatings = ratings.filter((item) => item.course_id === course.id);
+          const average = courseRatings.length
+            ? Math.round(
+                (courseRatings.reduce((sum, item) => sum + item.rating, 0) /
+                  courseRatings.length) *
+                  10,
+              ) / 10
+            : 0;
+
+          return {
+            name: course.title.length > 20 ? `${course.title.slice(0, 20)}...` : course.title,
+            subscribers: subscriberCount,
+            rating: average,
+          };
+        }),
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleExportPDF = useCallback(async () => {
