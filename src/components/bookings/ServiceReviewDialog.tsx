@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -14,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Star, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { submitServiceReview } from "@/lib/backendBookings";
 
 interface ServiceReviewDialogProps {
   bookingId: string;
@@ -62,33 +62,11 @@ const ServiceReviewDialog = ({
       return;
     }
 
-    const { error } = await supabase
-      .from("service_reviews")
-      .insert({
-        booking_id: bookingId,
-        service_id: serviceId,
-        student_id: user.id,
-        trainer_id: trainerId,
+    try {
+      await submitServiceReview(bookingId, {
         rating,
         review: review || null,
       });
-
-    if (error) {
-      if (error.code === "23505") {
-        toast({
-          title: "خطأ",
-          description: "لقد قمت بتقييم هذه الخدمة مسبقاً",
-          variant: "destructive",
-        });
-      } else {
-        console.error("Review error:", error);
-        toast({
-          title: "خطأ",
-          description: "فشل في إرسال التقييم",
-          variant: "destructive",
-        });
-      }
-    } else {
       toast({
         title: "شكراً لك!",
         description: "تم إرسال تقييمك بنجاح",
@@ -97,9 +75,15 @@ const ServiceReviewDialog = ({
       setRating(0);
       setReview("");
       onReviewSubmitted?.();
+    } catch (error) {
+      toast({
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "فشل في إرسال التقييم",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (

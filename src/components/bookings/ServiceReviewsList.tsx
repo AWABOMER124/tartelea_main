@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Star, User, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { listServiceReviews } from "@/lib/backendBookings";
 
 interface Review {
   id: string;
@@ -31,36 +31,27 @@ const ServiceReviewsList = ({ serviceId }: ServiceReviewsListProps) => {
   const fetchReviews = async () => {
     setLoading(true);
 
-    const { data: reviewsData } = await supabase
-      .from("service_reviews")
-      .select("*")
-      .eq("service_id", serviceId)
-      .order("created_at", { ascending: false })
-      .limit(10);
-
-    if (reviewsData && reviewsData.length > 0) {
-      // Fetch student profiles
-      const studentIds = reviewsData.map((r) => r.student_id);
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, full_name, avatar_url")
-        .in("id", studentIds);
-
-      const profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
-
-      const enriched = reviewsData.map((review) => ({
-        ...review,
-        student: profileMap.get(review.student_id),
+    try {
+      const data = await listServiceReviews(serviceId, 10);
+      const enriched = data.map((item) => ({
+        id: item.id,
+        rating: item.rating,
+        review: item.review,
+        created_at: item.created_at,
+        student: {
+          full_name: item.student_name || "مستخدم",
+          avatar_url: item.student_avatar || null,
+        },
       }));
-
       setReviews(enriched);
-      
-      // Calculate average
-      const avg = reviewsData.reduce((sum, r) => sum + r.rating, 0) / reviewsData.length;
-      setAvgRating(Math.round(avg * 10) / 10);
-    }
 
-    setLoading(false);
+      const avg = data.length
+        ? data.reduce((sum, item) => sum + Number(item.rating || 0), 0) / data.length
+        : 0;
+      setAvgRating(Math.round(avg * 10) / 10);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (loading) {
