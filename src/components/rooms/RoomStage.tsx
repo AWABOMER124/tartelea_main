@@ -48,14 +48,14 @@ const RoomStage = ({ speakers, currentUserId }: RoomStageProps) => {
   });
 
   return (
-    <div className="space-y-4">
+    <section className="reference-card space-y-5 p-5 sm:p-6">
       <div className="flex items-center gap-2 px-1">
         <Sparkles className="h-4 w-4 text-primary" />
         <h3 className="text-sm font-semibold text-foreground">المنصة</h3>
         <Badge variant="secondary" className="text-xs">{speakers.length}</Badge>
       </div>
 
-      <div className="grid grid-cols-3 sm:grid-cols-4 gap-5">
+      <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4">
         {sortedSpeakers.map((speaker) => {
           const isMe = speaker.id === currentUserId;
           const role = speaker.role || (speaker.isHost ? "host" : "speaker");
@@ -72,7 +72,7 @@ const RoomStage = ({ speakers, currentUserId }: RoomStageProps) => {
               <div className="relative">
                 {/* Speaking ring animation */}
                 <div
-                  className={`w-[76px] h-[76px] rounded-full p-[3px] transition-all duration-500 ${
+                  className={`w-[92px] h-[92px] rounded-full p-[3px] transition-all duration-500 ${
                     speaker.isSpeaking
                       ? "ring-[3px] ring-primary/60 ring-offset-2 ring-offset-background shadow-lg shadow-primary/20 scale-105"
                       : ""
@@ -81,7 +81,7 @@ const RoomStage = ({ speakers, currentUserId }: RoomStageProps) => {
                   {speaker.isSpeaking && (
                     <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping" style={{ animationDuration: "1.5s" }} />
                   )}
-                  <Avatar className="h-[70px] w-[70px] border-2 border-background shadow-md group-hover:shadow-lg transition-shadow">
+                  <Avatar className="h-[86px] w-[86px] border-2 border-background shadow-sm transition-shadow group-hover:shadow-md">
                     {speaker.avatarUrl && <AvatarImage src={speaker.avatarUrl} alt={speaker.name} />}
                     <AvatarFallback className="bg-muted text-foreground text-lg font-bold">
                       {isMe ? "أنت" : speaker.name.charAt(0)}
@@ -163,7 +163,7 @@ const RoomStage = ({ speakers, currentUserId }: RoomStageProps) => {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </section>
   );
 };
 
