@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/layout/AppLayout";
 import PageMeta from "@/components/seo/PageMeta";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Calendar, User } from "lucide-react";
+import { getBlogPost, type BackendBlogPost } from "@/lib/backendBlog";
 
 const categoryLabels: Record<string, string> = {
   quran: "القرآن الكريم",
@@ -18,7 +18,7 @@ const categoryLabels: Record<string, string> = {
 const BlogPost = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [post, setPost] = useState<any>(null);
+  const [post, setPost] = useState<BackendBlogPost | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -27,23 +27,11 @@ const BlogPost = () => {
 
   const fetchPost = async () => {
     setLoading(true);
-    const { data } = await (supabase as any)
-      .from("blog_posts")
-      .select("*")
-      .eq("id", id!)
-      .eq("is_published", true)
-      .single();
-
-    if (data) {
-      const { data: profile } = await supabase
-        .from("profiles_public")
-        .select("full_name")
-        .eq("id", data.author_id)
-        .maybeSingle();
-
-      setPost({ ...data, author_name: profile?.full_name || "المدرسة الترتيلية" });
+    try {
+      setPost(id ? await getBlogPost(id) : null);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   if (loading) {

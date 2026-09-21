@@ -1,6 +1,5 @@
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowRight, Calendar, Clock, User } from "lucide-react";
 import { format, ar } from "@/lib/date-utils";
+import { getWorkshopRecordingWithMetadata } from "@/lib/backendWorkshops";
 
 interface RecordingData {
   id: string;
@@ -54,54 +54,7 @@ const WorkshopRecordingPlayer = () => {
     if (!id) return;
 
     try {
-      const { data: recordingData, error } = await supabase
-        .from("workshop_recordings")
-        .select(`
-          id,
-          recording_url,
-          duration_seconds,
-          recorded_at,
-          cloudflare_uid,
-          workshop_id
-        `)
-        .eq("id", id)
-        .eq("is_available", true)
-        .single();
-
-      if (error) throw error;
-
-      if (recordingData) {
-        const { data: workshopData } = await supabase
-          .from("workshops")
-          .select("id, title, description, category, host_id")
-          .eq("id", recordingData.workshop_id)
-          .single();
-
-        let hostName = "مدرب";
-        if (workshopData?.host_id) {
-          const { data: profileData } = await supabase
-            .from("profiles")
-            .select("full_name")
-            .eq("id", workshopData.host_id)
-            .single();
-          hostName = profileData?.full_name || "مدرب";
-        }
-
-        setRecording({
-          id: recordingData.id,
-          recording_url: recordingData.recording_url,
-          duration_seconds: recordingData.duration_seconds,
-          recorded_at: recordingData.recorded_at,
-          cloudflare_uid: recordingData.cloudflare_uid,
-          workshop: {
-            id: workshopData?.id || recordingData.workshop_id,
-            title: workshopData?.title || "ورشة عمل",
-            description: workshopData?.description || null,
-            category: workshopData?.category || "quran",
-            host_name: hostName,
-          },
-        });
-      }
+      setRecording(await getWorkshopRecordingWithMetadata(id));
     } catch (error) {
       console.error("Error fetching recording:", error);
     } finally {

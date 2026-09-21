@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, Award, Calendar, User, BookOpen, ArrowRight, Share2 } from "lucide-react";
 import { format, ar } from "@/lib/date-utils";
 import { useToast } from "@/hooks/use-toast";
+import { getCertificate } from "@/lib/backendLearning";
 
 interface CertificateData {
   id: string;
@@ -29,38 +29,11 @@ const CertificateView = () => {
   }, [id]);
 
   const fetchCertificate = async () => {
-    const { data: certData } = await supabase
-      .from("certificates")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle();
-
-    if (!certData) {
+    try {
+      setCertificate(id ? await getCertificate(id) : null);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    // Get user name
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("full_name")
-      .eq("id", certData.user_id)
-      .maybeSingle();
-
-    // Get course title
-    const { data: courseData } = await supabase
-      .from("trainer_courses")
-      .select("title")
-      .eq("id", certData.course_id)
-      .maybeSingle();
-
-    setCertificate({
-      ...certData,
-      user_name: profileData?.full_name || "متدرب",
-      course_title: courseData?.title || "دورة",
-    });
-
-    setLoading(false);
   };
 
   const handleShare = async () => {

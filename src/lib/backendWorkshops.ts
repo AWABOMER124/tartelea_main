@@ -172,6 +172,11 @@ export const listWorkshopRecordingsWithMetadata = async () => {
   });
 };
 
+export const getWorkshopRecordingWithMetadata = async (recordingId: string) => {
+  const recordings = await listWorkshopRecordingsWithMetadata();
+  return recordings.find((recording) => recording.id === recordingId) || null;
+};
+
 export const createWorkshopRecording = async (payload: {
   workshop_id: string;
   recording_url: string;
