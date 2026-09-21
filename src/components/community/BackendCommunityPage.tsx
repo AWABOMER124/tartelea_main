@@ -240,7 +240,7 @@ const BackendCommunityPage = () => {
         description="مساحة المدرسة للنقاش والأسئلة ومشاركة الفهم حول المسارات واللقاءات."
         path="/community"
       />
-      <div className="page-shell max-w-6xl space-y-7">
+      <div className="page-shell max-w-7xl space-y-7">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="max-w-2xl space-y-2">
             <p className="text-sm font-semibold text-spiritual-green">نتعلّم معاً</p>
@@ -314,7 +314,7 @@ const BackendCommunityPage = () => {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2 rounded-xl border border-border bg-card p-2">
+        <div className="reference-toolbar flex flex-wrap gap-2">
           <Button
             variant={selectedContextId === "all" ? "default" : "outline"}
             size="sm"
@@ -359,7 +359,7 @@ const BackendCommunityPage = () => {
             )}
 
             {posts.length === 0 ? (
-              <div className="text-center py-14 text-muted-foreground border rounded-2xl bg-card">
+              <div className="reference-card py-14 text-center text-muted-foreground">
                 لا توجد منشورات حالية في هذا السياق.
               </div>
             ) : (
