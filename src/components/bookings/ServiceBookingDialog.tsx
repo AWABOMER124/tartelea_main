@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -15,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Calendar, Clock, DollarSign, Loader2 } from "lucide-react";
 import PriceDisplay from "@/components/subscription/PriceDisplay";
+import { createServiceBooking } from "@/lib/backendBookings";
 
 interface Service {
   id: string;
@@ -65,25 +65,13 @@ const ServiceBookingDialog = ({ service, trainerName, children }: ServiceBooking
 
     const scheduledAt = new Date(`${scheduledDate}T${scheduledTime}`).toISOString();
 
-    const { error } = await supabase
-      .from("service_bookings")
-      .insert({
+    try {
+      await createServiceBooking({
         service_id: service.id,
-        trainer_id: service.trainer_id,
-        student_id: user.id,
         scheduled_at: scheduledAt,
         notes: notes || null,
-        status: "pending",
       });
 
-    if (error) {
-      console.error("Booking error:", error);
-      toast({
-        title: "خطأ",
-        description: "فشل في إنشاء الحجز",
-        variant: "destructive",
-      });
-    } else {
       toast({
         title: "تم بنجاح!",
         description: "تم إرسال طلب الحجز وسيتم إشعارك عند التأكيد",
@@ -92,9 +80,15 @@ const ServiceBookingDialog = ({ service, trainerName, children }: ServiceBooking
       setScheduledDate("");
       setScheduledTime("");
       setNotes("");
+    } catch (error) {
+      toast({
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "فشل في إنشاء الحجز",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   // Get minimum date (today)
