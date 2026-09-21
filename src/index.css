@@ -7,65 +7,59 @@
 @layer base {
   :root {
     /* Earth & Crown Palette - Earthy Browns, Matte Gold, Pure Sand */
-    --background: 38 33% 95%;
-    --foreground: 24 40% 16%;
+    --background: 36 25% 97%;
+    --foreground: 24 18% 12%;
 
-    --card: 40 35% 97%;
-    --card-foreground: 24 40% 16%;
+    --card: 0 0% 100%;
+    --card-foreground: 24 18% 12%;
 
-    --popover: 40 35% 97%;
-    --popover-foreground: 24 40% 16%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 24 18% 12%;
 
-    /* Deep Earthy Brown - Primary */
-    --primary: 24 42% 22%;
-    --primary-foreground: 38 40% 96%;
+    --primary: 24 43% 27%;
+    --primary-foreground: 0 0% 100%;
 
-    /* Warm Sand */
-    --secondary: 38 30% 90%;
-    --secondary-foreground: 24 35% 22%;
+    --secondary: 34 22% 94%;
+    --secondary-foreground: 24 28% 22%;
 
-    --muted: 36 22% 91%;
-    --muted-foreground: 24 18% 46%;
+    --muted: 34 18% 93%;
+    --muted-foreground: 24 9% 42%;
 
-    /* Matte Gold Accent */
-    --accent: 43 65% 53%;
-    --accent-foreground: 24 40% 12%;
+    --accent: 40 54% 51%;
+    --accent-foreground: 24 30% 16%;
 
-    --destructive: 0 60% 48%;
-    --destructive-foreground: 38 40% 96%;
+    --destructive: 0 66% 51%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 36 25% 84%;
-    --input: 36 25% 87%;
-    --ring: 43 65% 53%;
+    --border: 32 20% 88%;
+    --input: 32 20% 88%;
+    --ring: 24 43% 27%;
 
-    --radius: 0.875rem;
+    --radius: 0.75rem;
 
-    /* Sidebar */
-    --sidebar-background: 36 28% 93%;
-    --sidebar-foreground: 24 35% 22%;
-    --sidebar-primary: 24 42% 22%;
-    --sidebar-primary-foreground: 38 40% 96%;
-    --sidebar-accent: 36 30% 87%;
-    --sidebar-accent-foreground: 24 35% 22%;
-    --sidebar-border: 36 25% 84%;
-    --sidebar-ring: 43 65% 53%;
+    --sidebar-background: 36 23% 96%;
+    --sidebar-foreground: 24 24% 22%;
+    --sidebar-primary: 24 43% 27%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 35 24% 92%;
+    --sidebar-accent-foreground: 24 24% 22%;
+    --sidebar-border: 32 20% 88%;
+    --sidebar-ring: 24 43% 27%;
 
-    /* Spiritual tokens */
-    --spiritual-green: 145 28% 32%;
-    --spiritual-green-light: 145 22% 42%;
-    --warm-beige: 38 30% 90%;
-    --warm-cream: 38 33% 95%;
-    --gold-muted: 43 65% 53%;
-    --gold-light: 43 50% 72%;
-    --earth-brown: 24 42% 22%;
-    --earth-brown-light: 24 30% 35%;
-    --sudan-red: 0 60% 44%;
-    --sudan-black: 0 0% 12%;
-    --sudan-green: 145 48% 28%;
+    --spiritual-green: 145 23% 36%;
+    --spiritual-green-light: 145 20% 46%;
+    --warm-beige: 34 22% 94%;
+    --warm-cream: 36 25% 97%;
+    --gold-muted: 40 54% 51%;
+    --gold-light: 41 45% 76%;
+    --earth-brown: 24 43% 27%;
+    --earth-brown-light: 24 26% 40%;
+    --sudan-red: 0 66% 51%;
+    --sudan-black: 0 0% 16%;
+    --sudan-green: 145 23% 36%;
 
-    /* Warm glow */
-    --sanctuary-glow: 43 60% 80%;
-    --sanctuary-shadow: 24 30% 18%;
+    --sanctuary-glow: 41 45% 84%;
+    --sanctuary-shadow: 24 14% 20%;
   }
 
   .dark {
@@ -140,7 +134,7 @@
 
   body {
     @apply bg-background text-foreground font-body antialiased;
-    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23d4af37' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    background-image: none;
   }
 
   :focus-visible {
@@ -155,11 +149,12 @@
 
 @layer components {
   .content-card {
-    @apply rounded-2xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/20;
+    @apply rounded-xl border border-border bg-card p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/20 hover:shadow-md;
+    box-shadow: 0 1px 2px rgb(47 35 26 / 0.04);
   }
 
   .post-card {
-    @apply bg-card rounded-2xl p-4 border border-border shadow-sm;
+    @apply rounded-xl border border-border bg-card p-4 transition-all duration-200 hover:shadow-sm;
   }
 
   .nav-item {
@@ -184,7 +179,8 @@
 
   /* Elevated card style */
   .sanctuary-card {
-    @apply relative overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-sm;
+    @apply relative overflow-hidden rounded-xl border border-border bg-card p-5;
+    box-shadow: 0 1px 2px rgb(47 35 26 / 0.04);
   }
 
   .sanctuary-card::before {
@@ -265,5 +261,55 @@
   100% {
     opacity: 0;
     transform: translateY(-120px) scale(1.5);
+  }
+}
+
+
+@layer components {
+  .page-shell {
+    @apply mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8;
+  }
+
+  .page-kicker {
+    @apply text-xs font-semibold tracking-wide text-spiritual-green;
+  }
+
+  .page-title {
+    @apply mt-1 text-2xl font-bold text-foreground sm:text-3xl;
+  }
+
+  .page-description {
+    @apply mt-2 max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base;
+  }
+
+  .ui-panel {
+    @apply rounded-xl border border-border bg-card;
+    box-shadow: 0 1px 2px rgb(47 35 26 / 0.04);
+  }
+
+  .ui-panel-soft {
+    @apply rounded-xl border border-border/80 bg-secondary/45;
+  }
+
+  .ui-section-title {
+    @apply text-base font-bold text-foreground sm:text-lg;
+  }
+
+  .ui-stat {
+    @apply rounded-xl border border-border bg-card p-4;
+  }
+
+  .ui-chip {
+    @apply rounded-full border border-border bg-card px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground;
+  }
+
+  .ui-chip-active {
+    @apply border-primary bg-primary text-primary-foreground;
+  }
+}
+
+@media (min-width: 1024px) {
+  .app-content-with-sidebar {
+    min-width: 0;
   }
 }
