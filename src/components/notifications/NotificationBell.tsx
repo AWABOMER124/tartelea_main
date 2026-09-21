@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,14 +22,12 @@ interface Notification {
 }
 
 const NotificationBell = () => {
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
+  const userId = user?.id ?? null;
 
-  useEffect(() => {
-    checkUser();
-  }, []);
 
   useEffect(() => {
     if (userId) {
@@ -58,10 +57,6 @@ const NotificationBell = () => {
     }
   }, [userId]);
 
-  const checkUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    setUserId(user?.id || null);
-  };
 
   const fetchNotifications = async () => {
     const { data } = await supabase

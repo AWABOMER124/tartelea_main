@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -33,6 +34,7 @@ interface ServiceBookingDialogProps {
 
 const ServiceBookingDialog = ({ service, trainerName, children }: ServiceBookingDialogProps) => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [scheduledDate, setScheduledDate] = useState("");
@@ -51,7 +53,6 @@ const ServiceBookingDialog = ({ service, trainerName, children }: ServiceBooking
 
     setLoading(true);
 
-    const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       toast({
         title: "خطأ",
