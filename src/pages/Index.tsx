@@ -31,7 +31,7 @@ const GuestHome = () => {
 
   return (
     <div className="space-y-12 sm:space-y-16">
-      <section className="grid items-center gap-8 rounded-3xl border border-border bg-card px-5 py-8 shadow-sm sm:px-10 sm:py-12 md:grid-cols-[1.35fr_0.65fr]">
+      <section className="grid items-center gap-8 rounded-2xl border border-border bg-card px-5 py-8  sm:px-10 sm:py-12 md:grid-cols-[1.35fr_0.65fr]">
         <div className="space-y-5">
           <span className="inline-flex items-center gap-2 rounded-full bg-spiritual-green/10 px-3 py-1.5 text-sm font-semibold text-spiritual-green"><Sparkles className="h-4 w-4" /> مدرسة رقمية لرحلة أهدأ وأوضح</span>
           <div className="space-y-3">
@@ -42,7 +42,7 @@ const GuestHome = () => {
           <p className="font-display text-base text-primary/80">﴿ وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا ﴾</p>
         </div>
         <div className="mx-auto hidden w-full max-w-[240px] md:block">
-          <div className="rounded-3xl bg-secondary/75 p-4"><img src={logoImage} alt="شعار المدرسة الترتيلية" className="aspect-square w-full rounded-2xl object-cover" /></div>
+          <div className="rounded-2xl bg-secondary/75 p-4"><img src={logoImage} alt="شعار المدرسة الترتيلية" className="aspect-square w-full rounded-2xl object-cover" /></div>
         </div>
       </section>
 
@@ -50,7 +50,7 @@ const GuestHome = () => {
         <SectionHeading eyebrow="منهج واضح" title="رحلة واحدة، بثلاث محطات" />
         <div className="grid gap-3 md:grid-cols-3">
           {journeyStages.map((stage, index) => (
-            <article key={stage.title} className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+            <article key={stage.title} className="rounded-xl border border-border bg-card p-5">
               <div className={`mb-4 flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold ${stage.tone}`}>{index + 1}</div>
               <h3 className="text-lg font-bold">{stage.title}</h3><p className="mt-1 text-sm leading-6 text-muted-foreground">{stage.description}</p>
             </article>
@@ -63,7 +63,7 @@ const GuestHome = () => {
           <SectionHeading eyebrow="ابدأ بما يناسبك" title="مختار من المدرسة" to="/learn" linkLabel="استكشف التعلّم" />
           <div className="grid gap-3 sm:grid-cols-2">
             {courses.slice(0, 2).map((course) => (
-              <Link key={course.id} to={`/courses/${course.id}`} className="group rounded-2xl border border-border bg-card p-5 shadow-sm transition-colors hover:border-primary/25">
+              <Link key={course.id} to={`/courses/${course.id}`} className="group rounded-xl border border-border bg-card p-5 transition-colors hover:border-primary/25">
                 <div className="flex items-start gap-4"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><BookOpen className="h-5 w-5" /></span><div className="min-w-0 flex-1"><h3 className="font-bold group-hover:text-primary">{course.title}</h3><p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">{course.description || "مسار تعليمي من المدرسة الترتيلية."}</p></div><ChevronLeft className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" /></div>
               </Link>
             ))}
@@ -84,7 +84,7 @@ const MemberHome = ({ userId, name }: { userId: string; name: string }) => {
     <div className="space-y-10 sm:space-y-12">
       <header className="space-y-1"><p className="text-sm text-muted-foreground">السلام عليك، {name}</p><h1 className="text-2xl font-bold text-foreground sm:text-3xl">ما خطوتك التالية اليوم؟</h1></header>
 
-      <section aria-labelledby="continue-title" className="rounded-3xl border border-primary/15 bg-primary p-5 text-primary-foreground shadow-sm sm:p-7">
+      <section aria-labelledby="continue-title" className="rounded-2xl border border-primary/15 bg-primary p-5 text-primary-foreground  sm:p-7">
         <p className="text-xs font-semibold text-primary-foreground/70">واصل التعلّم</p>
         {progressLoading ? (
           <div className="flex min-h-32 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin" aria-label="جارٍ تحميل تقدّمك" /></div>
@@ -102,7 +102,7 @@ const MemberHome = ({ userId, name }: { userId: string; name: string }) => {
         <SectionHeading eyebrow="خريطة المدرسة" title="رحلتك: تخلية، تحلية، ثم تجلّي" />
         <div className="relative grid gap-3 md:grid-cols-3">
           {journeyStages.map((stage, index) => (
-            <article key={stage.title} className="relative rounded-2xl border border-border bg-card p-5 shadow-sm"><div className="mb-4 flex items-center justify-between"><span className={`flex h-9 w-9 items-center justify-center rounded-xl ${stage.tone}`}>{index === 0 ? <Circle className="h-4 w-4" /> : index === 1 ? <BookOpen className="h-4 w-4" /> : <Check className="h-4 w-4" />}</span><span className="text-xs text-muted-foreground">المحطة {index + 1}</span></div><h3 className="font-bold">{stage.title}</h3><p className="mt-1 text-sm leading-6 text-muted-foreground">{stage.description}</p></article>
+            <article key={stage.title} className="relative rounded-xl border border-border bg-card p-5"><div className="mb-4 flex items-center justify-between"><span className={`flex h-9 w-9 items-center justify-center rounded-xl ${stage.tone}`}>{index === 0 ? <Circle className="h-4 w-4" /> : index === 1 ? <BookOpen className="h-4 w-4" /> : <Check className="h-4 w-4" />}</span><span className="text-xs text-muted-foreground">المحطة {index + 1}</span></div><h3 className="font-bold">{stage.title}</h3><p className="mt-1 text-sm leading-6 text-muted-foreground">{stage.description}</p></article>
           ))}
         </div>
         <p className="text-xs leading-5 text-muted-foreground">هذه خريطة المنهج وليست نسبة إنجاز. سيُربط تقدّم الرحلة بسجل التعلّم في مرحلة لاحقة.</p>
@@ -111,14 +111,14 @@ const MemberHome = ({ userId, name }: { userId: string; name: string }) => {
       <section className="space-y-5">
         <SectionHeading eyebrow="مباشر وقادم" title="اقترب من اللقاء" to="/live" linkLabel="كل الجلسات" />
         {workshopsLoading ? <div className="h-32 animate-pulse rounded-2xl bg-muted" /> : nextWorkshop ? (
-          <Link to={`/workshops/${nextWorkshop.id}`} className="group flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 shadow-sm transition-colors hover:border-primary/25 sm:flex-row sm:items-center"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-spiritual-green/10 text-spiritual-green"><CalendarClock className="h-5 w-5" /></span><div className="min-w-0 flex-1"><p className="text-xs font-semibold text-spiritual-green">{nextWorkshop.is_live ? "مباشر الآن" : format(new Date(nextWorkshop.scheduled_at), "EEEE، d MMMM · HH:mm", { locale: ar })}</p><h3 className="mt-1 font-bold">{nextWorkshop.title}</h3><p className="mt-1 text-sm text-muted-foreground">مع {nextWorkshop.host_name || "مدرّب المدرسة"}</p></div><span className="flex min-h-11 items-center gap-2 self-start rounded-xl bg-secondary px-4 text-sm font-semibold text-secondary-foreground sm:self-auto">التفاصيل<ChevronLeft className="h-4 w-4" /></span></Link>
+          <Link to={`/workshops/${nextWorkshop.id}`} className="group flex flex-col gap-4 rounded-xl border border-border bg-card p-5 transition-colors hover:border-primary/25 sm:flex-row sm:items-center"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-spiritual-green/10 text-spiritual-green"><CalendarClock className="h-5 w-5" /></span><div className="min-w-0 flex-1"><p className="text-xs font-semibold text-spiritual-green">{nextWorkshop.is_live ? "مباشر الآن" : format(new Date(nextWorkshop.scheduled_at), "EEEE، d MMMM · HH:mm", { locale: ar })}</p><h3 className="mt-1 font-bold">{nextWorkshop.title}</h3><p className="mt-1 text-sm text-muted-foreground">مع {nextWorkshop.host_name || "مدرّب المدرسة"}</p></div><span className="flex min-h-11 items-center gap-2 self-start rounded-xl bg-secondary px-4 text-sm font-semibold text-secondary-foreground sm:self-auto">التفاصيل<ChevronLeft className="h-4 w-4" /></span></Link>
         ) : (
           <div className="flex flex-col gap-4 rounded-2xl border border-dashed border-border bg-card/60 p-5 sm:flex-row sm:items-center"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-secondary text-primary"><Radio className="h-5 w-5" /></span><div className="flex-1"><h3 className="font-bold">لا توجد جلسة قادمة معلنة الآن</h3><p className="mt-1 text-sm leading-6 text-muted-foreground">يمكنك استكشاف التسجيلات أو مراجعة صفحة المباشر لاحقاً.</p></div><Link to="/live" className="flex min-h-11 items-center gap-1 rounded-lg px-2 text-sm font-semibold text-primary">استكشف مباشر<ArrowLeft className="h-4 w-4" /></Link></div>
         )}
       </section>
 
       {!coursesLoading && courses.length > 0 && (
-        <section className="space-y-5"><SectionHeading eyebrow="مختار لك" title="من المدرسة" to="/learn" linkLabel="المزيد" /><div className="grid gap-3 sm:grid-cols-2">{courses.slice(0, 2).map((item) => <Link key={item.id} to={`/courses/${item.id}`} className="group rounded-2xl border border-border bg-card p-5 shadow-sm transition-colors hover:border-primary/25"><div className="flex items-start gap-4"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Headphones className="h-5 w-5" /></span><div className="min-w-0 flex-1"><h3 className="line-clamp-1 font-bold group-hover:text-primary">{item.title}</h3><p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">{item.description || "محتوى مختار من المدرسة الترتيلية."}</p></div></div></Link>)}</div></section>
+        <section className="space-y-5"><SectionHeading eyebrow="مختار لك" title="من المدرسة" to="/learn" linkLabel="المزيد" /><div className="grid gap-3 sm:grid-cols-2">{courses.slice(0, 2).map((item) => <Link key={item.id} to={`/courses/${item.id}`} className="group rounded-xl border border-border bg-card p-5 transition-colors hover:border-primary/25"><div className="flex items-start gap-4"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Headphones className="h-5 w-5" /></span><div className="min-w-0 flex-1"><h3 className="line-clamp-1 font-bold group-hover:text-primary">{item.title}</h3><p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">{item.description || "محتوى مختار من المدرسة الترتيلية."}</p></div></div></Link>)}</div></section>
       )}
     </div>
   );
