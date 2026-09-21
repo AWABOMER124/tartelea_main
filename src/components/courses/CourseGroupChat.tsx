@@ -65,8 +65,8 @@ const CourseGroupChat = ({ courseId, userId, isSubscribed }: CourseGroupChatProp
 
     if (file.size > 5 * 1024 * 1024) {
       toast({
-        title: "ط®ط·ط£",
-        description: "ط­ط¬ظ… ط§ظ„ظ…ظ„ظپ ظٹط¬ط¨ ط£ظ† ظ„ط§ ظٹطھط¬ط§ظˆط² 5 ظ…ظٹط¬ط§ط¨ط§ظٹطھ",
+        title: "خطأ",
+        description: "حجم الملف يجب ألا يتجاوز 5 ميجابايت",
         variant: "destructive",
       });
       return;
@@ -110,8 +110,8 @@ const CourseGroupChat = ({ courseId, userId, isSubscribed }: CourseGroupChatProp
       await fetchMessages();
     } catch {
       toast({
-        title: "ط®ط·ط£",
-        description: "ظپط´ظ„ ط¥ط±ط³ط§ظ„ ط§ظ„ط±ط³ط§ظ„ط©",
+        title: "خطأ",
+        description: "فشل إرسال الرسالة",
         variant: "destructive",
       });
     } finally {
@@ -276,7 +276,7 @@ const CourseGroupChat = ({ courseId, userId, isSubscribed }: CourseGroupChatProp
           <Paperclip className="h-4 w-4" />
         </Button>
         <Input
-          placeholder="ط§ظƒطھط¨ ط±ط³ط§ظ„طھظƒ..."
+          placeholder="اكتب رسالتك..."
           value={newMessage}
           onChange={(event) => setNewMessage(event.target.value)}
           onKeyDown={handleKeyDown}
