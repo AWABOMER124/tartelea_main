@@ -177,6 +177,23 @@ export const getWorkshopRecordingWithMetadata = async (recordingId: string) => {
   return recordings.find((recording) => recording.id === recordingId) || null;
 };
 
+export const createWorkshop = async (payload: {
+  title: string;
+  description: string | null;
+  category: string;
+  scheduled_at: string;
+  duration_minutes: number;
+  price: number;
+  max_participants: number;
+  image_url?: string | null;
+}) => {
+  const response = await compatInsert<BackendWorkshop>("workshops", {
+    ...payload,
+    is_approved: false,
+  }, { single: true });
+  return response.data;
+};
+
 export const createWorkshopRecording = async (payload: {
   workshop_id: string;
   recording_url: string;
