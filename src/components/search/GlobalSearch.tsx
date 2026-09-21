@@ -47,9 +47,9 @@ const categoryLabels: Record<string, string> = {
 };
 
 const levelLabels: Record<string, string> = {
-  beginner: "مبتدئ",
-  intermediate: "متوسط",
-  advanced: "متقدم",
+  beginner: "تخلية",
+  intermediate: "تحلية",
+  advanced: "تجلّي",
 };
 
 const GlobalSearch = () => {
@@ -156,16 +156,17 @@ const GlobalSearch = () => {
         <div className="relative flex-1">
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="ابحث عن دورة أو محتوى..."
+            placeholder="ابحث في المسارات والمكتبة..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => query.trim().length >= 2 && setShowResults(true)}
-            className="pr-10 pl-10"
+            className="min-h-11 pr-10 pl-10"
           />
           {query && (
             <button
               onClick={() => { setQuery(""); setResults([]); }}
-              className="absolute left-3 top-1/2 -translate-y-1/2"
+              className="absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label="مسح البحث"
             >
               <X className="h-4 w-4 text-muted-foreground" />
             </button>
@@ -173,7 +174,9 @@ const GlobalSearch = () => {
         </div>
         <button
           onClick={() => setShowFilters(!showFilters)}
-          className={`flex items-center justify-center h-10 w-10 rounded-md border transition-colors ${
+          aria-label={showFilters ? "إخفاء فلاتر البحث" : "إظهار فلاتر البحث"}
+          aria-expanded={showFilters}
+          className={`flex h-11 w-11 items-center justify-center rounded-xl border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
             hasActiveFilters ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-muted-foreground hover:bg-muted"
           }`}
         >
@@ -183,7 +186,7 @@ const GlobalSearch = () => {
 
       {/* Filters */}
       {showFilters && (
-        <div className="flex flex-wrap gap-2 animate-fade-in">
+        <div className="flex flex-wrap gap-2">
           <Select value={filterCategory} onValueChange={setFilterCategory}>
             <SelectTrigger className="w-[130px] h-8 text-xs">
               <SelectValue placeholder="التصنيف" />
@@ -212,9 +215,9 @@ const GlobalSearch = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">كل المستويات</SelectItem>
-              <SelectItem value="beginner">مبتدئ</SelectItem>
-              <SelectItem value="intermediate">متوسط</SelectItem>
-              <SelectItem value="advanced">متقدم</SelectItem>
+              <SelectItem value="beginner">تخلية</SelectItem>
+              <SelectItem value="intermediate">تحلية</SelectItem>
+              <SelectItem value="advanced">تجلّي</SelectItem>
             </SelectContent>
           </Select>
           {hasActiveFilters && (
@@ -229,7 +232,7 @@ const GlobalSearch = () => {
       )}
 
       {showResults && (query.trim().length >= 2 || results.length > 0) && (
-        <Card className="absolute top-full mt-2 w-full z-50 shadow-lg" style={{ top: showFilters ? "5.5rem" : undefined }}>
+        <Card className="absolute top-full z-50 mt-2 w-full border-border shadow-lg" style={{ top: showFilters ? "5.5rem" : undefined }}>
           <CardContent className="p-2">
             {loading ? (
               <div className="flex items-center justify-center py-4">
@@ -247,7 +250,7 @@ const GlobalSearch = () => {
                     <button
                       key={`${result.type}-${result.id}`}
                       onClick={() => handleResultClick(result)}
-                      className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-muted transition-colors text-right"
+                      className="flex min-h-12 w-full items-center gap-3 rounded-xl p-2 text-right transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
                         {result.type === "course" ? (
