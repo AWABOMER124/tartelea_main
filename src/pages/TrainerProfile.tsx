@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import AppLayout from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,28 +25,8 @@ import {
 } from "lucide-react";
 import DirectMessages from "@/components/messages/DirectMessages";
 import ServiceBookingDialog from "@/components/bookings/ServiceBookingDialog";
-import type { Database } from "@/integrations/supabase/types";
-
-type Profile = Database["public"]["Tables"]["profiles"]["Row"] & {
-  bio?: string;
-  experience_years?: number;
-  specializations?: string[];
-  social_links?: Record<string, string>;
-  avatar_url?: string;
-};
-type TrainerCourse = Database["public"]["Tables"]["trainer_courses"]["Row"];
-type Workshop = Database["public"]["Tables"]["workshops"]["Row"];
-
-interface TrainerService {
-  id: string;
-  title: string;
-  description: string | null;
-  service_type: string;
-  duration_minutes: number;
-  price: number;
-  is_active: boolean;
-}
-
+import { getTrainerPublicData, type TrainerCourseRecord, type TrainerServiceRecord, type TrainerWorkshopRecord } from "@/lib/backendTrainerProfile";
+import type { BackendProfile } from "@/lib/backendProfile";
 const categoryLabels: Record<string, string> = {
   quran: "القرآن الكريم",
   values: "القيم والأخلاق",
@@ -68,10 +47,10 @@ const serviceTypeLabels: Record<string, string> = {
 const TrainerProfile = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [courses, setCourses] = useState<TrainerCourse[]>([]);
-  const [workshops, setWorkshops] = useState<Workshop[]>([]);
-  const [services, setServices] = useState<TrainerService[]>([]);
+  const [profile, setProfile] = useState<BackendProfile | null>(null);
+  const [courses, setCourses] = useState<TrainerCourseRecord[]>([]);
+  const [workshops, setWorkshops] = useState<TrainerWorkshopRecord[]>([]);
+  const [services, setServices] = useState<TrainerServiceRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [isTrainer, setIsTrainer] = useState(false);
   const [showChat, setShowChat] = useState(false);
@@ -90,95 +69,29 @@ const TrainerProfile = () => {
   }, [id]);
 
   const fetchTrainerData = async () => {
+    if (!id) return;
+
     setLoading(true);
+    try {
+      const data = await getTrainerPublicData(id);
+      if (!data) {
+        setIsTrainer(false);
+        setProfile(null);
+        return;
+      }
 
-    // Check if user is a trainer
-    const { data: roleData } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", id)
-      .eq("role", "trainer")
-      .maybeSingle();
-
-    if (!roleData) {
+      setIsTrainer(true);
+      setProfile(data.profile);
+      setCourses(data.courses);
+      setWorkshops(data.workshops);
+      setServices(data.services);
+      setStats(data.stats);
+    } catch {
       setIsTrainer(false);
+      setProfile(null);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setIsTrainer(true);
-
-    // Fetch profile, courses, workshops, and services in parallel
-    const [profileRes, coursesRes, workshopsRes, servicesRes] = await Promise.all([
-      supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", id)
-        .single(),
-      supabase
-        .from("trainer_courses")
-        .select("*")
-        .eq("trainer_id", id)
-        .eq("is_approved", true)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("workshops")
-        .select("*")
-        .eq("host_id", id)
-        .eq("is_approved", true)
-        .order("scheduled_at", { ascending: false }),
-      supabase
-        .from("trainer_services")
-        .select("*")
-        .eq("trainer_id", id)
-        .eq("is_active", true)
-        .order("created_at", { ascending: false })
-    ]);
-
-    if (profileRes.data) {
-      setProfile(profileRes.data as Profile);
-    }
-
-    if (coursesRes.data) {
-      setCourses(coursesRes.data);
-    }
-
-    if (workshopsRes.data) {
-      setWorkshops(workshopsRes.data);
-    }
-
-    if (servicesRes.data) {
-      setServices(servicesRes.data);
-    }
-
-    // Calculate stats
-    if (coursesRes.data && coursesRes.data.length > 0) {
-      const courseIds = coursesRes.data.map(c => c.id);
-      
-      const { count: studentsCount } = await supabase
-        .from("course_subscriptions")
-        .select("*", { count: "exact", head: true })
-        .in("course_id", courseIds);
-
-      // Get average rating
-      const { data: ratingsData } = await supabase
-        .from("course_ratings")
-        .select("rating")
-        .in("course_id", courseIds);
-
-      const avgRating = ratingsData && ratingsData.length > 0
-        ? ratingsData.reduce((sum, r) => sum + r.rating, 0) / ratingsData.length
-        : 0;
-
-      setStats({
-        totalStudents: studentsCount || 0,
-        totalCourses: coursesRes.data.length,
-        totalWorkshops: workshopsRes.data?.length || 0,
-        avgRating: Math.round(avgRating * 10) / 10
-      });
-    }
-
-    setLoading(false);
   };
 
   if (loading) {
