@@ -49,8 +49,8 @@ const CourseProgressTracker = ({
   const handleSaveProgress = async () => {
     if (!userId) {
       toast({
-        title: "طھظ†ط¨ظٹظ‡",
-        description: "ظٹط¬ط¨ طھط³ط¬ظٹظ„ ط§ظ„ط¯ط®ظˆظ„ ظ„ط­ظپط¸ ط§ظ„طھظ‚ط¯ظ…",
+        title: "تنبيه",
+        description: "سجّل الدخول لحفظ التقدم",
         variant: "destructive",
       });
       return;
@@ -60,7 +60,7 @@ const CourseProgressTracker = ({
 
     try {
       await saveCourseProgress(courseId, userId, progress);
-      toast({ title: "طھظ… ط­ظپط¸ ط§ظ„طھظ‚ط¯ظ…" });
+      toast({ title: "تم حفظ التقدم" });
 
       if (progress === 100) {
         setIsCompleted(true);
@@ -71,8 +71,8 @@ const CourseProgressTracker = ({
       }
     } catch {
       toast({
-        title: "ط®ط·ط£",
-        description: "ظپط´ظ„ ط­ظپط¸ ط§ظ„طھظ‚ط¯ظ…",
+        title: "خطأ",
+        description: "فشل حفظ التقدم",
         variant: "destructive",
       });
     } finally {
@@ -129,7 +129,7 @@ const CourseProgressTracker = ({
             {saving ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              "ط­ظپط¸ ط§ظ„طھظ‚ط¯ظ…"
+              "حفظ التقدم"
             )}
           </Button>
         </div>
