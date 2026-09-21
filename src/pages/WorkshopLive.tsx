@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useCloudflareStream } from "@/hooks/useCloudflareStream";
@@ -10,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import LiveChat from "@/components/live/LiveChat";
 import LiveStreamSharing from "@/components/live/LiveStreamSharing";
+import { createWorkshopRecording, getWorkshop, updateWorkshop } from "@/lib/backendWorkshops";
 import {
   Video,
   VideoOff,
@@ -86,45 +86,37 @@ const WorkshopLive = () => {
   const fetchWorkshop = async (currentUserId: string) => {
     if (!id) return;
 
-    const { data, error } = await supabase
-      .from("workshops")
-      .select("*")
-      .eq("id", id)
-      .single();
+    try {
+      const data = await getWorkshop(id);
+      if (!data) {
+        toast({
+          title: "خطأ",
+          description: "الورشة غير موجودة",
+          variant: "destructive",
+        });
+        navigate("/workshops");
+        return;
+      }
 
-    if (error || !data) {
+      setWorkshop(data);
+      setIsHost(data.host_id === currentUserId);
+      setParticipants([
+        {
+          id: data.host_id,
+          name: data.host_name || "المضيف",
+          isHost: true,
+        },
+      ]);
+      setLoading(false);
+      void startLocalStream();
+    } catch {
       toast({
         title: "خطأ",
-        description: "الورشة غير موجودة",
+        description: "تعذر تحميل الورشة",
         variant: "destructive",
       });
       navigate("/workshops");
-      return;
     }
-
-    setWorkshop(data);
-    setIsHost(data.host_id === currentUserId);
-
-    // Fetch host profile
-    const { data: hostProfile } = await supabase
-      .from("profiles")
-      .select("full_name")
-      .eq("id", data.host_id)
-      .single();
-
-    // Initialize participants with host
-    setParticipants([
-      {
-        id: data.host_id,
-        name: hostProfile?.full_name || "المضيف",
-        isHost: true,
-      },
-    ]);
-
-    setLoading(false);
-
-    // Start local media
-    startLocalStream();
   };
 
   const startLocalStream = async () => {
@@ -188,13 +180,10 @@ const WorkshopLive = () => {
       
       if (liveInput) {
         // Save live input UID to workshop
-        await supabase
-          .from("workshops")
-          .update({ 
-            is_live: true,
-            cloudflare_live_input_uid: liveInput.uid 
-          })
-          .eq("id", id);
+        await updateWorkshop(id, {
+          is_live: true,
+          cloudflare_live_input_uid: liveInput.uid,
+        });
 
         setWorkshop({ ...workshop, is_live: true, cloudflare_live_input_uid: liveInput.uid });
         
@@ -204,18 +193,12 @@ const WorkshopLive = () => {
         });
       } else {
         // Fallback to local streaming
-        const { error } = await supabase
-          .from("workshops")
-          .update({ is_live: true })
-          .eq("id", id);
-
-        if (!error) {
-          setWorkshop({ ...workshop, is_live: true });
-          toast({
-            title: "تم",
-            description: "بدأ البث المباشر",
-          });
-        }
+        await updateWorkshop(id, { is_live: true });
+        setWorkshop({ ...workshop, is_live: true });
+        toast({
+          title: "تم",
+          description: "بدأ البث المباشر",
+        });
       }
     } catch (error) {
       console.error("Error starting live:", error);
@@ -234,23 +217,19 @@ const WorkshopLive = () => {
       await stopRecording();
     }
 
-    const { error } = await supabase
-      .from("workshops")
-      .update({ is_live: false })
-      .eq("id", id);
-
-    if (error) {
-      toast({
-        title: "خطأ",
-        description: "فشل إيقاف البث",
-        variant: "destructive",
-      });
-    } else {
+    try {
+      await updateWorkshop(id, { is_live: false });
       toast({
         title: "تم",
         description: "انتهى البث المباشر",
       });
       navigate("/workshops");
+    } catch {
+      toast({
+        title: "خطأ",
+        description: "فشل إيقاف البث",
+        variant: "destructive",
+      });
     }
   };
 
@@ -285,11 +264,12 @@ const WorkshopLive = () => {
             
             if (uploaded) {
               // Save recording info to database with Cloudflare URL
-              await supabase.from("workshop_recordings").insert({
+              await createWorkshopRecording({
                 workshop_id: id,
                 recording_url: uploadData.playback.hls,
                 duration_seconds: recordingDuration,
                 is_available: true,
+                cloudflare_uid: uploadData.uid,
               });
 
               toast({
@@ -305,12 +285,8 @@ const WorkshopLive = () => {
             a.download = `workshop-${id}-${Date.now()}.webm`;
             a.click();
 
-            await supabase.from("workshop_recordings").insert({
-              workshop_id: id,
-              recording_url: url,
-              duration_seconds: recordingDuration,
-              is_available: true,
-            });
+            // Blob URLs are local to this browser session and must not be persisted.
+            // Keep the local download fallback without creating a broken server record.
 
             toast({
               title: "تم حفظ التسجيل",

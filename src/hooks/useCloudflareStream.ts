@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { backendRequest } from "@/lib/backendApi";
 
 interface LiveInputData {
   uid: string;
@@ -52,22 +52,13 @@ export const useCloudflareStream = () => {
   const createLiveInput = useCallback(async (workshopId: string, title: string) => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("cloudflare-stream", {
-        body: {
-          action: "create-live-input",
-          workshopId,
-          title,
-        },
+      const response = await backendRequest<{ data: LiveInputData }>("/compat/functions/cloudflare-stream", {
+        method: "POST",
+        requireAuth: true,
+        body: { action: "create-live-input", workshopId, title },
       });
-
-      if (error) throw error;
-
-      if (data.success) {
-        setLiveInput(data.data);
-        return data.data as LiveInputData;
-      } else {
-        throw new Error(data.error);
-      }
+      setLiveInput(response.data);
+      return response.data;
     } catch (error) {
       console.error("Error creating live input:", error);
       toast({
@@ -84,20 +75,12 @@ export const useCloudflareStream = () => {
   const getLiveInput = useCallback(async (liveInputUid: string) => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("cloudflare-stream", {
-        body: {
-          action: "get-live-input",
-          videoUid: liveInputUid,
-        },
+      const response = await backendRequest<{ data: LiveInputData }>("/compat/functions/cloudflare-stream", {
+        method: "POST",
+        requireAuth: true,
+        body: { action: "get-live-input", videoUid: liveInputUid },
       });
-
-      if (error) throw error;
-
-      if (data.success) {
-        return data.data;
-      } else {
-        throw new Error(data.error);
-      }
+      return response.data;
     } catch (error) {
       console.error("Error getting live input:", error);
       return null;
@@ -109,20 +92,12 @@ export const useCloudflareStream = () => {
   const listRecordings = useCallback(async (liveInputUid: string) => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("cloudflare-stream", {
-        body: {
-          action: "list-recordings",
-          videoUid: liveInputUid,
-        },
+      const response = await backendRequest<{ data: VideoData[] }>("/compat/functions/cloudflare-stream", {
+        method: "POST",
+        requireAuth: true,
+        body: { action: "list-recordings", videoUid: liveInputUid },
       });
-
-      if (error) throw error;
-
-      if (data.success) {
-        return data.data as VideoData[];
-      } else {
-        throw new Error(data.error);
-      }
+      return response.data;
     } catch (error) {
       console.error("Error listing recordings:", error);
       return [];
@@ -133,20 +108,12 @@ export const useCloudflareStream = () => {
 
   const getVideo = useCallback(async (videoUid: string) => {
     try {
-      const { data, error } = await supabase.functions.invoke("cloudflare-stream", {
-        body: {
-          action: "get-video",
-          videoUid,
-        },
+      const response = await backendRequest<{ data: VideoData }>("/compat/functions/cloudflare-stream", {
+        method: "POST",
+        requireAuth: true,
+        body: { action: "get-video", videoUid },
       });
-
-      if (error) throw error;
-
-      if (data.success) {
-        return data.data as VideoData;
-      } else {
-        throw new Error(data.error);
-      }
+      return response.data;
     } catch (error) {
       console.error("Error getting video:", error);
       return null;
@@ -156,21 +123,12 @@ export const useCloudflareStream = () => {
   const createDirectUpload = useCallback(async (workshopId: string, title: string) => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("cloudflare-stream", {
-        body: {
-          action: "create-direct-upload",
-          workshopId,
-          title,
-        },
+      const response = await backendRequest<{ data: DirectUploadData }>("/compat/functions/cloudflare-stream", {
+        method: "POST",
+        requireAuth: true,
+        body: { action: "create-direct-upload", workshopId, title },
       });
-
-      if (error) throw error;
-
-      if (data.success) {
-        return data.data as DirectUploadData;
-      } else {
-        throw new Error(data.error);
-      }
+      return response.data;
     } catch (error) {
       console.error("Error creating direct upload:", error);
       toast({
@@ -217,15 +175,12 @@ export const useCloudflareStream = () => {
 
   const deleteLiveInput = useCallback(async (liveInputUid: string) => {
     try {
-      const { data, error } = await supabase.functions.invoke("cloudflare-stream", {
-        body: {
-          action: "delete-live-input",
-          videoUid: liveInputUid,
-        },
+      await backendRequest<{ data: unknown }>("/compat/functions/cloudflare-stream", {
+        method: "POST",
+        requireAuth: true,
+        body: { action: "delete-live-input", videoUid: liveInputUid },
       });
-
-      if (error) throw error;
-      return data.success;
+      return true;
     } catch (error) {
       console.error("Error deleting live input:", error);
       return false;
@@ -234,15 +189,12 @@ export const useCloudflareStream = () => {
 
   const deleteVideo = useCallback(async (videoUid: string) => {
     try {
-      const { data, error } = await supabase.functions.invoke("cloudflare-stream", {
-        body: {
-          action: "delete-video",
-          videoUid,
-        },
+      await backendRequest<{ data: unknown }>("/compat/functions/cloudflare-stream", {
+        method: "POST",
+        requireAuth: true,
+        body: { action: "delete-video", videoUid },
       });
-
-      if (error) throw error;
-      return data.success;
+      return true;
     } catch (error) {
       console.error("Error deleting video:", error);
       return false;
