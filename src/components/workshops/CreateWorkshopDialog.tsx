@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Dialog,
   DialogContent,
@@ -44,6 +45,7 @@ const CreateWorkshopDialog = ({
   onSuccess,
 }: CreateWorkshopDialogProps) => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -126,7 +128,6 @@ const CreateWorkshopDialog = ({
 
     setLoading(true);
 
-    const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       toast({
         title: "خطأ",
