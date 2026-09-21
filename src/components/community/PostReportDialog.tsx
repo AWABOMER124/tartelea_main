@@ -6,6 +6,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Dialog,
   DialogContent,
@@ -35,6 +36,7 @@ const reportReasons = [
 
 const PostReportDialog = ({ open, onOpenChange, postId, postTitle }: PostReportDialogProps) => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [reason, setReason] = useState("");
   const [details, setDetails] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -46,7 +48,6 @@ const PostReportDialog = ({ open, onOpenChange, postId, postTitle }: PostReportD
     }
 
     setSubmitting(true);
-    const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       toast({ title: "يجب تسجيل الدخول", variant: "destructive" });
       setSubmitting(false);

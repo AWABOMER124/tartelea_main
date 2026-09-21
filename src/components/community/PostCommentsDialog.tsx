@@ -6,6 +6,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Dialog,
   DialogContent,
@@ -41,23 +42,19 @@ const PostCommentsDialog = ({
   onCommentsCountChange,
 }: PostCommentsDialogProps) => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
+  const userId = user?.id ?? null;
 
   useEffect(() => {
     if (open) {
       fetchComments();
-      fetchUser();
     }
   }, [open, postId]);
 
-  const fetchUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    setUserId(user?.id || null);
-  };
 
   const fetchComments = async () => {
     setLoading(true);
