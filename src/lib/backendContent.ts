@@ -22,6 +22,7 @@ interface LibraryFilters {
   type?: string;
   category?: string;
   depthLevel?: string;
+  isSudanAwareness?: boolean;
 }
 
 const normalizeContent = (content: BackendContentItem) => ({
@@ -33,6 +34,7 @@ export const listLibraryContent = async ({
   type,
   category,
   depthLevel,
+  isSudanAwareness,
 }: LibraryFilters = {}) => {
   const filters: CompatFilter[] = [];
 
@@ -46,6 +48,10 @@ export const listLibraryContent = async ({
 
   if (depthLevel && depthLevel !== "all") {
     filters.push({ column: "depth_level", operator: "eq", value: depthLevel });
+  }
+
+  if (typeof isSudanAwareness === "boolean") {
+    filters.push({ column: "is_sudan_awareness", operator: "eq", value: isSudanAwareness });
   }
 
   const response = await compatSelect<BackendContentItem[]>("contents", {
