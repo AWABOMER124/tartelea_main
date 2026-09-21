@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Book, CheckCircle2, Mail } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -8,10 +8,47 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   loginWithBackend,
+  loginWithGoogleBackend,
   requestPasswordResetWithBackend,
   signupWithBackend,
   verifyEmailWithBackend,
 } from "@/lib/webAuth";
+
+type GoogleCredentialResponse = {
+  credential?: string;
+};
+
+type GoogleIdApi = {
+  initialize: (options: {
+    client_id: string;
+    callback: (response: GoogleCredentialResponse) => void;
+    auto_select?: boolean;
+    cancel_on_tap_outside?: boolean;
+  }) => void;
+  renderButton: (
+    parent: HTMLElement,
+    options: {
+      theme?: "outline" | "filled_blue" | "filled_black";
+      size?: "large" | "medium" | "small";
+      shape?: "rectangular" | "pill" | "circle" | "square";
+      text?: "signin_with" | "signup_with" | "continue_with" | "signin";
+      width?: number;
+      locale?: string;
+    },
+  ) => void;
+};
+
+declare global {
+  interface Window {
+    google?: {
+      accounts?: {
+        id?: GoogleIdApi;
+      };
+    };
+  }
+}
+
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim() || "";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -29,6 +66,90 @@ const Auth = () => {
   const [forgotEmail, setForgotEmail] = useState("");
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const [signupData, setSignupData] = useState({ email: "", password: "", full_name: "" });
+  const googleButtonRef = useRef<HTMLDivElement | null>(null);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleReady, setGoogleReady] = useState(false);
+
+
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) {
+      return;
+    }
+
+    const setupGoogleButton = () => {
+      const googleId = window.google?.accounts?.id;
+      const container = googleButtonRef.current;
+      if (!googleId || !container) {
+        return;
+      }
+
+      googleId.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        auto_select: false,
+        cancel_on_tap_outside: true,
+        callback: async (response) => {
+          if (!response.credential) {
+            toast({
+              title: "تعذر تسجيل الدخول عبر Google",
+              description: "لم يصل رمز التحقق من Google.",
+              variant: "destructive",
+            });
+            return;
+          }
+
+          setGoogleLoading(true);
+          try {
+            await loginWithGoogleBackend(response.credential);
+            toast({ title: "تم تسجيل الدخول", description: "تم تسجيل الدخول عبر Google بنجاح." });
+            navigate("/");
+          } catch (error) {
+            toast({
+              title: "تعذر تسجيل الدخول عبر Google",
+              description: error instanceof Error ? error.message : "حدث خطأ غير متوقع.",
+              variant: "destructive",
+            });
+          } finally {
+            setGoogleLoading(false);
+          }
+        },
+      });
+
+      container.replaceChildren();
+      googleId.renderButton(container, {
+        theme: "outline",
+        size: "large",
+        shape: "rectangular",
+        text: "continue_with",
+        width: 360,
+        locale: "ar",
+      });
+      setGoogleReady(true);
+    };
+
+    const existingScript = document.querySelector<HTMLScriptElement>(
+      'script[src="https://accounts.google.com/gsi/client"]',
+    );
+
+    if (existingScript) {
+      if (window.google?.accounts?.id) {
+        setupGoogleButton();
+      } else {
+        existingScript.addEventListener("load", setupGoogleButton, { once: true });
+      }
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = setupGoogleButton;
+    document.head.appendChild(script);
+
+    return () => {
+      script.onload = null;
+    };
+  }, [navigate, toast]);
 
   const handleLogin = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -267,6 +388,28 @@ const Auth = () => {
                 </Button>
               </div>
             ) : (
+              <div className="space-y-5">
+                {GOOGLE_CLIENT_ID ? (
+                  <div className="space-y-3">
+                    <div
+                      ref={googleButtonRef}
+                      className={`flex min-h-11 w-full items-center justify-center ${googleLoading ? "pointer-events-none opacity-60" : ""}`}
+                      aria-busy={googleLoading}
+                    />
+                    {!googleReady && (
+                      <p className="text-center text-xs text-muted-foreground">جار تحميل تسجيل الدخول عبر Google...</p>
+                    )}
+                    <div className="relative">
+                      <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t border-border" />
+                      </div>
+                      <div className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-card px-2 text-muted-foreground">أو بالبريد الإلكتروني</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
               <Tabs defaultValue="login" className="w-full">
                 <TabsList className="grid w-full grid-cols-2 mb-6">
                   <TabsTrigger value="login">تسجيل الدخول</TabsTrigger>
@@ -353,6 +496,7 @@ const Auth = () => {
                   </form>
                 </TabsContent>
               </Tabs>
+              </div>
             )}
           </div>
         </div>
