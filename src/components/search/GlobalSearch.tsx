@@ -63,6 +63,7 @@ const GlobalSearch = () => {
   const [filterType, setFilterType] = useState("all");
   const [filterLevel, setFilterLevel] = useState("all");
   const containerRef = useRef<HTMLDivElement>(null);
+  const searchRequestIdRef = useRef(0);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -75,34 +76,45 @@ const GlobalSearch = () => {
   }, []);
 
   useEffect(() => {
-    const searchTimeout = setTimeout(() => {
-      if (query.trim().length >= 2) {
-        performSearch();
-      } else {
-        setResults([]);
-      }
-    }, 300);
-    return () => clearTimeout(searchTimeout);
-  }, [query, filterCategory, filterType, filterLevel]);
+    const trimmedQuery = query.trim();
+    const requestId = ++searchRequestIdRef.current;
 
-  const performSearch = async () => {
-    setLoading(true);
-    try {
-      setResults(
-        await searchLearningCatalog({
-          query: query.trim(),
+    if (trimmedQuery.length < 2) {
+      setResults([]);
+      setShowResults(false);
+      setLoading(false);
+      return;
+    }
+
+    const searchTimeout = window.setTimeout(async () => {
+      setLoading(true);
+
+      try {
+        const nextResults = await searchLearningCatalog({
+          query: trimmedQuery,
           category: filterCategory,
           type: filterType,
           level: filterLevel,
-        }),
-      );
-      setShowResults(true);
-    } finally {
-      setLoading(false);
-    }
-  };
+        });
+
+        if (searchRequestIdRef.current !== requestId) {
+          return;
+        }
+
+        setResults(nextResults);
+        setShowResults(true);
+      } finally {
+        if (searchRequestIdRef.current === requestId) {
+          setLoading(false);
+        }
+      }
+    }, 300);
+
+    return () => window.clearTimeout(searchTimeout);
+  }, [query, filterCategory, filterType, filterLevel]);
 
   const handleResultClick = (result: SearchResult) => {
+    searchRequestIdRef.current += 1;
     setShowResults(false);
     setQuery("");
     if (result.type === "course") {
@@ -128,7 +140,7 @@ const GlobalSearch = () => {
           />
           {query && (
             <button
-              onClick={() => { setQuery(""); setResults([]); }}
+              onClick={() => { searchRequestIdRef.current += 1; setQuery(""); setResults([]); setShowResults(false); setLoading(false); }}
               className="absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               aria-label="مسح البحث"
             >
