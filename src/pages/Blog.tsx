@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/layout/AppLayout";
 import PageMeta from "@/components/seo/PageMeta";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,6 +13,7 @@ import { PenLine, Calendar, User, Search, BookOpen } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
+import { createBlogPost, listBlogPosts } from "@/lib/backendBlog";
 interface BlogPost {
   id: string;
   title: string;
@@ -62,62 +62,37 @@ const Blog = () => {
 
   const fetchPosts = async () => {
     setLoading(true);
-    let query = (supabase as any)
-      .from("blog_posts")
-      .select("*")
-      .eq("is_published", true)
-      .order("published_at", { ascending: false });
-
-    if (selectedCategory !== "all") {
-      query = query.eq("category", selectedCategory);
+    try {
+      setPosts(await listBlogPosts(selectedCategory));
+    } finally {
+      setLoading(false);
     }
-
-    const { data } = await query;
-
-    if (data) {
-      const authorIds = [...new Set(data.map((p: any) => p.author_id))] as string[];
-      const { data: profiles } = await supabase
-        .from("profiles_public")
-        .select("id, full_name")
-        .in("id", authorIds);
-      const profileMap = new Map(profiles?.map((p) => [p.id, p.full_name]) || []);
-
-      setPosts(
-        data.map((p) => ({
-          ...p,
-          author_name: profileMap.get(p.author_id) || "المدرسة الترتيلية",
-        }))
-      );
-    }
-    setLoading(false);
   };
 
   const handleCreatePost = async () => {
     if (!user || !title.trim() || !content.trim()) return;
     setSubmitting(true);
 
-    const { error } = await (supabase as any).from("blog_posts").insert({
-      title: title.trim(),
-      excerpt: excerpt.trim() || null,
-      content: content.trim(),
-      category,
-      author_id: user.id,
-      is_published: true,
-      published_at: new Date().toISOString(),
-    });
-
-    if (error) {
-      toast({ title: "خطأ", description: "فشل نشر المقال", variant: "destructive" });
-    } else {
+    try {
+      await createBlogPost({
+        title: title.trim(),
+        excerpt: excerpt.trim() || null,
+        content: content.trim(),
+        category,
+        author_id: user.id,
+      });
       toast({ title: "تم بنجاح", description: "تم نشر المقال" });
       setTitle("");
       setExcerpt("");
       setContent("");
       setCategory("general");
       setDialogOpen(false);
-      fetchPosts();
+      void fetchPosts();
+    } catch {
+      toast({ title: "خطأ", description: "فشل نشر المقال", variant: "destructive" });
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
   };
 
   const filteredPosts = posts.filter(
