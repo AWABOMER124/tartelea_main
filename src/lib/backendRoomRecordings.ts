@@ -1,4 +1,6 @@
-import { compatDelete, compatSelect } from "@/lib/backendCompat";
+import { compatSelect } from "@/lib/backendCompat";
+import { getBackendAccessToken } from "@/lib/backendSession";
+import { backendRequest } from "@/lib/backendApi";
 
 export interface BackendArchivedRoom {
   id: string;
@@ -107,7 +109,56 @@ export const listRoomRecordings = async () => {
   });
 };
 
+const backendBaseUrl =
+  import.meta.env.VITE_BACKEND_API_BASE_URL?.trim() || "/api/v1";
+
+const buildBackendUrl = (path: string) => {
+  const normalizedBase = backendBaseUrl.endsWith("/")
+    ? backendBaseUrl.slice(0, -1)
+    : backendBaseUrl;
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return new URL(`${normalizedBase}${normalizedPath}`, window.location.origin).toString();
+};
+
+export const uploadRoomRecording = async ({
+  roomId,
+  file,
+  durationSeconds,
+}: {
+  roomId: string;
+  file: File;
+  durationSeconds: number;
+}) => {
+  const token = getBackendAccessToken();
+  if (!token) throw new Error("Backend session is required.");
+
+  const formData = new FormData();
+  formData.append("room_id", roomId);
+  formData.append("duration_seconds", String(durationSeconds));
+  formData.append("file", file);
+
+  const response = await fetch(buildBackendUrl("/room-recordings/upload"), {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload.success === false) {
+    throw new Error(
+      payload?.error?.message ||
+        payload?.message ||
+        "Failed to upload room recording.",
+    );
+  }
+
+  return payload as BackendRoomRecording;
+};
+
 export const deleteRoomRecording = async (recordingId: string) =>
-  compatDelete("room_recordings", [
-    { column: "id", operator: "eq", value: recordingId },
-  ]);
+  backendRequest<{ id: string }>(`/room-recordings/${recordingId}`, {
+    method: "DELETE",
+    requireAuth: true,
+  });
