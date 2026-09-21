@@ -241,18 +241,12 @@ const Rooms = () => {
 
   return (
     <AppLayout>
-      <div className="px-4 py-6 space-y-6">
-        <div className="text-center space-y-2">
-          <div className="w-14 h-14 mx-auto bg-primary/10 rounded-2xl flex items-center justify-center">
-            <Headphones className="h-7 w-7 text-primary" />
-          </div>
-          <h1 className="text-2xl font-display font-bold text-foreground">
-            الغرف الصوتية
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            جلسات صوتية تفاعلية تُدار من الباك إند بعقد موحّد للغرف والصلاحيات
-          </p>
-        </div>
+      <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-6 sm:px-6 sm:py-10">
+        <header className="max-w-2xl space-y-2">
+          <p className="text-sm font-semibold text-spiritual-green">مجالس صوتية</p>
+          <h1 className="text-2xl font-bold text-foreground sm:text-3xl">الغرف الصوتية</h1>
+          <p className="leading-7 text-muted-foreground">انضم إلى المجالس المباشرة أو سجّل للجلسات القادمة، وارجع إلى التسجيلات وقتما شئت.</p>
+        </header>
 
         <div className="flex gap-2">
           {canCreate && (
@@ -274,7 +268,7 @@ const Rooms = () => {
         {liveRooms.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full bg-green-500 animate-pulse" />
+              <span className="h-2.5 w-2.5 rounded-full bg-spiritual-green" />
               <h2 className="text-sm font-bold text-foreground">يحدث الآن</h2>
             </div>
 
@@ -282,7 +276,7 @@ const Rooms = () => {
               {liveRooms.map((room) => (
                 <Card
                   key={`live-${room.id}`}
-                  className="overflow-hidden border-green-500/30 bg-gradient-to-br from-card to-green-50/30 dark:to-green-950/10 cursor-pointer hover:shadow-md transition-shadow"
+                  className="cursor-pointer overflow-hidden border-spiritual-green/30 bg-card shadow-sm transition-colors hover:border-spiritual-green/50"
                   onClick={() => void handleEnterLive(room)}
                 >
                   <CardContent className="p-4">
@@ -379,10 +373,11 @@ const Rooms = () => {
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
         ) : filteredRooms.length === 0 ? (
-          <Card>
-            <CardContent className="py-8 text-center">
-              <Headphones className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-              <p className="text-muted-foreground">لا توجد جلسات صوتية متاحة حاليًا.</p>
+          <Card className="border-dashed shadow-none">
+            <CardContent className="py-10 text-center">
+              <Headphones className="mx-auto mb-3 h-9 w-9 text-muted-foreground/50" />
+              <p className="font-semibold text-foreground">لا توجد جلسات في هذا القسم</p>
+              <p className="mt-1 text-sm text-muted-foreground">يمكنك مراجعة الأرشيف أو العودة عند إعلان مجلس جديد.</p>
             </CardContent>
           </Card>
         ) : (
