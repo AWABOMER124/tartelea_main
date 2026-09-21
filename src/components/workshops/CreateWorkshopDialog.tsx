@@ -1,7 +1,5 @@
 import { useState, useRef } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/useAuth";
 import {
   Dialog,
   DialogContent,
@@ -19,7 +17,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Upload, X, Image as ImageIcon } from "lucide-react";
+import { Loader2, X, Image as ImageIcon } from "lucide-react";
+import { uploadCompatFile } from "@/lib/backendCompat";
+import { createWorkshop } from "@/lib/backendWorkshops";
 import type { Database } from "@/integrations/supabase/types";
 
 type ContentCategory = Database["public"]["Enums"]["content_category"];
@@ -45,11 +45,9 @@ const CreateWorkshopDialog = ({
   onSuccess,
 }: CreateWorkshopDialogProps) => {
   const { toast } = useToast();
-  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     title: "",
@@ -89,29 +87,9 @@ const CreateWorkshopDialog = ({
     }
   };
 
-  const uploadImage = async (userId: string, workshopId: string): Promise<string | null> => {
+  const uploadImage = async (): Promise<string | null> => {
     if (!imageFile) return null;
-
-    setUploadingImage(true);
-    const fileExt = imageFile.name.split(".").pop();
-    const filePath = `${userId}/${workshopId}.${fileExt}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("workshop-images")
-      .upload(filePath, imageFile, { upsert: true });
-
-    if (uploadError) {
-      console.error("Upload error:", uploadError);
-      setUploadingImage(false);
-      return null;
-    }
-
-    const { data: urlData } = supabase.storage
-      .from("workshop-images")
-      .getPublicUrl(filePath);
-
-    setUploadingImage(false);
-    return urlData.publicUrl;
+    return uploadCompatFile(imageFile);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -128,20 +106,10 @@ const CreateWorkshopDialog = ({
 
     setLoading(true);
 
-    if (!user) {
-      toast({
-        title: "خطأ",
-        description: "يجب تسجيل الدخول",
-        variant: "destructive",
-      });
-      setLoading(false);
-      return;
-    }
+    try {
+      const imageUrl = await uploadImage();
 
-    // First create the workshop
-    const { data: workshopData, error } = await supabase
-      .from("workshops")
-      .insert({
+      await createWorkshop({
         title: formData.title,
         description: formData.description || null,
         category: formData.category as ContentCategory,
@@ -149,34 +117,10 @@ const CreateWorkshopDialog = ({
         duration_minutes: formData.duration_minutes,
         price: formData.price,
         max_participants: formData.max_participants,
-        host_id: user.id,
-        is_approved: false,
-      })
-      .select("id")
-      .single();
-
-    if (error || !workshopData) {
-      toast({
-        title: "خطأ",
-        description: "فشل إنشاء الورشة",
-        variant: "destructive",
+        image_url: imageUrl,
       });
-      setLoading(false);
-      return;
-    }
 
-    // Upload image if exists
-    if (imageFile) {
-      const imageUrl = await uploadImage(user.id, workshopData.id);
-      if (imageUrl) {
-        await supabase
-          .from("workshops")
-          .update({ image_url: imageUrl })
-          .eq("id", workshopData.id);
-      }
-    }
-
-    toast({
+      toast({
       title: "تم بنجاح",
       description: "تم إرسال الورشة للمراجعة",
     });
@@ -194,7 +138,15 @@ const CreateWorkshopDialog = ({
     onOpenChange(false);
     onSuccess();
 
-    setLoading(false);
+      setLoading(false);
+    } catch (error) {
+      toast({
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "فشل إنشاء الورشة",
+        variant: "destructive",
+      });
+      setLoading(false);
+    }
   };
 
   return (
