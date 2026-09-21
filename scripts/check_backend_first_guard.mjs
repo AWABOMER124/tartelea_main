@@ -8,7 +8,6 @@ const legacySupabaseAuthFiles = new Set([
   'src/lib/capacitor/push-notifications.ts',
   'src/pages/SudanAwareness.tsx',
   'src/components/notifications/NotificationBell.tsx',
-  'src/components/community/PostReportDialog.tsx',
   'src/components/bookings/ServiceReviewDialog.tsx',
   'src/components/messages/DirectMessages.tsx',
   'src/components/chat/TadabburChat.tsx',
