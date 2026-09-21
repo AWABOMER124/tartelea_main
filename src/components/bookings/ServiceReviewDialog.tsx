@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -32,6 +33,7 @@ const ServiceReviewDialog = ({
   onReviewSubmitted,
 }: ServiceReviewDialogProps) => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [rating, setRating] = useState(0);
@@ -50,7 +52,6 @@ const ServiceReviewDialog = ({
 
     setLoading(true);
 
-    const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       toast({
         title: "خطأ",
