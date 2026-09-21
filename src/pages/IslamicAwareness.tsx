@@ -12,9 +12,9 @@ type ContentType = Database["public"]["Enums"]["content_type"];
 
 const depthFilters = [
   { value: "all", label: "الكل" },
-  { value: "beginner", label: "مبتدئ" },
-  { value: "intermediate", label: "متوسط" },
-  { value: "advanced", label: "متقدم" },
+  { value: "beginner", label: "تخلية" },
+  { value: "intermediate", label: "تحلية" },
+  { value: "advanced", label: "تجلّي" },
 ];
 
 const typeFilters = [
@@ -60,13 +60,13 @@ const IslamicAwareness = () => {
 
   return (
     <AppLayout>
-      <div className="px-4 py-6 space-y-6">
+      <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-6 sm:px-6 sm:py-10">
         {/* Header */}
-        <section className="text-center space-y-4">
-          <div className="w-16 h-16 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
-            <Moon className="h-8 w-8 text-primary" />
+        <section className="max-w-2xl space-y-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 flex items-center justify-center">
+            <Moon className="h-6 w-6 text-primary" />
           </div>
-          <h1 className="text-2xl font-display font-bold text-foreground">
+          <h1 className="text-2xl font-bold text-foreground sm:text-3xl">
             الوعي الإسلامي
           </h1>
         </section>
@@ -75,7 +75,7 @@ const IslamicAwareness = () => {
         <section className="space-y-3">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Filter className="h-4 w-4" />
-            <span>المستوى</span>
+            <span>مرحلة الرحلة</span>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-2">
             {depthFilters.map((filter) => (
@@ -121,9 +121,9 @@ const IslamicAwareness = () => {
               ))}
             </div>
           ) : contents.length === 0 ? (
-            <div className="text-center py-12">
+            <div className="rounded-2xl border border-dashed py-12 text-center">
               <Moon className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-              <p className="text-muted-foreground">لا يوجد محتوى حالياً</p>
+              <p className="text-muted-foreground">لا توجد مواد بهذه الفلاتر حالياً</p>
             </div>
           ) : (
             contents.map((content) => (
