@@ -291,7 +291,7 @@ const WorkshopRecordings = () => {
                     event.preventDefault();
                     handlePlayRecording(recording);
                   }
-                }
+                }}
               >
                 <div className="relative aspect-video bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
                   <div className="absolute inset-0 flex items-center justify-center">
