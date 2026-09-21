@@ -23,13 +23,16 @@ function walk(dir) {
     if (allowed.has(rel)) continue;
 
     const source = fs.readFileSync(full, "utf8");
-    if (
-      source.includes("@/integrations/supabase/client") ||
-      source.includes("supabase.auth.") ||
-      source.includes("supabase.from(") ||
-      source.includes("supabase.storage.") ||
-      source.includes("supabase.functions.")
-    ) {
+    const directPatterns = [
+      /from\s+["']@\/integrations\/supabase\/client["']/,
+      /import\s+["']@\/integrations\/supabase\/client["']/,
+      /\bsupabase\.auth\./,
+      /\bsupabase\.from\s*\(/,
+      /\bsupabase\.storage\./,
+      /\bsupabase\.functions\./,
+    ];
+
+    if (directPatterns.some((pattern) => pattern.test(source))) {
       violations.push(rel);
     }
   }
