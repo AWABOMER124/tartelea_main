@@ -13,9 +13,6 @@ const legacySupabaseAuthFiles = new Set([
   'src/components/messages/DirectMessages.tsx',
   'src/components/chat/TadabburChat.tsx',
   'src/components/bookings/ServiceBookingDialog.tsx',
-  'src/components/community/PostCommentsDialog.tsx',
-  'src/components/admin/PinnedContentManagement.tsx',
-  'src/components/community/LegacyPostDetailPage.tsx',
   'src/components/workshops/CreateWorkshopDialog.tsx',
 ]);
 
