@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "check:transition": "node scripts/check_transition_closure.mjs",
+    "check:backend-first": "node scripts/check_backend_first_guard.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },
