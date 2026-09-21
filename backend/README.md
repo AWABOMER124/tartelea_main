@@ -78,11 +78,19 @@ cp .env.local.example .env.local
 
 Then set `DB_HOST=db` inside `backend/.env.local`.
 
-Apply the schema with either `psql` or the setup script that reads from `backend/schema.sql`:
+Initialize a brand-new database from `backend/schema.sql` with:
 
 ```bash
 npm run setup:db
 ```
+
+For an existing/staging/production database, apply versioned migrations instead:
+
+```bash
+npm run migrate:db
+```
+
+The migration runner records SHA-256 checksums in `schema_migrations` and refuses to continue if an already-applied migration file was edited.
 
 4. Run local sanity checks before starting the API:
 
@@ -201,6 +209,7 @@ Example response:
 ```bash
 npm run dev
 npm run setup:db
+npm run migrate:db
 npm run check:db
 npm run check:subscriptions
 npm run sanity:dev
@@ -223,6 +232,8 @@ src/
   server.js
 schema.sql
 scripts/setup_db.js
+scripts/migrate_db.js
+migrations/
 test/
 ```
 
@@ -238,3 +249,10 @@ test/
   - `docs/architecture/ARCHITECTURE_DECISION_001_backend_first.md`
   - `docs/architecture/ROLE_MATRIX.md`
   - `docs/architecture/AUTH_CONTRACT.md`
+
+## Production deployment notes
+
+- The production container includes `scripts/`, `migrations/`, and `schema.sql`, so migrations can run from the deployed backend image.
+- Mount persistent storage at `/app/uploads` while recordings/media remain on local disk.
+- Production startup refuses wildcard/empty CORS, weak placeholder JWT secrets, placeholder DB passwords, and `OTP_DEV_FALLBACK=true`.
+- Run `npm run migrate:db` before switching production traffic to a release that depends on new schema changes.
