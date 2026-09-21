@@ -7,59 +7,59 @@
 @layer base {
   :root {
     /* Earth & Crown Palette - Earthy Browns, Matte Gold, Pure Sand */
-    --background: 36 25% 97%;
-    --foreground: 24 18% 12%;
+    --background: 40 27% 96%;
+    --foreground: 0 0% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 24 18% 12%;
+    --card-foreground: 0 0% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 24 18% 12%;
+    --popover-foreground: 0 0% 12%;
 
-    --primary: 24 43% 27%;
+    --primary: 20 44% 20%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 34 22% 94%;
-    --secondary-foreground: 24 28% 22%;
+    --secondary: 38 24% 93%;
+    --secondary-foreground: 20 35% 22%;
 
-    --muted: 34 18% 93%;
-    --muted-foreground: 24 9% 42%;
+    --muted: 38 24% 93%;
+    --muted-foreground: 24 8% 39%;
 
-    --accent: 40 54% 51%;
-    --accent-foreground: 24 30% 16%;
+    --accent: 41 56% 51%;
+    --accent-foreground: 20 35% 18%;
 
-    --destructive: 0 66% 51%;
+    --destructive: 0 64% 56%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 32 20% 88%;
-    --input: 32 20% 88%;
-    --ring: 24 43% 27%;
+    --border: 32 21% 88%;
+    --input: 32 21% 88%;
+    --ring: 20 44% 20%;
 
-    --radius: 0.75rem;
+    --radius: 0.625rem;
 
-    --sidebar-background: 36 23% 96%;
-    --sidebar-foreground: 24 24% 22%;
-    --sidebar-primary: 24 43% 27%;
+    --sidebar-background: 40 40% 98%;
+    --sidebar-foreground: 20 35% 22%;
+    --sidebar-primary: 20 44% 20%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 35 24% 92%;
-    --sidebar-accent-foreground: 24 24% 22%;
-    --sidebar-border: 32 20% 88%;
-    --sidebar-ring: 24 43% 27%;
+    --sidebar-accent: 38 24% 93%;
+    --sidebar-accent-foreground: 20 35% 22%;
+    --sidebar-border: 32 21% 88%;
+    --sidebar-ring: 20 44% 20%;
 
-    --spiritual-green: 145 23% 36%;
-    --spiritual-green-light: 145 20% 46%;
-    --warm-beige: 34 22% 94%;
-    --warm-cream: 36 25% 97%;
-    --gold-muted: 40 54% 51%;
-    --gold-light: 41 45% 76%;
-    --earth-brown: 24 43% 27%;
-    --earth-brown-light: 24 26% 40%;
-    --sudan-red: 0 66% 51%;
+    --spiritual-green: 148 22% 35%;
+    --spiritual-green-light: 148 19% 44%;
+    --warm-beige: 38 24% 93%;
+    --warm-cream: 40 27% 96%;
+    --gold-muted: 41 56% 51%;
+    --gold-light: 41 48% 76%;
+    --earth-brown: 20 44% 20%;
+    --earth-brown-light: 20 30% 34%;
+    --sudan-red: 0 64% 56%;
     --sudan-black: 0 0% 16%;
-    --sudan-green: 145 23% 36%;
+    --sudan-green: 148 22% 35%;
 
-    --sanctuary-glow: 41 45% 84%;
-    --sanctuary-shadow: 24 14% 20%;
+    --sanctuary-glow: 41 48% 84%;
+    --sanctuary-shadow: 20 18% 18%;
   }
 
   .dark {
@@ -149,12 +149,13 @@
 
 @layer components {
   .content-card {
-    @apply rounded-xl border border-border bg-card p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/20 hover:shadow-md;
-    box-shadow: 0 1px 2px rgb(47 35 26 / 0.04);
+    @apply rounded-[10px] border border-border bg-card p-4 transition-all duration-200;
+    box-shadow: 0 1px 2px rgb(74 44 29 / 0.035);
   }
 
   .post-card {
-    @apply rounded-xl border border-border bg-card p-4 transition-all duration-200 hover:shadow-sm;
+    @apply rounded-[10px] border border-border bg-card p-4;
+    box-shadow: 0 1px 2px rgb(74 44 29 / 0.035);
   }
 
   .nav-item {
@@ -166,11 +167,11 @@
   }
 
   .filter-chip {
-    @apply px-3 py-1.5 rounded-full text-sm border border-border bg-secondary text-secondary-foreground transition-all;
+    @apply rounded-full border border-border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors;
   }
 
   .filter-chip-active {
-    @apply bg-primary text-primary-foreground border-primary;
+    @apply border-primary bg-primary text-primary-foreground;
   }
 
   .sudan-gradient {
@@ -283,8 +284,8 @@
   }
 
   .ui-panel {
-    @apply rounded-xl border border-border bg-card;
-    box-shadow: 0 1px 2px rgb(47 35 26 / 0.04);
+    @apply rounded-[10px] border border-border bg-card;
+    box-shadow: 0 1px 2px rgb(74 44 29 / 0.035);
   }
 
   .ui-panel-soft {
@@ -311,5 +312,49 @@
 @media (min-width: 1024px) {
   .app-content-with-sidebar {
     min-width: 0;
+  }
+}
+
+@layer components {
+  .reference-card {
+    @apply rounded-[10px] border border-border bg-card;
+    box-shadow: 0 1px 2px rgb(74 44 29 / 0.035);
+  }
+
+  .reference-card-hover {
+    @apply transition-all duration-200 hover:-translate-y-px hover:border-primary/20;
+    box-shadow: 0 1px 2px rgb(74 44 29 / 0.035);
+  }
+
+  .reference-section {
+    @apply rounded-[10px] border border-border bg-card p-5 sm:p-6;
+  }
+
+  .reference-eyebrow {
+    @apply text-xs font-semibold text-spiritual-green;
+  }
+
+  .reference-title {
+    @apply font-display text-2xl font-bold leading-tight text-foreground sm:text-3xl;
+  }
+
+  .reference-copy {
+    @apply text-sm leading-7 text-muted-foreground sm:text-base;
+  }
+
+  .reference-icon {
+    @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-[9px] bg-secondary text-primary;
+  }
+
+  .reference-icon-green {
+    @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-[9px] bg-spiritual-green/10 text-spiritual-green;
+  }
+
+  .reference-icon-gold {
+    @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-[9px] bg-accent/15 text-accent-foreground;
+  }
+
+  .reference-toolbar {
+    @apply rounded-[10px] border border-border bg-card p-2;
   }
 }
