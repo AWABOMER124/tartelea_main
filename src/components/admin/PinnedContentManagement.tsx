@@ -6,6 +6,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -47,6 +48,7 @@ interface PinnedItem {
 
 const PinnedContentManagement = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [items, setItems] = useState<PinnedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -118,7 +120,6 @@ const PinnedContentManagement = () => {
     }
     setSubmitting(true);
 
-    const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       toast({ title: "خطأ", description: "يجب تسجيل الدخول", variant: "destructive" });
       setSubmitting(false);
