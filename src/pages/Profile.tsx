@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useAuth } from "@/hooks/useAuth";
 import { logoutEverywhere } from "@/lib/webAuth";
+import { getBackendProfile, updateBackendProfile } from "@/lib/backendProfile";
 import AppLayout from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,35 +40,46 @@ const Profile = () => {
     }
     
     const fetchProfile = async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("full_name, country, avatar_url, bio")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      if (data) {
+      try {
+        const data = await getBackendProfile(user.id);
         setProfile(data);
         setFormData({ full_name: data.full_name || "", country: data.country || "" });
+      } catch {
+        toast({
+          title: "تعذر تحميل الملف الشخصي",
+          description: "حاول تحديث الصفحة أو تسجيل الدخول من جديد.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
-    fetchProfile();
+    void fetchProfile();
   }, [user, authLoading]);
 
   const handleUpdateProfile = async () => {
     if (!user) return;
     setUpdating(true);
-    const { error } = await supabase
-      .from("profiles")
-      .update({ full_name: formData.full_name, country: formData.country })
-      .eq("id", user.id);
-
-    if (error) {
-      toast({ title: "خطأ", description: "حدث خطأ أثناء تحديث الملف الشخصي", variant: "destructive" });
-    } else {
+    try {
+      const updated = await updateBackendProfile(user.id, {
+        full_name: formData.full_name.trim(),
+        country: formData.country.trim(),
+      });
+      setProfile(updated);
+      setFormData({
+        full_name: updated.full_name || "",
+        country: updated.country || "",
+      });
       toast({ title: "تم بنجاح", description: "تم تحديث الملف الشخصي" });
+    } catch {
+      toast({
+        title: "خطأ",
+        description: "حدث خطأ أثناء تحديث الملف الشخصي",
+        variant: "destructive",
+      });
+    } finally {
+      setUpdating(false);
     }
-    setUpdating(false);
   };
 
   const handleLogout = async () => {
