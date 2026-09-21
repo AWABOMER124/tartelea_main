@@ -13,8 +13,31 @@ const safeStorage = () => {
   return window.localStorage;
 };
 
+const isJwtExpired = (token: string): boolean => {
+  try {
+    const [, payload] = token.split(".");
+    if (!payload) return true;
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const decoded = JSON.parse(window.atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=")));
+    return typeof decoded.exp !== "number" || Date.now() >= decoded.exp * 1000;
+  } catch {
+    return true;
+  }
+};
+
 export const getBackendAccessToken = (): string | null => {
-  return safeStorage()?.getItem(BACKEND_ACCESS_TOKEN_KEY) ?? null;
+  const storage = safeStorage();
+  const token = storage?.getItem(BACKEND_ACCESS_TOKEN_KEY) ?? null;
+  if (!token || !storage) return null;
+
+  if (isJwtExpired(token)) {
+    storage.removeItem(BACKEND_ACCESS_TOKEN_KEY);
+    storage.removeItem(BACKEND_REFRESH_TOKEN_KEY);
+    storage.removeItem(BACKEND_USER_KEY);
+    return null;
+  }
+
+  return token;
 };
 
 export const getBackendRefreshToken = (): string | null => {
