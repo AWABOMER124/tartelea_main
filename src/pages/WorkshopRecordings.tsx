@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import AppLayout from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import FilterChip from "@/components/ui/FilterChip";
 import { Play, Calendar, Video, ArrowRight, Search, X } from "lucide-react";
 import { format, ar } from "@/lib/date-utils";
+import { listWorkshopRecordingsWithMetadata } from "@/lib/backendWorkshops";
 
 interface Recording {
   id: string;
@@ -51,65 +51,7 @@ const WorkshopRecordings = () => {
 
   const fetchRecordings = async () => {
     try {
-      const { data: recordingsData, error: recordingsError } = await supabase
-        .from("workshop_recordings")
-        .select(`
-          id,
-          recording_url,
-          duration_seconds,
-          recorded_at,
-          cloudflare_uid,
-          workshop_id
-        `)
-        .eq("is_available", true)
-        .order("recorded_at", { ascending: false });
-
-      if (recordingsError) throw recordingsError;
-
-      if (recordingsData && recordingsData.length > 0) {
-        const workshopIds = recordingsData.map((r) => r.workshop_id);
-        const { data: workshopsData } = await supabase
-          .from("workshops")
-          .select("id, title, description, category, host_id")
-          .in("id", workshopIds);
-
-        const hostIds = workshopsData?.map((w) => w.host_id) || [];
-        const { data: profilesData } = await supabase
-          .from("profiles")
-          .select("id, full_name")
-          .in("id", hostIds);
-
-        const profilesMap = new Map(profilesData?.map((p) => [p.id, p.full_name]) || []);
-        const workshopsMap = new Map(
-          workshopsData?.map((w) => [
-            w.id,
-            {
-              id: w.id,
-              title: w.title,
-              description: w.description,
-              category: w.category,
-              host_name: profilesMap.get(w.host_id) || "مدرب",
-            },
-          ]) || []
-        );
-
-        const formattedRecordings: Recording[] = recordingsData.map((r) => ({
-          id: r.id,
-          recording_url: r.recording_url,
-          duration_seconds: r.duration_seconds,
-          recorded_at: r.recorded_at,
-          cloudflare_uid: r.cloudflare_uid,
-          workshop: workshopsMap.get(r.workshop_id) || {
-            id: r.workshop_id,
-            title: "ورشة عمل",
-            description: null,
-            category: "quran",
-            host_name: "مدرب",
-          },
-        }));
-
-        setRecordings(formattedRecordings);
-      }
+      setRecordings(await listWorkshopRecordingsWithMetadata());
     } catch (error) {
       console.error("Error fetching recordings:", error);
       toast({
