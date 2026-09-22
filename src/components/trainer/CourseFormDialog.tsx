@@ -135,9 +135,9 @@ const CourseFormDialog = ({ open, onOpenChange, editingCourse, trainerId, onSucc
               <Select value={formData.depth_level} onValueChange={(v: DepthLevel) => setFormData({ ...formData, depth_level: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="beginner">تخلية</SelectItem>
-                  <SelectItem value="intermediate">تحلية</SelectItem>
-                  <SelectItem value="advanced">تجلّي</SelectItem>
+                  <SelectItem value="beginner">خلع — تخلية</SelectItem>
+                  <SelectItem value="intermediate">تدبّر — تحلية</SelectItem>
+                  <SelectItem value="advanced">تحرّر — تجلّي</SelectItem>
                 </SelectContent>
               </Select>
             </div>

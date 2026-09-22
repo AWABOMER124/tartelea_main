@@ -7,9 +7,9 @@ import { listLibraryContent, type BackendContentItem as Content } from "@/lib/ba
 
 const depthFilters = [
   { value: "all", label: "الكل" },
-  { value: "beginner", label: "تخلية" },
-  { value: "intermediate", label: "تحلية" },
-  { value: "advanced", label: "تجلّي" },
+  { value: "beginner", label: "خلع — تخلية" },
+  { value: "intermediate", label: "تدبّر — تحلية" },
+  { value: "advanced", label: "تحرّر — تجلّي" },
 ];
 
 const typeFilters = [
@@ -65,7 +65,7 @@ const IslamicAwareness = () => {
         <section className="space-y-3">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Filter className="h-4 w-4" />
-            <span>مرحلة الرحلة</span>
+            <span>المرحلة</span>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-2">
             {depthFilters.map((filter) => (

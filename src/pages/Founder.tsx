@@ -5,23 +5,23 @@ import logoImage from "@/assets/logo.jpeg";
 const milestones = [
   {
     year: "البداية",
-    title: "رحلة التدبر",
-    description: "بدأت رحلة أحمد الليث مع تدبر القرآن الكريم من السودان، حيث تعمّق في فهم اللسان العربي المبين وأسرار الجذور العربية.",
+    title: "بداية منهج التدبّر",
+    description: "بدأ أحمد الليث العمل على تدبّر القرآن ودراسة اللسان العربي والجذور العربية في السودان.",
   },
   {
     year: "التأسيس",
     title: "المدرسة الترتيلية",
-    description: "أسس المدرسة الترتيلية منصةً تعليمية للتدبر والوعي، تجمع بين عمق التراث وأدوات العصر الحديث.",
+    description: "أسس المدرسة الترتيلية لتقديم أدوات التدبّر واللسان العربي في صورة تعليمية منظّمة.",
   },
   {
     year: "المنهج",
     title: "منهج الفصال",
-    description: "طوّر منهج الفصال القائم على ثلاث مراحل: التخلية والتحلية والتجلّي، مستلهماً من قوله تعالى ﴿وَفِصَالُهُ فِي عَامَيْنِ﴾.",
+    description: "يتكوّن المنهج من ثلاث مراحل: خلع (تخلية)، تدبّر (تحلية)، وتحرّر (تجلّي). مستلهم من قوله تعالى ﴿وَفِصَالُهُ فِي عَامَيْنِ﴾.",
   },
   {
     year: "الأثر",
     title: "مجتمع التعلم",
-    description: "بنى مجتمعاً من المتدبرين والباحثين يتشاركون أدوات فهم اللسان العربي المبين والتدبر القرآني.",
+    description: "تكوّن مجتمع تعلّم يتشارك فيه الطلاب والمدربون مواد التدبّر واللسان العربي.",
   },
 ];
 
@@ -29,22 +29,22 @@ const pillars = [
   {
     icon: BookOpen,
     title: "اللسان العربي المبين",
-    description: "فهم الجذور العربية الثلاثية وكشف طبقات المعنى اللغوي والدلالي في القرآن الكريم.",
+    description: "دراسة الجذور العربية واستعمالها في فهم دلالات الألفاظ في القرآن.",
   },
   {
     icon: Heart,
     title: "التدبر القرآني",
-    description: "تجاوز الفهم السطحي إلى التأمل العميق في آيات الله وربطها بالواقع المعاش.",
+    description: "تعلّم أدوات تساعد على قراءة الآيات وملاحظة السياق والعلاقات بين الألفاظ.",
   },
   {
     icon: Users,
     title: "الوعي المجتمعي",
-    description: "نشر الوعي السوداني والعربي والإسلامي من خلال أدوات التدبر والتفكر.",
+    description: "مناقشة موضوعات سودانية وعربية وإسلامية من خلال مواد تعليمية ونقاشات.",
   },
   {
     icon: Globe,
     title: "الفصال المعرفي",
-    description: "إعادة بناء المفاهيم وفصل الموروث عن الأصيل للوصول إلى جوهر المعنى.",
+    description: "مراجعة المفاهيم وتمييز ما يحتاج إلى تفكيك أو إعادة نظر.",
   },
 ];
 
@@ -63,7 +63,7 @@ const mediaAppearances = [
   },
   {
     title: "محاضرة الفصال في عامين",
-    description: "شرح فلسفة المدرسة الترتيلية ومنهج التخلية والتحلية والتجلي",
+    description: "شرح منهج المدرسة ومراحل خلع وتدبّر وتحرّر",
     type: "ورشة",
     url: "#",
   },
@@ -102,8 +102,7 @@ const Founder = () => {
           </div>
 
           <p className="text-muted-foreground text-base leading-relaxed max-w-lg mx-auto animate-fade-in" style={{ animationDelay: "0.2s" }}>
-            متدبر سوداني ومؤسس المدرسة الترتيلية، رائد في مجال تدبر اللسان العربي المبين وعلوم القرآن الكريم.
-            يسعى لإعادة اكتشاف أسرار اللغة العربية وربطها بفهم القرآن العميق.
+            مؤسس المدرسة الترتيلية، ويقدّم محتوى في تدبّر القرآن واللسان العربي المبين.
           </p>
         </section>
 
@@ -120,7 +119,7 @@ const Founder = () => {
         {/* Pillars of Philosophy */}
         <section className="space-y-4">
           <h2 className="font-display font-semibold text-xl text-foreground text-center">
-            أركان الفلسفة الترتيلية
+            محاور المدرسة
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {pillars.map((pillar, index) => {
@@ -231,8 +230,8 @@ const Founder = () => {
                 <div className="w-10 h-10 mx-auto bg-spiritual-green/10 rounded-full flex items-center justify-center mb-2">
                   <span className="text-lg">🌱</span>
                 </div>
-                <h3 className="text-sm font-display font-bold text-spiritual-green">تخلية</h3>
-                <p className="text-[10px] text-muted-foreground mt-1">تنقية المفاهيم الموروثة</p>
+                <h3 className="text-sm font-display font-bold text-spiritual-green">خلع</h3>
+                <p className="text-[10px] text-muted-foreground mt-1">تخلية</p>
               </div>
             </div>
             <div className="sanctuary-card text-center p-4">
@@ -240,8 +239,8 @@ const Founder = () => {
                 <div className="w-10 h-10 mx-auto bg-accent/10 rounded-full flex items-center justify-center mb-2">
                   <span className="text-lg">✨</span>
                 </div>
-                <h3 className="text-sm font-display font-bold text-accent">تحلية</h3>
-                <p className="text-[10px] text-muted-foreground mt-1">تعلّم اللسان العربي</p>
+                <h3 className="text-sm font-display font-bold text-accent">تدبّر</h3>
+                <p className="text-[10px] text-muted-foreground mt-1">تحلية</p>
               </div>
             </div>
             <div className="sanctuary-card text-center p-4">
@@ -249,8 +248,8 @@ const Founder = () => {
                 <div className="w-10 h-10 mx-auto bg-primary/10 rounded-full flex items-center justify-center mb-2">
                   <span className="text-lg">👑</span>
                 </div>
-                <h3 className="text-sm font-display font-bold text-primary">تجلّي</h3>
-                <p className="text-[10px] text-muted-foreground mt-1">تطبيق الحكمة</p>
+                <h3 className="text-sm font-display font-bold text-primary">تحرّر</h3>
+                <p className="text-[10px] text-muted-foreground mt-1">تجلّي</p>
               </div>
             </div>
           </div>
@@ -261,10 +260,10 @@ const Founder = () => {
           <div className="relative z-10 space-y-3">
             <Award className="h-8 w-8 text-accent mx-auto" />
             <h3 className="font-display font-semibold text-foreground">
-              انضم إلى المدرسة الترتيلية
+              التعلّم في المدرسة
             </h3>
             <p className="text-sm text-muted-foreground">
-              ابدأ رحلتك في تعلّم اللسان العربي المبين وتدبر كلام الله
+              تتعلّم من خلال المسارات والدروس واللقاءات، مع أدوات للتدبّر واللسان العربي.
             </p>
           </div>
         </section>

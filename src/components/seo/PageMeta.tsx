@@ -10,7 +10,7 @@ interface PageMetaProps {
 }
 
 const BASE_URL = "https://tartelea.lovable.app";
-const DEFAULT_DESC = "المدرسة الترتيلية - منصة تعليمية متخصصة في اللسان العربي المبين وعلوم القرآن الكريم. تعلّم الجذور العربية وتدبّر كلام الله. دورات، ورش عمل، غرف صوتية ومجتمع تفاعلي.";
+const DEFAULT_DESC = "المدرسة الترتيلية منصة تعليمية لتعلّم أدوات تدبّر القرآن واللسان العربي، وتضم مسارات ودروساً ولقاءات ومكتبة.";
 const DEFAULT_KEYWORDS = "المدرسة الترتيلية, اللسان العربي المبين, علوم القرآن, تدبر القرآن, الجذور العربية, ترتيل القرآن, تعلم العربية";
 
 const PageMeta = ({ title, description, path = "/", image, keywords, type = "website" }: PageMetaProps) => {

@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ArrowLeft, BookOpen, CalendarClock, Check, ChevronLeft, Circle, Compass, Crown, Headphones, Loader2, Play, Radio, Sparkles } from "lucide-react";
+import { ArrowLeft, BookOpen, CalendarClock, Check, ChevronLeft, Circle, Compass, Crown, Headphones, Loader2, Play, Radio } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useContinueLearning, useFeaturedCourses } from "@/hooks/useCourses";
@@ -12,9 +12,9 @@ import dashboardLearning from "@/assets/dashboard-learning.svg";
 import { format, ar } from "@/lib/date-utils";
 
 const journeyStages = [
-  { title: "تخلية", description: "تفكيك المفاهيم المعيقة", tone: "bg-spiritual-green/10 text-spiritual-green" },
-  { title: "تحلية", description: "بناء اللسان وأدوات الفهم", tone: "bg-accent/15 text-accent-foreground" },
-  { title: "تجلّي", description: "تحويل الفهم إلى أثر وعمل", tone: "bg-primary/10 text-primary" },
+  { title: "خلع", subtitle: "تخلية", description: "تفكيك المفاهيم التي تعيق الفهم", tone: "bg-spiritual-green/10 text-spiritual-green" },
+  { title: "تدبّر", subtitle: "تحلية", description: "تعلّم اللسان وأدوات التدبّر", tone: "bg-accent/15 text-accent-foreground" },
+  { title: "تحرّر", subtitle: "تجلّي", description: "تطبيق ما تعلّمته في القراءة والفهم", tone: "bg-primary/10 text-primary" },
 ];
 
 const SectionHeading = ({ eyebrow, title, to, linkLabel }: { eyebrow?: string; title: string; to?: string; linkLabel?: string }) => (
@@ -34,12 +34,11 @@ const GuestHome = () => {
     <div className="space-y-12 sm:space-y-16">
       <section className="grid items-center gap-8 rounded-2xl border border-border bg-card px-5 py-8  sm:px-10 sm:py-12 md:grid-cols-[1.35fr_0.65fr]">
         <div className="space-y-5">
-          <span className="inline-flex items-center gap-2 rounded-full bg-spiritual-green/10 px-3 py-1.5 text-sm font-semibold text-spiritual-green"><Sparkles className="h-4 w-4" /> مدرسة رقمية لرحلة أهدأ وأوضح</span>
           <div className="space-y-3">
-            <h1 className="max-w-2xl text-3xl font-bold leading-tight text-foreground sm:text-4xl lg:text-5xl">تعلّم اللسان العربي، وافتح باباً أعمق لتدبّر القرآن</h1>
-            <p className="max-w-xl text-base leading-8 text-muted-foreground sm:text-lg">رحلة متدرجة تجمع المسارات والمكتبة واللقاءات الحية في مكان واحد، لتعرف دائماً أين أنت وما خطوتك التالية.</p>
+            <h1 className="max-w-2xl text-3xl font-bold leading-tight text-foreground sm:text-4xl lg:text-5xl">تعلّم أدوات تدبّر القرآن واستخدمها في القراءة والفهم</h1>
+            <p className="max-w-xl text-base leading-8 text-muted-foreground sm:text-lg">تقدّم المدرسة أدوات عملية للتدبّر، منها الخلع والترتيل والتفكيك والتجريد، مع دروس ومسارات ولقاءات تساعدك على فهم الأدوات وتطبيقها على النص القرآني.</p>
           </div>
-          <Button asChild size="lg" className="min-h-12 px-6"><Link to="/auth">ابدأ رحلتك الآن <ArrowLeft className="mr-2 h-4 w-4" /></Link></Button>
+          <Button asChild size="lg" className="min-h-12 px-6"><Link to="/auth">ابدأ التعلّم <ArrowLeft className="mr-2 h-4 w-4" /></Link></Button>
           <p className="font-display text-base text-primary/80">﴿ وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا ﴾</p>
         </div>
         <div className="mx-auto hidden w-full max-w-[240px] md:block">
@@ -48,12 +47,12 @@ const GuestHome = () => {
       </section>
 
       <section className="space-y-5">
-        <SectionHeading eyebrow="منهج واضح" title="رحلة واحدة، بثلاث محطات" />
+        <SectionHeading eyebrow="المنهج" title="ثلاث مراحل" />
         <div className="grid gap-3 md:grid-cols-3">
           {journeyStages.map((stage, index) => (
             <article key={stage.title} className="rounded-xl border border-border bg-card p-5">
               <div className={`mb-4 flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold ${stage.tone}`}>{index + 1}</div>
-              <h3 className="text-lg font-bold">{stage.title}</h3><p className="mt-1 text-sm leading-6 text-muted-foreground">{stage.description}</p>
+              <h3 className="text-lg font-bold">{stage.title}</h3><p className="mt-0.5 text-xs font-semibold text-muted-foreground">{stage.subtitle}</p><p className="mt-1 text-sm leading-6 text-muted-foreground">{stage.description}</p>
             </article>
           ))}
         </div>
@@ -61,7 +60,7 @@ const GuestHome = () => {
 
       {!isLoading && courses.length > 0 && (
         <section className="space-y-5">
-          <SectionHeading eyebrow="ابدأ بما يناسبك" title="مختار من المدرسة" to="/learn" linkLabel="استكشف التعلّم" />
+          <SectionHeading eyebrow="المحتوى" title="مسارات ودروس من المدرسة" to="/learn" linkLabel="عرض المسارات" />
           <div className="grid gap-3 sm:grid-cols-2">
             {courses.slice(0, 2).map((course) => (
               <Link key={course.id} to={`/courses/${course.id}`} className="group rounded-xl border border-border bg-card p-5 transition-colors hover:border-primary/25">
@@ -86,14 +85,14 @@ const MemberHome = ({ userId, name }: { userId: string; name: string }) => {
       <header className="flex flex-col gap-1">
         <p className="reference-eyebrow">مرحباً بك في المدرسة</p>
         <h1 className="reference-title">مرحباً {name} 👋</h1>
-        <p className="reference-copy">كل خطوة في طلب العلم تقرّبك. تابع رحلتك من المكان الذي توقفت عنده.</p>
+        <p className="reference-copy">تابع من آخر درس وصلت إليه، أو اختر مساراً جديداً.</p>
       </header>
 
       <section className="reference-card overflow-hidden">
         <div className="grid min-h-[250px] lg:grid-cols-[1.08fr_0.92fr]">
           <div className="flex flex-col justify-between p-5 sm:p-7">
             <div>
-              <p className="reference-eyebrow">أكمل رحلتك اليوم</p>
+              <p className="reference-eyebrow">تابع التعلّم</p>
               {progressLoading ? (
                 <div className="mt-6 flex min-h-28 items-center justify-center">
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -142,7 +141,7 @@ const MemberHome = ({ userId, name }: { userId: string; name: string }) => {
             />
             <div className="absolute inset-0 bg-gradient-to-t from-primary/45 via-transparent to-transparent" />
             <div className="absolute bottom-5 right-5 left-5 rounded-[9px] border border-white/10 bg-black/20 p-3 text-white backdrop-blur-sm">
-              <p className="text-xs text-white/70">رحلة العلم</p>
+              <p className="text-xs text-white/70">التعلّم</p>
               <p className="mt-1 font-display text-lg font-bold">﴿ وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا ﴾</p>
             </div>
           </div>
@@ -174,7 +173,7 @@ const MemberHome = ({ userId, name }: { userId: string; name: string }) => {
       </section>
 
       <section className="space-y-4">
-        <SectionHeading eyebrow="رحلتي التعليمية" title="المسار خطوة بخطوة" to="/learn" linkLabel="عرض كل المسارات" />
+        <SectionHeading eyebrow="المنهج" title="ثلاث مراحل" to="/learn" linkLabel="عرض المسارات" />
         <div className="reference-card p-4 sm:p-5">
           <div className="space-y-2">
             {journeyStages.map((stage, index) => (
@@ -185,6 +184,7 @@ const MemberHome = ({ userId, name }: { userId: string; name: string }) => {
                 <div className="min-w-0">
                   <p className="text-xs text-muted-foreground">المرحلة {index + 1}</p>
                   <h3 className="font-bold text-foreground">{stage.title}</h3>
+                  <p className="text-xs font-semibold text-muted-foreground">{stage.subtitle}</p>
                   <p className="mt-0.5 text-xs text-muted-foreground">{stage.description}</p>
                 </div>
                 <ChevronLeft className="h-4 w-4 text-muted-foreground" />
@@ -195,7 +195,7 @@ const MemberHome = ({ userId, name }: { userId: string; name: string }) => {
       </section>
 
       <section className="space-y-4">
-        <SectionHeading eyebrow="مباشر وقادم" title="اقترب من اللقاء" to="/live" linkLabel="كل الجلسات" />
+        <SectionHeading eyebrow="اللقاءات" title="اللقاء القادم" to="/live" linkLabel="كل الجلسات" />
         {workshopsLoading ? (
           <div className="h-28 animate-pulse rounded-[10px] bg-muted" />
         ) : nextWorkshop ? (
@@ -252,10 +252,10 @@ const Index = () => {
 
   return (
     <AppLayout>
-      <PageMeta title="الرئيسية" description="المدرسة الترتيلية - رحلة واضحة في اللسان العربي المبين وعلوم القرآن." path="/" />
+      <PageMeta title="الرئيسية" description="المدرسة الترتيلية لتعلّم أدوات تدبّر القرآن واللسان العربي من خلال المسارات والدروس واللقاءات." path="/" />
       <div className="page-shell max-w-7xl">
         {authLoading ? <div className="flex min-h-[50vh] items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-primary" aria-label="جارٍ تحميل الصفحة" /></div> : user ? <MemberHome userId={user.id} name={name} /> : <GuestHome />}
-        {!authLoading && user && !hasSubscription && <section className="mt-10 flex flex-col gap-4 rounded-2xl border border-accent/25 bg-accent/5 p-5 sm:flex-row sm:items-center"><Crown className="h-7 w-7 shrink-0 text-accent" /><div className="flex-1"><h2 className="font-bold">وسّع رحلتك مع العضوية</h2><p className="mt-1 text-sm leading-6 text-muted-foreground">وصول أوسع إلى مزايا المدرسة ومساعد التدبّر.</p></div><Button asChild variant="outline"><Link to="/subscription">عرض العضوية</Link></Button></section>}
+        {!authLoading && user && !hasSubscription && <section className="mt-10 flex flex-col gap-4 rounded-2xl border border-accent/25 bg-accent/5 p-5 sm:flex-row sm:items-center"><Crown className="h-7 w-7 shrink-0 text-accent" /><div className="flex-1"><h2 className="font-bold">العضوية</h2><p className="mt-1 text-sm leading-6 text-muted-foreground">تتيح العضوية وصولاً أوسع إلى محتوى المدرسة ومساعد التدبّر.</p></div><Button asChild variant="outline"><Link to="/subscription">عرض العضوية</Link></Button></section>}
       </div>
     </AppLayout>
   );

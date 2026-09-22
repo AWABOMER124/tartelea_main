@@ -47,9 +47,9 @@ const categoryLabels: Record<string, string> = {
 };
 
 const levelLabels: Record<string, string> = {
-  beginner: "تخلية",
-  intermediate: "تحلية",
-  advanced: "تجلّي",
+  beginner: "خلع — تخلية",
+  intermediate: "تدبّر — تحلية",
+  advanced: "تحرّر — تجلّي",
 };
 
 const GlobalSearch = () => {
@@ -179,9 +179,9 @@ const GlobalSearch = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">كل المستويات</SelectItem>
-              <SelectItem value="beginner">تخلية</SelectItem>
-              <SelectItem value="intermediate">تحلية</SelectItem>
-              <SelectItem value="advanced">تجلّي</SelectItem>
+              <SelectItem value="beginner">خلع — تخلية</SelectItem>
+              <SelectItem value="intermediate">تدبّر — تحلية</SelectItem>
+              <SelectItem value="advanced">تحرّر — تجلّي</SelectItem>
             </SelectContent>
           </Select>
           {hasActiveFilters && (

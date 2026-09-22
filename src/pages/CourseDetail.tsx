@@ -52,9 +52,9 @@ const categoryLabels: Record<string, string> = {
 };
 
 const depthLabels: Record<string, string> = {
-  beginner: "تخلية",
-  intermediate: "تحلية",
-  advanced: "تجلّي",
+  beginner: "خلع — تخلية",
+  intermediate: "تدبّر — تحلية",
+  advanced: "تحرّر — تجلّي",
 };
 
 const CourseDetail = () => {

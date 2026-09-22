@@ -37,16 +37,16 @@ const categoryLabels: Record<string, string> = {
 };
 
 const depthLabels: Record<string, string> = {
-  beginner: "تخلية",
-  intermediate: "تحلية",
-  advanced: "تجلّي",
+  beginner: "خلع — تخلية",
+  intermediate: "تدبّر — تحلية",
+  advanced: "تحرّر — تجلّي",
 };
 
 const depthFilters = [
   { value: "all", label: "الكل" },
-  { value: "beginner", label: "تخلية" },
-  { value: "intermediate", label: "تحلية" },
-  { value: "advanced", label: "تجلّي" },
+  { value: "beginner", label: "خلع — تخلية" },
+  { value: "intermediate", label: "تدبّر — تحلية" },
+  { value: "advanced", label: "تحرّر — تجلّي" },
 ];
 
 const CourseCardSkeleton = () => (
@@ -126,11 +126,11 @@ const Courses = () => {
 
   return (
     <AppLayout>
-      <PageMeta title="المسارات" description="مسارات المدرسة الترتيلية من التخلية إلى التحلية ثم التجلّي." path="/courses" />
+      <PageMeta title="المسارات" description="مسارات المدرسة الترتيلية ضمن مراحل خلع وتدبّر وتحرّر." path="/courses" />
       <DiscoveryPage>
-        <DiscoveryHeader eyebrow="رحلة متدرّجة" title="المسارات" description="اختر محطة الرحلة، ثم ابدأ مساراً يقودك من الفهم إلى الأثر بخطوات واضحة." icon={BookOpen} />
+        <DiscoveryHeader eyebrow="المنهج" title="المسارات" description="اختر المرحلة، ثم المسار الذي تريد دراسته." icon={BookOpen} />
 
-        <FilterPanel><FilterGroup label="المحطة">{depthFilters.map((filter) => <FilterChip key={filter.value} label={filter.label} isActive={selectedDepth === filter.value} onClick={() => setSelectedDepth(filter.value)} />)}</FilterGroup></FilterPanel>
+        <FilterPanel><FilterGroup label="المرحلة">{depthFilters.map((filter) => <FilterChip key={filter.value} label={filter.label} isActive={selectedDepth === filter.value} onClick={() => setSelectedDepth(filter.value)} />)}</FilterGroup></FilterPanel>
 
         <ResultsHeading count={filteredCourses.length} label="المسارات المتاحة" />
 
