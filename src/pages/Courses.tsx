@@ -37,16 +37,16 @@ const categoryLabels: Record<string, string> = {
 };
 
 const depthLabels: Record<string, string> = {
-  beginner: "تخلية",
-  intermediate: "تحلية",
-  advanced: "تجلّي",
+  beginner: "خلع — تخلية",
+  intermediate: "تدبّر — تحلية",
+  advanced: "تحرّر — تجلّي",
 };
 
 const depthFilters = [
   { value: "all", label: "الكل" },
-  { value: "beginner", label: "تخلية" },
-  { value: "intermediate", label: "تحلية" },
-  { value: "advanced", label: "تجلّي" },
+  { value: "beginner", label: "خلع — تخلية" },
+  { value: "intermediate", label: "تدبّر — تحلية" },
+  { value: "advanced", label: "تحرّر — تجلّي" },
 ];
 
 const CourseCardSkeleton = () => (
