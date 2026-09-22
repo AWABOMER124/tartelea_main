@@ -7,9 +7,9 @@ import { listLibraryContent, type BackendContentItem as Content } from "@/lib/ba
 
 const depthFilters = [
   { value: "all", label: "الكل" },
-  { value: "beginner", label: "تخلية" },
-  { value: "intermediate", label: "تحلية" },
-  { value: "advanced", label: "تجلّي" },
+  { value: "beginner", label: "خلع — تخلية" },
+  { value: "intermediate", label: "تدبّر — تحلية" },
+  { value: "advanced", label: "تحرّر — تجلّي" },
 ];
 
 const typeFilters = [
