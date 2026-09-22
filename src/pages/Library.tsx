@@ -59,7 +59,7 @@ const Library = () => {
     <AppLayout>
       <PageMeta title="المكتبة" description="مقالات وصوتيات ومرئيات المدرسة الترتيلية." path="/library" />
       <DiscoveryPage>
-        <DiscoveryHeader eyebrow="تعلّم في وقتك" title="المكتبة" description="اختر المادة التي تحتاجها الآن، ورتّبها حسب النوع والموضوع ومحطة الرحلة." icon={BookOpen} />
+        <DiscoveryHeader eyebrow="تعلّم في وقتك" title="المكتبة" description="تصفّح المواد حسب النوع والموضوع والمرحلة." icon={BookOpen} />
 
         <FilterPanel>
           <FilterGroup label="النوع">
@@ -72,7 +72,7 @@ const Library = () => {
               <FilterChip key={filter.value} label={filter.label} isActive={categoryFilter === filter.value} onClick={() => setCategoryFilter(filter.value as CategoryType)} />
             ))}
           </FilterGroup>
-          <FilterGroup label="المحطة">
+          <FilterGroup label="المرحلة">
             {depthFilters.map((filter) => (
               <FilterChip key={filter.value} label={filter.label} isActive={depthFilter === filter.value} onClick={() => setDepthFilter(filter.value as DepthType)} />
             ))}
