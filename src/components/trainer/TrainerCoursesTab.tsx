@@ -14,7 +14,7 @@ const categoryLabels: Record<string, string> = {
   quran: "القرآن", values: "القيم", community: "المجتمع",
   sudan_awareness: "الوعي السوداني", arab_awareness: "الوعي العربي", islamic_awareness: "الوعي الإسلامي",
 };
-const depthLabels = { beginner: "تخلية", intermediate: "تحلية", advanced: "تجلّي" };
+const depthLabels = { beginner: "خلع — تخلية", intermediate: "تدبّر — تحلية", advanced: "تحرّر — تجلّي" };
 
 interface Props {
   courses: TrainerCourse[];
