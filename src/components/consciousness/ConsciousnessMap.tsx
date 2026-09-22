@@ -37,9 +37,9 @@ const ConsciousnessMap = ({
     <Card className="sanctuary-card">
       <CardContent className="p-0 relative z-10">
         <div className="text-center mb-6">
-          <h3 className="font-display text-lg text-foreground">خريطة الوعي الشخصية</h3>
+          <h3 className="font-display text-lg text-foreground">تقدّمك في المراحل</h3>
           <p className="text-xs text-muted-foreground mt-1">
-            العقود المغلقة: {unlockedCount} / {NODES.length}
+            العناصر المفتوحة: {unlockedCount} / {NODES.length}
           </p>
         </div>
 
@@ -100,13 +100,17 @@ const ConsciousnessMap = ({
 
         {/* Stage Legend */}
         <div className="flex justify-center gap-4 mt-6">
-          {["تخلية", "تحلية", "تجلي"].map((stage) => (
+          {[
+            { key: "تخلية", label: "خلع — تخلية" },
+            { key: "تحلية", label: "تدبّر — تحلية" },
+            { key: "تجلي", label: "تحرّر — تجلّي" },
+          ].map((stage) => (
             <Badge
-              key={stage}
+              key={stage.key}
               variant="outline"
-              className={`text-xs ${STAGE_COLORS[stage]} border-current/30`}
+              className={`text-xs ${STAGE_COLORS[stage.key]} border-current/30`}
             >
-              {stage}
+              {stage.label}
             </Badge>
           ))}
         </div>
@@ -119,11 +123,11 @@ const ConsciousnessMap = ({
           </div>
           <div>
             <p className="text-lg font-bold text-accent">{certificatesEarned}</p>
-            <p className="text-[10px] text-muted-foreground">عقود مختومة</p>
+            <p className="text-[10px] text-muted-foreground">شهادات</p>
           </div>
           <div>
             <p className="text-lg font-bold text-primary">{totalPoints}</p>
-            <p className="text-[10px] text-muted-foreground">نقاط الوعي</p>
+            <p className="text-[10px] text-muted-foreground">النقاط</p>
           </div>
         </div>
       </CardContent>
