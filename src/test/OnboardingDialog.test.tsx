@@ -23,7 +23,7 @@ describe("OnboardingDialog", () => {
   it("navigates through steps", () => {
     render(<OnboardingDialog />);
     fireEvent.click(screen.getByText("التالي"));
-    const elements = screen.getAllByText("تعلّم بالطريقة المناسبة لك");
+    const elements = screen.getAllByText("اختر المحتوى الذي تحتاجه");
     expect(elements.length).toBeGreaterThanOrEqual(1);
   });
 
@@ -32,7 +32,7 @@ describe("OnboardingDialog", () => {
     fireEvent.click(screen.getByText("التالي"));
     fireEvent.click(screen.getByText("التالي"));
     fireEvent.click(screen.getByText("التالي"));
-    fireEvent.click(screen.getByText("ابدأ رحلتي"));
+    fireEvent.click(screen.getByText("ابدأ"));
     expect(localStorage.getItem("onboarding_completed")).toBe("true");
   });
 });
