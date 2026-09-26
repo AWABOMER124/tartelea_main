@@ -18,7 +18,6 @@ const IslamicAwareness = lazyWithRetry(() => import("./pages/IslamicAwareness"))
 const Profile = lazyWithRetry(() => import("./pages/Profile"));
 const Auth = lazyWithRetry(() => import("./pages/Auth"));
 const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
-const AdminDashboard = lazyWithRetry(() => import("./pages/AdminDashboard"));
 const ContentDetail = lazyWithRetry(() => import("./pages/ContentDetail"));
 const TrainerDashboard = lazyWithRetry(() => import("./pages/TrainerDashboard"));
 const TrainerProfile = lazyWithRetry(() => import("./pages/TrainerProfile"));
@@ -104,7 +103,6 @@ const AppInner = () => {
         <Route path="/islamic-awareness" element={<IslamicAwareness />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/auth" element={<Auth />} />
-        <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/trainer" element={<TrainerDashboard />} />
         <Route path="/trainer/:id" element={<TrainerProfile />} />
         <Route path="/bookings" element={<Bookings />} />
